@@ -14,10 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAdminCompaniesRouteImport } from './routes/_authenticated/app.admin.companies'
+import { Route as AuthenticatedAppAdminCurriculumRouteImport } from './routes/_authenticated/app.admin.curriculum'
 import { Route as AuthenticatedAppAdminDashboardRouteImport } from './routes/_authenticated/app.admin.dashboard'
 import { Route as AuthenticatedAppAdminForecastingRouteImport } from './routes/_authenticated/app.admin.forecasting'
 import { Route as AuthenticatedAppAdminInternshipsRouteImport } from './routes/_authenticated/app.admin.internships'
 import { Route as AuthenticatedAppAdminPerformanceRouteImport } from './routes/_authenticated/app.admin.performance'
+import { Route as AuthenticatedAppAdminRecommendationsRouteImport } from './routes/_authenticated/app.admin.recommendations'
 import { Route as AuthenticatedAppAdminSchoolsRouteImport } from './routes/_authenticated/app.admin.schools'
 import { Route as AuthenticatedAppAdminStudentsRouteImport } from './routes/_authenticated/app.admin.students'
 import { Route as AuthenticatedAppAdminUsersRouteImport } from './routes/_authenticated/app.admin.users'
@@ -52,6 +54,12 @@ const AuthenticatedAppAdminCompaniesRoute =
     path: '/app/admin/companies',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAppAdminCurriculumRoute =
+  AuthenticatedAppAdminCurriculumRouteImport.update({
+    id: '/app/admin/curriculum',
+    path: '/app/admin/curriculum',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppAdminDashboardRoute =
   AuthenticatedAppAdminDashboardRouteImport.update({
     id: '/app/admin/dashboard',
@@ -74,6 +82,12 @@ const AuthenticatedAppAdminPerformanceRoute =
   AuthenticatedAppAdminPerformanceRouteImport.update({
     id: '/app/admin/performance',
     path: '/app/admin/performance',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminRecommendationsRoute =
+  AuthenticatedAppAdminRecommendationsRouteImport.update({
+    id: '/app/admin/recommendations',
+    path: '/app/admin/recommendations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAppAdminSchoolsRoute =
@@ -130,10 +144,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/app/admin/curriculum': typeof AuthenticatedAppAdminCurriculumRoute
   '/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
   '/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
   '/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
   '/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/app/admin/recommendations': typeof AuthenticatedAppAdminRecommendationsRoute
   '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
@@ -148,10 +164,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/app/admin/curriculum': typeof AuthenticatedAppAdminCurriculumRoute
   '/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
   '/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
   '/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
   '/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/app/admin/recommendations': typeof AuthenticatedAppAdminRecommendationsRoute
   '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
@@ -168,10 +186,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/_authenticated/app/admin/curriculum': typeof AuthenticatedAppAdminCurriculumRoute
   '/_authenticated/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
   '/_authenticated/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
   '/_authenticated/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
   '/_authenticated/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/_authenticated/app/admin/recommendations': typeof AuthenticatedAppAdminRecommendationsRoute
   '/_authenticated/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/_authenticated/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/_authenticated/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
@@ -188,10 +208,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/'
     | '/app/admin/companies'
+    | '/app/admin/curriculum'
     | '/app/admin/dashboard'
     | '/app/admin/forecasting'
     | '/app/admin/internships'
     | '/app/admin/performance'
+    | '/app/admin/recommendations'
     | '/app/admin/schools'
     | '/app/admin/students'
     | '/app/admin/users'
@@ -206,10 +228,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app'
     | '/app/admin/companies'
+    | '/app/admin/curriculum'
     | '/app/admin/dashboard'
     | '/app/admin/forecasting'
     | '/app/admin/internships'
     | '/app/admin/performance'
+    | '/app/admin/recommendations'
     | '/app/admin/schools'
     | '/app/admin/students'
     | '/app/admin/users'
@@ -225,10 +249,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/app/'
     | '/_authenticated/app/admin/companies'
+    | '/_authenticated/app/admin/curriculum'
     | '/_authenticated/app/admin/dashboard'
     | '/_authenticated/app/admin/forecasting'
     | '/_authenticated/app/admin/internships'
     | '/_authenticated/app/admin/performance'
+    | '/_authenticated/app/admin/recommendations'
     | '/_authenticated/app/admin/schools'
     | '/_authenticated/app/admin/students'
     | '/_authenticated/app/admin/users'
@@ -282,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAdminCompaniesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/admin/curriculum': {
+      id: '/_authenticated/app/admin/curriculum'
+      path: '/app/admin/curriculum'
+      fullPath: '/app/admin/curriculum'
+      preLoaderRoute: typeof AuthenticatedAppAdminCurriculumRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/admin/dashboard': {
       id: '/_authenticated/app/admin/dashboard'
       path: '/app/admin/dashboard'
@@ -308,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/app/admin/performance'
       fullPath: '/app/admin/performance'
       preLoaderRoute: typeof AuthenticatedAppAdminPerformanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/recommendations': {
+      id: '/_authenticated/app/admin/recommendations'
+      path: '/app/admin/recommendations'
+      fullPath: '/app/admin/recommendations'
+      preLoaderRoute: typeof AuthenticatedAppAdminRecommendationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/app/admin/schools': {
@@ -372,10 +412,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppAdminCompaniesRoute: typeof AuthenticatedAppAdminCompaniesRoute
+  AuthenticatedAppAdminCurriculumRoute: typeof AuthenticatedAppAdminCurriculumRoute
   AuthenticatedAppAdminDashboardRoute: typeof AuthenticatedAppAdminDashboardRoute
   AuthenticatedAppAdminForecastingRoute: typeof AuthenticatedAppAdminForecastingRoute
   AuthenticatedAppAdminInternshipsRoute: typeof AuthenticatedAppAdminInternshipsRoute
   AuthenticatedAppAdminPerformanceRoute: typeof AuthenticatedAppAdminPerformanceRoute
+  AuthenticatedAppAdminRecommendationsRoute: typeof AuthenticatedAppAdminRecommendationsRoute
   AuthenticatedAppAdminSchoolsRoute: typeof AuthenticatedAppAdminSchoolsRoute
   AuthenticatedAppAdminStudentsRoute: typeof AuthenticatedAppAdminStudentsRoute
   AuthenticatedAppAdminUsersRoute: typeof AuthenticatedAppAdminUsersRoute
@@ -389,10 +431,13 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppAdminCompaniesRoute: AuthenticatedAppAdminCompaniesRoute,
+  AuthenticatedAppAdminCurriculumRoute: AuthenticatedAppAdminCurriculumRoute,
   AuthenticatedAppAdminDashboardRoute: AuthenticatedAppAdminDashboardRoute,
   AuthenticatedAppAdminForecastingRoute: AuthenticatedAppAdminForecastingRoute,
   AuthenticatedAppAdminInternshipsRoute: AuthenticatedAppAdminInternshipsRoute,
   AuthenticatedAppAdminPerformanceRoute: AuthenticatedAppAdminPerformanceRoute,
+  AuthenticatedAppAdminRecommendationsRoute:
+    AuthenticatedAppAdminRecommendationsRoute,
   AuthenticatedAppAdminSchoolsRoute: AuthenticatedAppAdminSchoolsRoute,
   AuthenticatedAppAdminStudentsRoute: AuthenticatedAppAdminStudentsRoute,
   AuthenticatedAppAdminUsersRoute: AuthenticatedAppAdminUsersRoute,

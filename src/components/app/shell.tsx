@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Shield,
   School,
+  BookOpen,
+  Compass,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMe, globalSearch } from "@/lib/api.functions";
@@ -36,6 +38,8 @@ export function useMe() {
 
 export const adminNav = [
   { to: "/app/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/admin/curriculum", label: "Analisis Kurikulum AI", icon: BookOpen },
+  { to: "/app/admin/recommendations", label: "Smart Matching AI", icon: Compass },
   { to: "/app/admin/internships", label: "Pengajuan Magang", icon: FileText },
   { to: "/app/admin/students", label: "Data Siswa", icon: Users },
   { to: "/app/admin/schools", label: "Data Sekolah", icon: School },
@@ -47,11 +51,14 @@ export const adminNav = [
 
 export const guruNav = [
   { to: "/app/guru/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/admin/curriculum", label: "Analisis Kurikulum AI", icon: BookOpen },
+  { to: "/app/admin/recommendations", label: "Smart Matching AI", icon: Compass },
   { to: "/app/guru/students", label: "Data Siswa", icon: Users },
   { to: "/app/guru/internships", label: "Pengajuan Magang", icon: FileText },
   { to: "/app/guru/monitoring", label: "Monitoring & Log", icon: CalendarCheck },
   { to: "/app/guru/evaluations", label: "Penilaian Magang", icon: Award },
 ];
+
 
 export function AppShell({
   children,

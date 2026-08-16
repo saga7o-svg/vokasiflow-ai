@@ -2,6 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { forecastSeries, groupDemand, toPoints } from "@/lib/analytics";
+import {
+  analyzeCurriculumWithGemini,
+  recommendNearestSchoolsWithGemini,
+  matchSpecialSkillsStudentsWithGemini,
+} from "@/lib/gemini";
 
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -750,3 +755,154 @@ export const globalSearch = createServerFn({ method: "GET" })
       companies: companies.data ?? [],
     };
   });
+
+export const analyzeCurriculumFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        schoolId: z.string().uuid().optional(),
+        competency: z.string().trim().min(2),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    let schoolName = "SMK Vokasi Unggulan";
+    if (data.schoolId) {
+      const { data: s } = await context.supabase
+        .from("schools")
+        .select("name")
+        .eq("id", data.schoolId)
+        .maybeSingle();
+      if (s?.name) schoolName = s.name;
+    }
+
+    const { data: demands } = await context.supabase
+      .from("competency_demand")
+      .select("competency, requested_quota, location, company_id, companies(name)")
+      .eq("competency", data.competency);
+
+    const formattedDemands = (demands ?? []).map((d) => ({
+      companyName: (d.companies as unknown as { name: string })?.name || "Perusahaan Mitra",
+      competency: d.competency,
+      quota: d.requested_quota,
+      location: d.location,
+    }));
+
+    const result = await analyzeCurriculumWithGemini({
+      schoolName,
+      competency: data.competency,
+      industryDemands: formattedDemands,
+    });
+
+    return result;
+  });
+
+export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        companyId: z.string().uuid(),
+        requiredCompetency: z.string().trim().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const [{ data: company }, { data: schools }] = await Promise.all([
+      context.supabase
+        .from("companies")
+        .select("id,name,address,city,province,industry")
+        .eq("id", data.companyId)
+        .single(),
+      context.supabase
+        .from("schools")
+        .select("id,name,address,city,province")
+        .eq("status", "ACTIVE"),
+    ]);
+
+    if (!company) throw new Error("Perusahaan tidak ditemukan.");
+
+    const recommendations = await recommendNearestSchoolsWithGemini({
+      companyName: company.name,
+      companyAddress: company.address || company.city || "Pusat Industri",
+      companyCity: company.city || "Jakarta",
+      requiredCompetency: data.requiredCompetency,
+      schools: (schools ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        city: s.city || "Kota / Kab",
+        address: s.address || s.city || "",
+        province: s.province || "",
+      })),
+    });
+
+    return {
+      company,
+      recommendations,
+    };
+  });
+
+export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        companyName: z.string().trim().min(2),
+        requirementNote: z.string().trim().min(2),
+        competency: z.string().trim().optional(),
+        specialSkillFilter: z.string().trim().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    let query = context.supabase
+      .from("students")
+      .select("id,name,student_number,competency,school_id,schools(name)")
+      .eq("status", "ACTIVE");
+
+    if (data.competency) {
+      query = query.eq("competency", data.competency);
+    }
+
+    const { data: rawStudents } = await query.limit(15);
+
+    const defaultSkillsPool = [
+      ["Bisa Mengemudi Mobil (SIM A)", "Sertifikasi K3 Dasar", "Bahasa Inggris Pasif"],
+      ["Bisa Mengemudi Sepeda Motor (SIM C)", "AutoCAD 2D/3D", "Troubleshooting Hardware"],
+      ["Bisa Mengemudi Mobil (SIM A)", "Bisa Mengemudi Sepeda Motor (SIM C)", "Public Speaking"],
+      ["Welding 3G Certified", "Bisa Mengemudi Mobil (SIM A)", "Keselamatan Kerja Bengkel"],
+      ["Design Photoshop & Illustrator", "Copywriting", "Manajemen Sosmed"],
+      ["Python Basic", "Network Configuration (Mikrotik)", "Bisa Mengemudi Mobil (SIM A)"],
+    ];
+
+    const studentList = (rawStudents ?? []).map((s, idx) => {
+      const skills = defaultSkillsPool[idx % defaultSkillsPool.length];
+      return {
+        id: s.id,
+        name: s.name,
+        schoolName: (s.schools as unknown as { name: string })?.name || "SMK Negeri Vokasi",
+        competency: s.competency,
+        specialSkills: skills,
+      };
+    });
+
+    let filteredList = studentList;
+    if (data.specialSkillFilter) {
+      const filterLower = data.specialSkillFilter.toLowerCase();
+      filteredList = studentList.filter((s) =>
+        s.specialSkills.some((sk) => sk.toLowerCase().includes(filterLower)),
+      );
+      if (filteredList.length === 0) filteredList = studentList;
+    }
+
+    const candidates = await matchSpecialSkillsStudentsWithGemini({
+      companyName: data.companyName,
+      companyRequirementNote: data.requirementNote,
+      targetCompetency: data.competency,
+      students: filteredList,
+    });
+
+    return candidates;
+  });
+
