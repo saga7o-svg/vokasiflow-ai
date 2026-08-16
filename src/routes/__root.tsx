@@ -117,7 +117,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1" },
     ],
     links: [
-      { rel: "canonical", href: "https://vokasiflow-ai.web.app/" },
+      { rel: "canonical", href: "https://www.cma-vocational.web.id/" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -146,11 +146,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           },
           description:
             "Sistem Manajemen Magang Vokasi Berbasis AI untuk Penempatan, Monitoring, dan Forecasting Kinerja Magang SMK.",
-          url: "https://vokasiflow-ai.web.app/",
+          url: "https://www.cma-vocational.web.id/",
           publisher: {
             "@type": "Organization",
             name: "VokasiFlow AI",
-            logo: "https://vokasiflow-ai.web.app/og-image.jpg",
+            logo: "https://www.cma-vocational.web.id/og-image.jpg",
           },
         }),
       },

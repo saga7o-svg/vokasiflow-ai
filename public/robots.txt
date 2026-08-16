@@ -24,4 +24,4 @@ User-agent: *
 Allow: /
 Disallow: /app/
 
-Sitemap: https://vokasiflow-ai.web.app/sitemap.xml
+Sitemap: https://www.cma-vocational.web.id/sitemap.xml
