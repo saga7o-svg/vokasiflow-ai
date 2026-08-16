@@ -53,7 +53,7 @@ export function DashboardChrome({
 export function Metric({
   value,
   label,
-  suffix,
+  suffix = "",
   icon: Icon,
 }: {
   value: number;
