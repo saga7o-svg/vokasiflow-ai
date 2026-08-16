@@ -31,8 +31,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function getMiddlewareHelper(opts?: any) {
-  if (typeof createMiddleware === "function") {
-    return createMiddleware(opts);
+  try {
+    if (typeof createMiddleware === "function") {
+      const res = createMiddleware(opts);
+      if (res && (typeof res.client === "function" || typeof res.server === "function")) {
+        return res;
+      }
+    }
+  } catch {
+    // fallback if createMiddleware throws during isomorphic evaluation
   }
   return {
     client: (client: any) => ({ options: { ...(opts || {}), client } }),
