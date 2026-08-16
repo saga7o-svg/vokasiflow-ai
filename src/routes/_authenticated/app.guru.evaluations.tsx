@@ -90,8 +90,8 @@ function GuruEvaluationsPage() {
       technical_score: number;
       non_technical_score: number;
       discipline_score: number;
-      evaluator_name?: string;
-      notes?: string;
+      evaluator_name?: string | undefined;
+      notes?: string | undefined;
     }) => {
       return saveEvaluationFn({ data: payload });
     },

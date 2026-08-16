@@ -34,12 +34,12 @@ interface StudentItem {
   school_id: string;
   student_number: string;
   name: string;
-  gender: "L" | "P" | null;
+  gender: string | null;
   birth_date: string | null;
   phone: string | null;
   email: string | null;
   competency: string;
-  status: "ACTIVE" | "INACTIVE";
+  status: string;
   schools?: { name: string } | null;
 }
 
@@ -82,7 +82,7 @@ function AdminStudentsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (payload: {
-      id?: string;
+      id?: string | undefined;
       school_id?: string;
       student_number: string;
       name: string;
@@ -127,12 +127,12 @@ function AdminStudentsPage() {
     setStudentNumber(student.student_number);
     setName(student.name);
     setSchoolId(student.school_id);
-    setGender(student.gender ?? "L");
+    setGender(student.gender === "P" ? "P" : "L");
     setBirthDate(student.birth_date ?? "");
     setPhone(student.phone ?? "");
     setEmail(student.email ?? "");
     setCompetency(student.competency);
-    setStatus(student.status as "ACTIVE" | "INACTIVE");
+    setStatus(student.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
     setModalOpen(true);
   }
 

@@ -40,7 +40,7 @@ interface CompanyItem {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
-  status: "ACTIVE" | "INACTIVE";
+  status: string;
 }
 
 interface QuotaItem {
@@ -90,7 +90,7 @@ function AdminCompaniesPage() {
 
   const saveCompanyMutation = useMutation({
     mutationFn: async (payload: {
-      id?: string;
+      id?: string | undefined;
       name: string;
       company_code: string;
       industry: string | null;
@@ -121,7 +121,7 @@ function AdminCompaniesPage() {
 
   const saveQuotaMutation = useMutation({
     mutationFn: async (payload: {
-      id?: string;
+      id?: string | undefined;
       company_id: string;
       competency: string;
       period: string;

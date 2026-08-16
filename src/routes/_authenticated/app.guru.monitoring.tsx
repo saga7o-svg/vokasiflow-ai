@@ -84,7 +84,7 @@ function GuruMonitoringPage() {
       internship_id: string;
       date: string;
       status: "PRESENT" | "LATE" | "ABSENT" | "EXCUSED";
-      notes?: string;
+      notes?: string | undefined;
     }) => {
       return saveAttendanceFn({ data: payload });
     },
@@ -105,9 +105,9 @@ function GuruMonitoringPage() {
       internship_id: string;
       report_date: string;
       activity: string;
-      achievement?: string;
-      obstacles?: string;
-      notes?: string;
+      achievement?: string | undefined;
+      obstacles?: string | undefined;
+      notes?: string | undefined;
     }) => {
       return saveReportFn({ data: payload });
     },

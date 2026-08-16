@@ -34,7 +34,7 @@ interface UserItem {
   name: string;
   email: string;
   school_id: string | null;
-  status: "ACTIVE" | "INACTIVE";
+  status: string;
   role: "ADMIN" | "GURU";
   schoolName: string | null;
 }
@@ -131,8 +131,8 @@ function AdminUsersPage() {
     setEditingUser(u);
     setEditName(u.name);
     setEditSchoolId(u.school_id ?? null);
-    setEditStatus(u.status ?? "ACTIVE");
-    setEditRole(u.role ?? "GURU");
+    setEditStatus(u.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
+    setEditRole(u.role === "ADMIN" ? "ADMIN" : "GURU");
     setEditModalOpen(true);
   }
 

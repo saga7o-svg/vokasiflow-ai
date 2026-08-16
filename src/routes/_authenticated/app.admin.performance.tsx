@@ -375,7 +375,7 @@ function SchoolPerformancePage() {
                   <span>Rekomendasi AI untuk Sekolah Ini:</span>
                 </div>
                 <p className="text-foreground leading-relaxed">
-                  {selectedSchool.score >= 80 ? (
+                  {(selectedSchool.score ?? 0) >= 80 ? (
                     <>
                       <strong>{selectedSchool.school_name}</strong> menunjukkan kinerja program
                       magang yang luar biasa. Tingkat kepuasan industri mitra sangat memuaskan.

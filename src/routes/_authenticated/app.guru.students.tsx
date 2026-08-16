@@ -18,6 +18,18 @@ export const Route = createFileRoute("/_authenticated/app/guru/students")({
   component: GuruStudentsPage,
 });
 
+interface StudentItem {
+  id: string;
+  student_number: string;
+  name: string;
+  gender: string | null;
+  birth_date: string | null;
+  phone: string | null;
+  email: string | null;
+  competency: string;
+  status: string;
+}
+
 function GuruStudentsPage() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
@@ -27,7 +39,7 @@ function GuruStudentsPage() {
   const [search, setSearch] = useState("");
   const [selectedCompetency, setSelectedCompetency] = useState<string>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [editingStudent, setEditingStudent] = useState<StudentItem | null>(null);
 
   // Form states
   const [studentNumber, setStudentNumber] = useState("");
@@ -49,7 +61,17 @@ function GuruStudentsPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: {
+      id?: string | undefined;
+      student_number: string;
+      name: string;
+      gender: "L" | "P" | null;
+      birth_date: string | null;
+      phone: string | null;
+      email: string | null;
+      competency: string;
+      status: "ACTIVE" | "INACTIVE";
+    }) => {
       return saveStudentFn({ data: payload });
     },
     onSuccess: () => {
@@ -60,7 +82,7 @@ function GuruStudentsPage() {
       queryClient.invalidateQueries({ queryKey: ["guru-dashboard"] });
       closeModal();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err?.message || "Gagal menyimpan data siswa.");
     },
   });
@@ -78,16 +100,16 @@ function GuruStudentsPage() {
     setModalOpen(true);
   }
 
-  function openEditModal(student: any) {
+  function openEditModal(student: StudentItem) {
     setEditingStudent(student);
     setStudentNumber(student.student_number);
     setName(student.name);
-    setGender(student.gender ?? "L");
+    setGender(student.gender === "P" ? "P" : "L");
     setBirthDate(student.birth_date ?? "");
     setPhone(student.phone ?? "");
     setEmail(student.email ?? "");
     setCompetency(student.competency);
-    setStatus(student.status);
+    setStatus(student.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
     setModalOpen(true);
   }
 

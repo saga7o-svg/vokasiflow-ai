@@ -652,14 +652,12 @@ export const createGuruUser = createServerFn({ method: "POST" })
     });
     if (error || !created.user)
       throw new Error("Pengguna gagal dibuat. Email mungkin sudah terdaftar.");
-    await supabaseAdmin
-      .from("profiles")
-      .upsert({
-        id: created.user.id,
-        name: data.name,
-        email: data.email,
-        school_id: data.school_id,
-      });
+    await supabaseAdmin.from("profiles").upsert({
+      id: created.user.id,
+      name: data.name,
+      email: data.email,
+      school_id: data.school_id,
+    });
     await supabaseAdmin.from("user_roles").delete().eq("user_id", created.user.id);
     await supabaseAdmin.from("user_roles").insert({ user_id: created.user.id, role: data.role });
     await context.supabase.from("audit_logs").insert({

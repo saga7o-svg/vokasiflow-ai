@@ -27,7 +27,7 @@ interface SchoolItem {
   province: string | null;
   contact_name: string | null;
   contact_phone: string | null;
-  status: "ACTIVE" | "INACTIVE";
+  status: string;
 }
 
 function AdminSchoolsPage() {
@@ -60,7 +60,7 @@ function AdminSchoolsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (payload: {
-      id?: string;
+      id?: string | undefined;
       name: string;
       school_code: string;
       address: string | null;
