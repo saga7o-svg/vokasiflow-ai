@@ -30,7 +30,17 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-export const requireSupabaseAuth = createMiddleware({ type: "function" }).server(
+function getMiddlewareHelper(opts?: any) {
+  if (typeof createMiddleware === "function") {
+    return createMiddleware(opts);
+  }
+  return {
+    client: (client: any) => ({ options: { ...(opts || {}), client } }),
+    server: (server: any) => ({ options: { ...(opts || {}), server } }),
+  };
+}
+
+export const requireSupabaseAuth = getMiddlewareHelper({ type: "function" }).server(
   async ({ next, request }: any) => {
     const SUPABASE_URL = process.env["SUPABASE_URL"];
     const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
