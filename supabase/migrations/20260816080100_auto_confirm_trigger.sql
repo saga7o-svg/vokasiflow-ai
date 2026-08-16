@@ -5,7 +5,6 @@ RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF NEW.email IN ('admin@example.com', 'guru@example.com') THEN
     NEW.email_confirmed_at = COALESCE(NEW.email_confirmed_at, now());
-    NEW.confirmed_at = COALESCE(NEW.confirmed_at, now());
   END IF;
   RETURN NEW;
 END; $$;
