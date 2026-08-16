@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/app/")({
 });
 
 function AppIndexRedirect() {
-  const { data: me, isPending } = useMe();
+  const { data: me, isPending, isError } = useMe();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,8 +24,10 @@ function AppIndexRedirect() {
       } else {
         navigate({ to: "/app/guru/dashboard", replace: true });
       }
+    } else if (isError) {
+      navigate({ to: "/auth", replace: true });
     }
-  }, [me, navigate]);
+  }, [me, isError, navigate]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
