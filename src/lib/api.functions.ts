@@ -827,7 +827,7 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
       companyName: company.name,
       companyAddress: company.address || company.city || "Pusat Industri",
       companyCity: company.city || "Jakarta",
-      requiredCompetency: data.requiredCompetency,
+      ...(data.requiredCompetency ? { requiredCompetency: data.requiredCompetency } : {}),
       schools: (schools ?? []).map((s) => ({
         id: s.id,
         name: s.name,
@@ -877,7 +877,7 @@ export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST"
     ];
 
     const studentList = (rawStudents ?? []).map((s, idx) => {
-      const skills = defaultSkillsPool[idx % defaultSkillsPool.length];
+      const skills = defaultSkillsPool[idx % defaultSkillsPool.length] ?? [];
       return {
         id: s.id,
         name: s.name,
@@ -899,7 +899,7 @@ export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST"
     const candidates = await matchSpecialSkillsStudentsWithGemini({
       companyName: data.companyName,
       companyRequirementNote: data.requirementNote,
-      targetCompetency: data.competency,
+      ...(data.competency ? { targetCompetency: data.competency } : {}),
       students: filteredList,
     });
 

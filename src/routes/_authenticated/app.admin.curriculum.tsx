@@ -47,7 +47,7 @@ function CurriculumAnalysisPage() {
   });
 
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
-  const [selectedCompetency, setSelectedCompetency] = useState<string>(DEFAULT_COMPETENCIES[0]);
+  const [selectedCompetency, setSelectedCompetency] = useState<string>(DEFAULT_COMPETENCIES[0] ?? "");
   const [analysisResult, setAnalysisResult] = useState<CurriculumAnalysisResult | null>(null);
 
   const analyzeMutation = useMutation({

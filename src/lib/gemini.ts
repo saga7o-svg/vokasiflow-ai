@@ -2,9 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 
 function getGenAI() {
   const apiKey =
-    process.env.GEMINI_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env["GEMINI_API_KEY"] ||
+    process.env["VITE_GEMINI_API_KEY"] ||
+    process.env["GOOGLE_GENERATIVE_AI_API_KEY"] ||
     "";
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
