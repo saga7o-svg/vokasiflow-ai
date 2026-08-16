@@ -10,5 +10,18 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+# AI & LLM Search Crawlers (ChatGPT Search, Perplexity, Gemini, Claude)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
 User-agent: *
 Allow: /
+Disallow: /app/
+
+Sitemap: https://vokasiflow-ai.web.app/sitemap.xml

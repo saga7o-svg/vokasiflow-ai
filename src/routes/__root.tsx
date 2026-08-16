@@ -72,17 +72,52 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "VokasiFlow AI - Sistem Manajemen Magang Vokasi" },
-      { name: "description", content: "Platform Manajemen Magang Vokasi Berbasis AI" },
-      { name: "author", content: "VokasiFlow AI" },
-      { property: "og:title", content: "VokasiFlow AI" },
-      { property: "og:description", content: "Platform Manajemen Magang Vokasi Berbasis AI" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5" },
+      { title: "VokasiFlow AI — Sistem Manajemen Magang Vokasi Berbasis AI" },
+      {
+        name: "description",
+        content:
+          "Platform manajemen magang vokasi untuk sekolah & SMK mitra: penempatan presisi, monitoring real-time, evaluasi jurnal, serta forecasting analitik berbasis AI.",
+      },
+      {
+        name: "keywords",
+        content:
+          "vokasiflow, magang vokasi, smk, manajemen magang, ai magang, penempatan magang, jurnal magang, industri mitra, pkl vokasi",
+      },
+      { name: "author", content: "VokasiFlow AI Team" },
+      { name: "theme-color", content: "#0f172a" },
+
+      // Open Graph / Facebook / WhatsApp / LinkedIn
+      { property: "og:site_name", content: "VokasiFlow AI" },
+      { property: "og:title", content: "VokasiFlow AI — Sistem Manajemen Magang Vokasi Berbasis AI" },
+      {
+        property: "og:description",
+        content:
+          "Kelola penempatan magang vokasi, evaluasi kinerja siswa, dan analitik keselarasan kurikulum industri berbasis AI secara terpusat.",
+      },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/og-image.jpg" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "VokasiFlow AI Platform Interface Preview" },
+      { property: "og:locale", content: "id_ID" },
+
+      // Twitter Cards
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@VokasiFlow" },
+      { name: "twitter:title", content: "VokasiFlow AI — Platform Magang Vokasi Berbasis AI" },
+      {
+        name: "twitter:description",
+        content:
+          "Kelola penempatan magang vokasi, evaluasi kinerja siswa, dan analitik keselarasan kurikulum industri berbasis AI.",
+      },
+      { name: "twitter:image", content: "/og-image.jpg" },
+
+      // Crawling & Indexing default
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1" },
     ],
     links: [
+      { rel: "canonical", href: "https://vokasiflow-ai.web.app/" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -94,6 +129,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "VokasiFlow AI",
+          applicationCategory: "EducationalApplication",
+          operatingSystem: "Web Browser",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "IDR",
+          },
+          description:
+            "Sistem Manajemen Magang Vokasi Berbasis AI untuk Penempatan, Monitoring, dan Forecasting Kinerja Magang SMK.",
+          url: "https://vokasiflow-ai.web.app/",
+          publisher: {
+            "@type": "Organization",
+            name: "VokasiFlow AI",
+            logo: "https://vokasiflow-ai.web.app/og-image.jpg",
+          },
+        }),
+      },
     ],
   }),
   shellComponent: RootShell,
