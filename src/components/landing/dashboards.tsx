@@ -96,7 +96,7 @@ export function BarChartMini({
   const { ref, visible } = useInView<HTMLDivElement>();
   const max = Math.max(...data);
   return (
-    <div ref={ref} className="flex h-32 items-end gap-2">
+    <div ref={ref} className="flex h-32 items-stretch gap-2">
       {data.map((d, i) => (
         <div key={labels[i]} className="flex min-w-0 flex-1 flex-col items-center gap-2">
           <div className="flex w-full flex-1 items-end">
