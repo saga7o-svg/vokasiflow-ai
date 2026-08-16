@@ -10,7 +10,7 @@ export const getMe = createServerFn({ method: "GET" })
     const [{ data: profile }, { data: roles }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id,name,email,school_id,status")
+        .select("id,name,email,school_id,status,phone,position")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
@@ -47,10 +47,14 @@ export const getMe = createServerFn({ method: "GET" })
       schoolName = school?.name ?? null;
     }
 
+    const rawProf = profile as { phone?: string | null; position?: string | null } | null;
+
     return {
       id: userId,
       name: profile?.name || (isDemoAdmin ? "Admin Pusat" : isDemoGuru ? "Guru Pembimbing" : ""),
       email: profile?.email ?? "",
+      phone: rawProf?.phone ?? null,
+      position: rawProf?.position ?? null,
       schoolId: currentSchoolId,
       schoolName,
       status: profile?.status ?? "ACTIVE",

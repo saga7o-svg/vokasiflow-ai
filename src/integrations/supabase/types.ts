@@ -388,6 +388,8 @@ export type Database = {
           email: string;
           id: string;
           name: string;
+          phone: string | null;
+          position: string | null;
           school_id: string | null;
           status: string;
           updated_at: string;
@@ -397,6 +399,8 @@ export type Database = {
           email?: string;
           id: string;
           name?: string;
+          phone?: string | null;
+          position?: string | null;
           school_id?: string | null;
           status?: string;
           updated_at?: string;
@@ -406,6 +410,8 @@ export type Database = {
           email?: string;
           id?: string;
           name?: string;
+          phone?: string | null;
+          position?: string | null;
           school_id?: string | null;
           status?: string;
           updated_at?: string;

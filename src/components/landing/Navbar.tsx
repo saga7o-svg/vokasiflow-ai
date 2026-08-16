@@ -61,12 +61,13 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             <Link
               to="/auth"
-              className="hidden rounded-full px-4 py-2 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+              search={{ mode: "login" }}
+              className="hidden rounded-full px-4 py-2 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
             >
-              Masuk
+              Masuk (Sign In)
             </Link>
-            <Cta href="/auth" className="hidden sm:inline-flex">
-              Mulai Sekarang
+            <Cta href="/auth?mode=register" className="hidden sm:inline-flex">
+              Daftar Guru (Sign Up)
             </Cta>
             <button
               type="button"
@@ -96,11 +97,11 @@ export function Navbar() {
               ))}
             </ul>
             <div className="mt-3 flex gap-2">
-              <Cta href="/auth" variant="ghost" className="flex-1">
+              <Cta href="/auth?mode=login" variant="ghost" className="flex-1">
                 Masuk
               </Cta>
-              <Cta href="/auth" className="flex-1">
-                Mulai Sekarang
+              <Cta href="/auth?mode=register" className="flex-1">
+                Daftar Guru
               </Cta>
             </div>
           </div>

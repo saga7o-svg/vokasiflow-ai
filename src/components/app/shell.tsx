@@ -67,6 +67,7 @@ export function AppShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -90,7 +91,7 @@ export function AppShell({
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", search: { mode: "login" }, replace: true });
   }
 
   return (
@@ -104,7 +105,10 @@ export function AppShell({
           )}
         >
           {/* Brand Header */}
-          <Link to="/" className="flex items-center gap-2.5 px-2 pb-6 border-b border-border">
+          <Link
+            to={me?.role === "ADMIN" ? "/app/admin/dashboard" : "/app/guru/dashboard"}
+            className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity"
+          >
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <Sparkles className="h-4 w-4 text-accent" aria-hidden />
             </span>
@@ -204,6 +208,68 @@ export function AppShell({
                   ⌘K
                 </kbd>
               </button>
+
+              {/* User Profile & Logout Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-1.5 pr-2.5 hover:bg-softgray transition-colors"
+                >
+                  <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                    {me?.name ? me.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-xs font-semibold leading-none">{me?.name || "Pengguna"}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium">
+                      {me?.role === "ADMIN" ? "Administrator" : me?.schoolName || "Guru"}
+                    </p>
+                  </div>
+                </button>
+
+                {userMenuOpen ? (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-border bg-background p-2.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                      <div className="px-3 py-2 border-b border-border mb-1 space-y-1">
+                        <p className="text-xs font-bold truncate">{me?.name || "Pengguna"}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{me?.email}</p>
+                        {me?.position ? (
+                          <p className="text-[11px] font-medium text-foreground truncate">
+                            💼 {me.position}
+                          </p>
+                        ) : null}
+                        {me?.schoolName ? (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            🏫 {me.schoolName}
+                          </p>
+                        ) : null}
+                        {me?.phone ? (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            📞 {me.phone}
+                          </p>
+                        ) : null}
+                        <div className="pt-1">
+                          <span className="inline-block rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase">
+                            {me?.role === "ADMIN" ? "Admin Pusat" : "Guru Pembimbing"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          signOut();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Keluar (Logout)</span>
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
 
               {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
             </div>

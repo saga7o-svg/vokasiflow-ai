@@ -59,12 +59,12 @@ export function Hero() {
           </Reveal>
           <Reveal delay={180}>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Cta href="/auth" size="lg" className="w-full sm:w-auto">
-                Mulai Sekarang{" "}
+              <Cta href="/auth?mode=register" size="lg" className="w-full sm:w-auto">
+                Daftar Akun Guru Baru{" "}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Cta>
-              <Cta href="#cara-kerja" variant="ghost" size="lg" className="w-full sm:w-auto">
-                Lihat Cara Kerja
+              <Cta href="/auth?mode=login" variant="ghost" size="lg" className="w-full sm:w-auto">
+                Masuk Portal Magang
               </Cta>
             </div>
             <p className="mt-5 text-[13px] text-muted-foreground">
