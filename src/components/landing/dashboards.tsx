@@ -99,7 +99,7 @@ export function BarChartMini({
     <div ref={ref} className="flex h-32 items-end gap-2">
       {data.map((d, i) => (
         <div key={labels[i]} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <div className="flex h-full w-full items-end">
+          <div className="flex w-full flex-1 items-end">
             <div
               className="w-full rounded-t-md bg-foreground/85 transition-[height] duration-700 ease-out"
               style={{
