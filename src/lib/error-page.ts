@@ -1,4 +1,8 @@
-export function renderErrorPage(): string {
+export function renderErrorPage(errorDetail?: string): string {
+  const detailHtml = errorDetail
+    ? `<pre style="text-align:left; background:#eee; padding:0.75rem; border-radius:0.375rem; font-size:0.8rem; overflow:auto; max-height:150px; margin-bottom:1rem;">${errorDetail}</pre>`
+    : "";
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -20,6 +24,7 @@ export function renderErrorPage(): string {
     <div class="card">
       <h1>This page didn't load</h1>
       <p>Something went wrong on our end. You can try refreshing or head back home.</p>
+      ${detailHtml}
       <div class="actions">
         <button class="primary" onclick="location.reload()">Try again</button>
         <a class="secondary" href="/">Go home</a>

@@ -50,9 +50,10 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      const msg = error?.message || String(error);
+      return new Response(renderErrorPage(msg), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
