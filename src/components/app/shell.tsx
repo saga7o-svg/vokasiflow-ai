@@ -15,19 +15,12 @@ export function useMe() {
 const adminNav = [
   { to: "/app/admin/dashboard", label: "Dashboard" },
   { to: "/app/admin/internships", label: "Pengajuan Magang" },
-  { to: "/app/admin/students", label: "Siswa" },
-  { to: "/app/admin/schools", label: "Sekolah" },
-  { to: "/app/admin/companies", label: "Perusahaan" },
-  { to: "/app/admin/performance", label: "Performa Sekolah" },
-  { to: "/app/admin/forecasting", label: "Forecasting" },
-  { to: "/app/admin/users", label: "Users" },
 ];
 
 const guruNav = [
   { to: "/app/guru/dashboard", label: "Dashboard" },
   { to: "/app/guru/students", label: "Siswa" },
   { to: "/app/guru/internships", label: "Pengajuan Magang" },
-  { to: "/app/guru/monitoring", label: "Monitoring Magang" },
 ];
 
 export function AppShell({ children, title }: { children: ReactNode; title: string }) {
