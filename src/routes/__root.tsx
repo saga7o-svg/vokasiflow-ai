@@ -73,7 +73,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5" },
-      { title: "VokasiFlow AI — Sistem Manajemen Magang Vokasi Berbasis AI" },
+      { title: "Program Vokasi Sekolah — Sistem Manajemen Magang Vokasi Berbasis AI" },
       {
         name: "description",
         content:
@@ -84,12 +84,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "vokasiflow, magang vokasi, smk, manajemen magang, ai magang, penempatan magang, jurnal magang, industri mitra, pkl vokasi",
       },
-      { name: "author", content: "VokasiFlow AI Team" },
+      { name: "author", content: "Program Vokasi Sekolah Team" },
       { name: "theme-color", content: "#0f172a" },
 
       // Open Graph / Facebook / WhatsApp / LinkedIn
-      { property: "og:site_name", content: "VokasiFlow AI" },
-      { property: "og:title", content: "VokasiFlow AI — Sistem Manajemen Magang Vokasi Berbasis AI" },
+      { property: "og:site_name", content: "Program Vokasi Sekolah" },
+      { property: "og:title", content: "Program Vokasi Sekolah — Sistem Manajemen Magang Vokasi Berbasis AI" },
       {
         property: "og:description",
         content:

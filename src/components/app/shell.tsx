@@ -162,7 +162,7 @@ export function AppShell({
             </span>
             <div>
               <span className="text-[15px] font-bold tracking-tight block leading-none">
-                VokasiFlow AI
+                Program Vokasi Sekolah
               </span>
               <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
                 {me?.role === "ADMIN" ? "Admin Panel" : "Portal Guru"}

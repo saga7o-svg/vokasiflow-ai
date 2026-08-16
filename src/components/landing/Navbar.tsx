@@ -42,7 +42,7 @@ export function Navbar() {
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Sparkles className="h-4 w-4" aria-hidden />
             </span>
-            <span className="truncate text-[15px] font-bold tracking-tight">VokasiFlow AI</span>
+            <span className="truncate text-[15px] font-bold tracking-tight">Program Vokasi Sekolah</span>
           </a>
 
           <ul className="hidden items-center gap-7 lg:flex">

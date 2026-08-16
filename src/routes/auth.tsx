@@ -294,7 +294,7 @@ function AuthPage() {
           </span>
           <div>
             <span className="text-base font-bold tracking-tight block leading-tight">
-              VokasiFlow AI
+              Program Vokasi Sekolah
             </span>
             <span className="text-[10px] text-muted-foreground font-mono uppercase">
               Portal Magang Vokasi

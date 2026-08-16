@@ -408,7 +408,7 @@ export function Footer() {
       <Container>
         <div className="grid gap-10 lg:grid-cols-[1.4fr_2.6fr]">
           <div className="max-w-xs">
-            <p className="text-[15px] font-bold">VokasiFlow AI</p>
+            <p className="text-[15px] font-bold">Program Vokasi Sekolah</p>
             <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
               Sistem manajemen program magang vokasi berbasis data dan AI.
             </p>
@@ -434,7 +434,7 @@ export function Footer() {
           </div>
         </div>
         <p className="mt-12 border-t border-border pt-6 text-[13px] text-muted-foreground">
-          © 2026 VokasiFlow AI. All rights reserved.
+          © 2026 Program Vokasi Sekolah. All rights reserved.
         </p>
       </Container>
     </footer>
