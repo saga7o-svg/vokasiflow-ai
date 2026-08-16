@@ -129,8 +129,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
-      { rel: "icon", type: "image/png", href: "/vokasiCMA.png" },
-      { rel: "apple-touch-icon", href: "/vokasiCMA.png" },
+      { rel: "icon", type: "image/png", href: "/vokasi.png" },
+      { rel: "apple-touch-icon", href: "/vokasi.png" },
       { rel: "shortcut icon", href: "/favicon.ico" },
     ],
     scripts: [

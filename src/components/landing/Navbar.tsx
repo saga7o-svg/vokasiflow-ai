@@ -39,9 +39,7 @@ export function Navbar() {
           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-4 lg:flex lg:justify-between"
         >
           <a href="#" className="flex min-w-0 items-center gap-2">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Sparkles className="h-4 w-4" aria-hidden />
-            </span>
+            <img src="/vokasi.png" alt="Logo Program Vokasi Sekolah" className="h-7 w-7 shrink-0 object-contain rounded-lg" />
             <span className="truncate text-[15px] font-bold tracking-tight">Program Vokasi Sekolah</span>
           </a>
 

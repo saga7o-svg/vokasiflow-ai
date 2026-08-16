@@ -289,9 +289,7 @@ function AuthPage() {
       <div className="w-full max-w-lg rounded-3xl border border-border bg-background p-6 sm:p-8 shadow-soft">
         {/* Header Logo */}
         <Link to="/" className="mb-5 flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-            <Sparkles className="h-4.5 w-4.5 text-accent" aria-hidden />
-          </span>
+          <img src="/vokasi.png" alt="Logo Program Vokasi Sekolah" className="h-9 w-9 shrink-0 object-contain rounded-xl" />
           <div>
             <span className="text-base font-bold tracking-tight block leading-tight">
               Program Vokasi Sekolah

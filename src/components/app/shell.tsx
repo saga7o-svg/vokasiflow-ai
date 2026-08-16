@@ -157,9 +157,7 @@ export function AppShell({
             to={me?.role === "ADMIN" ? "/app/admin/dashboard" : "/app/guru/dashboard"}
             className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="h-4 w-4 text-accent" aria-hidden />
-            </span>
+            <img src="/vokasi.png" alt="Logo Program Vokasi Sekolah" className="h-8 w-8 shrink-0 object-contain rounded-xl" />
             <div>
               <span className="text-[15px] font-bold tracking-tight block leading-none">
                 Program Vokasi Sekolah
