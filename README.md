@@ -1340,14 +1340,10 @@ This scope constraint is explicitly defined in the PRD.
 
 The final landing page should feel like a combination of:
 
-Premium SaaS
-+
-Modern Education Technology
-+
-AI/Data Product
-+
-Editorial Design
-+
+Premium SaaS +
+Modern Education Technology +
+AI/Data Product +
+Editorial Design +
 Human-centered Illustration
 
 The result should be visually comparable in sophistication to the attached reference while being completely original in branding and content.

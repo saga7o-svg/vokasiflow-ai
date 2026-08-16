@@ -86,13 +86,7 @@ export function AiInsight({ text, title = "AI Insight" }: { text: string; title?
   );
 }
 
-export function BarChartMini({
-  data,
-  labels,
-}: {
-  data: number[];
-  labels: string[];
-}) {
+export function BarChartMini({ data, labels }: { data: number[]; labels: string[] }) {
   const { ref, visible } = useInView<HTMLDivElement>();
   const max = Math.max(...data);
   return (

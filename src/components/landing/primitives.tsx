@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Container({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export function Container({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn("mx-auto w-full max-w-[1240px] px-5 sm:px-8", className)}>{children}</div>
   );
@@ -89,7 +83,13 @@ type CtaProps = {
   className?: string;
 };
 
-export function Cta({ children, variant = "primary", size = "md", href = "#", className }: CtaProps) {
+export function Cta({
+  children,
+  variant = "primary",
+  size = "md",
+  href = "#",
+  className,
+}: CtaProps) {
   return (
     <a
       href={href}
@@ -98,7 +98,8 @@ export function Cta({ children, variant = "primary", size = "md", href = "#", cl
         size === "lg" ? "px-7 py-3.5 text-[15px]" : "px-5 py-2.5 text-sm",
         variant === "primary" &&
           "bg-primary text-primary-foreground hover:-translate-y-0.5 hover:shadow-soft",
-        variant === "ai" && "bg-accent text-accent-foreground hover:-translate-y-0.5 hover:shadow-soft",
+        variant === "ai" &&
+          "bg-accent text-accent-foreground hover:-translate-y-0.5 hover:shadow-soft",
         variant === "ghost" &&
           "border border-border bg-background text-foreground hover:bg-softgray hover:-translate-y-0.5",
         className,

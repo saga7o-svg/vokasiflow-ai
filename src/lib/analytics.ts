@@ -80,7 +80,10 @@ export function forecastSeries(
 export function groupDemand(
   rows: { competency: string; location: string; period: string; requested_quota: number }[],
 ): Map<string, { competency: string; location: string; points: Map<string, number> }> {
-  const groups = new Map<string, { competency: string; location: string; points: Map<string, number> }>();
+  const groups = new Map<
+    string,
+    { competency: string; location: string; points: Map<string, number> }
+  >();
   for (const row of rows) {
     const key = `${row.competency}__${row.location}`;
     let group = groups.get(key);

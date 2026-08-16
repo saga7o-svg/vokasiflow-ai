@@ -1,10 +1,32 @@
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode, useEffect, useRef } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Menu, X, Sparkles, LogOut } from "lucide-react";
+import {
+  Menu,
+  X,
+  Sparkles,
+  LogOut,
+  Search,
+  LayoutDashboard,
+  FileText,
+  Users,
+  GraduationCap,
+  Building2,
+  TrendingUp,
+  Award,
+  UserCog,
+  CalendarCheck,
+  ClipboardList,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ChevronRight,
+  Shield,
+  School,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getMe } from "@/lib/api.functions";
+import { getMe, globalSearch } from "@/lib/api.functions";
 import { cn } from "@/lib/utils";
 
 export function useMe() {
@@ -12,24 +34,57 @@ export function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: () => fetchMe() });
 }
 
-const adminNav = [
-  { to: "/app/admin/dashboard", label: "Dashboard" },
-  { to: "/app/admin/internships", label: "Pengajuan Magang" },
+export const adminNav = [
+  { to: "/app/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/admin/internships", label: "Pengajuan Magang", icon: FileText },
+  { to: "/app/admin/students", label: "Data Siswa", icon: Users },
+  { to: "/app/admin/schools", label: "Data Sekolah", icon: School },
+  { to: "/app/admin/companies", label: "Perusahaan Mitra", icon: Building2 },
+  { to: "/app/admin/performance", label: "Performa AI", icon: Award },
+  { to: "/app/admin/forecasting", label: "Forecasting AI", icon: TrendingUp },
+  { to: "/app/admin/users", label: "Manajemen User", icon: UserCog },
 ];
 
-const guruNav = [
-  { to: "/app/guru/dashboard", label: "Dashboard" },
-  { to: "/app/guru/students", label: "Siswa" },
-  { to: "/app/guru/internships", label: "Pengajuan Magang" },
+export const guruNav = [
+  { to: "/app/guru/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/guru/students", label: "Data Siswa", icon: Users },
+  { to: "/app/guru/internships", label: "Pengajuan Magang", icon: FileText },
+  { to: "/app/guru/monitoring", label: "Monitoring & Log", icon: CalendarCheck },
+  { to: "/app/guru/evaluations", label: "Penilaian Magang", icon: Award },
 ];
 
-export function AppShell({ children, title }: { children: ReactNode; title: string }) {
+export function AppShell({
+  children,
+  title,
+  actions,
+}: {
+  children: ReactNode;
+  title: string;
+  actions?: ReactNode;
+}) {
   const { data: me } = useMe();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = me?.role === "ADMIN" ? adminNav : guruNav;
+
+  const runSearch = useServerFn(globalSearch);
+  const { data: searchResults, isFetching: searchLoading } = useQuery({
+    queryKey: ["global-search", searchDebounced],
+    queryFn: () => runSearch({ data: { q: searchDebounced } }),
+    enabled: searchDebounced.trim().length >= 2,
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounced(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -39,135 +94,397 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   }
 
   return (
-    <div className="min-h-screen bg-offwhite text-foreground">
-      <div className="flex">
+    <div className="min-h-screen bg-offwhite text-foreground flex flex-col">
+      <div className="flex flex-1">
+        {/* Sidebar */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background p-4 transition-transform lg:static lg:translate-x-0",
-            open ? "translate-x-0" : "-translate-x-full",
+            "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background flex flex-col p-4 transition-transform duration-200 lg:static lg:translate-x-0",
+            open ? "translate-x-0 shadow-xl" : "-translate-x-full",
           )}
         >
-          <div className="flex items-center gap-2 pb-6">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Sparkles className="h-4 w-4" aria-hidden />
+          {/* Brand Header */}
+          <Link to="/" className="flex items-center gap-2.5 px-2 pb-6 border-b border-border">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Sparkles className="h-4 w-4 text-accent" aria-hidden />
             </span>
-            <span className="text-[15px] font-bold tracking-tight">VokasiFlow AI</span>
-          </div>
-          <nav className="flex flex-col gap-1">
-            {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "rounded-lg px-3 py-2 text-sm transition-colors",
-                  pathname === item.to
-                    ? "bg-softgray font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-softgray hover:text-foreground",
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            <div>
+              <span className="text-[15px] font-bold tracking-tight block leading-none">
+                VokasiFlow AI
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
+                {me?.role === "ADMIN" ? "Admin Panel" : "Portal Guru"}
+              </span>
+            </div>
+          </Link>
+
+          {/* Navigation Links */}
+          <nav className="flex-1 space-y-1 py-4 overflow-y-auto">
+            {nav.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.to || pathname.startsWith(item.to + "/");
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all",
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-softgray hover:text-foreground",
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      active ? "text-primary-foreground" : "text-muted-foreground",
+                    )}
+                  />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
+
+          {/* User Profile Footer */}
+          <div className="border-t border-border pt-3">
+            <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-softgray/60 mb-2">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                {me?.name ? me.name.charAt(0).toUpperCase() : "U"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold truncate leading-tight">
+                  {me?.name || "Memuat..."}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {me?.role === "ADMIN" ? "Administrator" : me?.schoolName || "Guru"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Keluar
+            </button>
+          </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
-            <div className="flex min-w-0 items-center gap-2">
+        {/* Content Area */}
+        <div className="min-w-0 flex-1 flex flex-col">
+          {/* Header */}
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-4 sm:px-6 py-3 backdrop-blur">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-label="Menu"
-                className="grid h-9 w-9 place-items-center rounded-lg border border-border lg:hidden"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-border lg:hidden hover:bg-softgray"
               >
                 {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </button>
-              <h1 className="truncate text-[15px] font-semibold">{title}</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-[13px] font-medium leading-tight">{me?.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {me?.role === "ADMIN" ? "Admin" : me?.schoolName ?? "Guru"}
-                </p>
+              <div>
+                <h1 className="truncate text-base sm:text-lg font-bold tracking-tight">{title}</h1>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Global Search Trigger */}
               <button
                 type="button"
-                onClick={signOut}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[13px] hover:bg-softgray"
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-border bg-softgray/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-softgray hover:text-foreground transition-colors"
               >
-                <LogOut className="h-3.5 w-3.5" /> Keluar
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Cari siswa, sekolah, mitra...</span>
+                <span className="inline md:hidden">Cari</span>
+                <kbd className="hidden md:inline-block rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                  ⌘K
+                </kbd>
               </button>
+
+              {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+
+          {/* Main Content */}
+          <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 flex-1">{children}</main>
         </div>
       </div>
+
+      {/* Mobile Drawer Overlay */}
       {open ? (
         <button
           type="button"
           aria-label="Tutup menu"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
         />
+      ) : null}
+
+      {/* Global Search Modal */}
+      {searchOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Ketik nama siswa, sekolah, atau perusahaan..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                }}
+                className="grid h-6 w-6 place-items-center rounded hover:bg-softgray text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto p-3 space-y-3">
+              {searchLoading ? (
+                <p className="text-center py-6 text-xs text-muted-foreground">Mencari...</p>
+              ) : null}
+
+              {!searchLoading && searchQuery.trim().length < 2 ? (
+                <p className="text-center py-6 text-xs text-muted-foreground">
+                  Ketik minimal 2 karakter untuk memulai pencarian.
+                </p>
+              ) : null}
+
+              {!searchLoading &&
+              searchQuery.trim().length >= 2 &&
+              !searchResults?.students.length &&
+              !searchResults?.schools.length &&
+              !searchResults?.companies.length ? (
+                <p className="text-center py-6 text-xs text-muted-foreground">
+                  Tidak ada hasil yang ditemukan untuk "{searchQuery}".
+                </p>
+              ) : null}
+
+              {searchResults?.students.length ? (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                    Siswa ({searchResults.students.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.students.map((s) => (
+                      <Link
+                        key={s.id}
+                        to={me?.role === "ADMIN" ? "/app/admin/students" : "/app/guru/students"}
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setSearchQuery("");
+                        }}
+                        className="flex items-center justify-between rounded-lg px-3 py-2 text-xs hover:bg-softgray transition-colors"
+                      >
+                        <div>
+                          <span className="font-medium block">{s.name}</span>
+                          <span className="text-muted-foreground text-[11px]">
+                            NIS: {s.student_number} • {s.competency}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {searchResults?.schools.length ? (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                    Sekolah ({searchResults.schools.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.schools.map((sc) => (
+                      <Link
+                        key={sc.id}
+                        to="/app/admin/schools"
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setSearchQuery("");
+                        }}
+                        className="flex items-center justify-between rounded-lg px-3 py-2 text-xs hover:bg-softgray transition-colors"
+                      >
+                        <div>
+                          <span className="font-medium block">{sc.name}</span>
+                          <span className="text-muted-foreground text-[11px]">
+                            {sc.city || "Indonesia"}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {searchResults?.companies.length ? (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                    Perusahaan Mitra ({searchResults.companies.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.companies.map((c) => (
+                      <Link
+                        key={c.id}
+                        to="/app/admin/companies"
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setSearchQuery("");
+                        }}
+                        className="flex items-center justify-between rounded-lg px-3 py-2 text-xs hover:bg-softgray transition-colors"
+                      >
+                        <div>
+                          <span className="font-medium block">{c.name}</span>
+                          <span className="text-muted-foreground text-[11px]">
+                            {c.city || "Indonesia"}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
 }
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className,
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className={cn("rounded-2xl border border-border bg-background p-5", className)}>{children}</div>
-  );
-}
-
-export function Kpi({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <Card>
-      <p className="text-[12px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-2 font-display text-3xl font-extrabold">{value}</p>
-      {hint ? <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p> : null}
-    </Card>
-  );
-}
-
-const statusStyles: Record<string, string> = {
-  DRAFT: "bg-softgray text-muted-foreground",
-  SUBMITTED: "bg-warn/15 text-warn",
-  APPROVED: "bg-good/15 text-good",
-  ACTIVE: "bg-ai-soft text-ai",
-  COMPLETED: "bg-good/15 text-good",
-  REJECTED: "bg-destructive/10 text-destructive",
-  CANCELLED: "bg-softgray text-muted-foreground",
-  PRESENT: "bg-good/15 text-good",
-  LATE: "bg-warn/15 text-warn",
-  ABSENT: "bg-destructive/10 text-destructive",
-  EXCUSED: "bg-ai-soft text-ai",
-};
-
-export function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", statusStyles[status] ?? "bg-softgray")}>
-      {status}
-    </span>
-  );
-}
-
-export function EmptyState({ title, description }: { title: string; description?: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-      <p className="text-sm font-medium">{title}</p>
-      {description ? <p className="mt-1 text-[13px] text-muted-foreground">{description}</p> : null}
+    <div
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border border-border bg-background p-5 shadow-xs transition-shadow hover:shadow-soft",
+        className,
+      )}
+    >
+      {children}
     </div>
   );
 }
 
-export function Loading() {
+export function Kpi({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  variant = "default",
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  variant?: "default" | "ai" | "good" | "warn";
+}) {
+  return (
+    <Card className="flex flex-col justify-between">
+      <div className="flex items-start justify-between">
+        <p className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        {Icon ? (
+          <span
+            className={cn(
+              "grid h-8 w-8 place-items-center rounded-xl",
+              variant === "ai" && "bg-ai-soft text-ai",
+              variant === "good" && "bg-good/15 text-good",
+              variant === "warn" && "bg-warn/15 text-warn",
+              variant === "default" && "bg-softgray text-muted-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-3">
+        <p className="font-display text-3xl font-extrabold tracking-tight">{value}</p>
+        {hint ? <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p> : null}
+      </div>
+    </Card>
+  );
+}
+
+const statusStyles: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-softgray text-muted-foreground" },
+  SUBMITTED: { label: "Diajukan", className: "bg-warn/20 text-warn font-semibold" },
+  APPROVED: { label: "Disetujui", className: "bg-good/15 text-good font-semibold" },
+  ACTIVE: { label: "Aktif Magang", className: "bg-ai-soft text-ai font-semibold" },
+  COMPLETED: { label: "Selesai", className: "bg-good/20 text-good font-semibold" },
+  REJECTED: { label: "Ditolak", className: "bg-destructive/15 text-destructive font-semibold" },
+  CANCELLED: { label: "Dibatalkan", className: "bg-softgray text-muted-foreground" },
+  PRESENT: { label: "Hadir", className: "bg-good/20 text-good" },
+  LATE: { label: "Terlambat", className: "bg-warn/20 text-warn" },
+  ABSENT: { label: "Alpa", className: "bg-destructive/20 text-destructive" },
+  EXCUSED: { label: "Izin / Sakit", className: "bg-ai-soft text-ai" },
+  INACTIVE: { label: "Non-Aktif", className: "bg-softgray text-muted-foreground" },
+};
+
+export function StatusBadge({ status }: { status: string }) {
+  const info = statusStyles[status] ?? {
+    label: status,
+    className: "bg-softgray text-foreground",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium leading-none",
+        info.className,
+      )}
+    >
+      {info.label}
+    </span>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border p-10 text-center flex flex-col items-center justify-center">
+      <p className="text-sm font-semibold">{title}</p>
+      {description ? (
+        <p className="mt-1 text-xs text-muted-foreground max-w-sm">{description}</p>
+      ) : null}
+      {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  );
+}
+
+export function Loading({ count = 3 }: { count?: number }) {
   return (
     <div className="grid gap-3">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-20 animate-pulse rounded-2xl bg-softgray" />
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="h-20 animate-pulse rounded-2xl bg-softgray/80" />
       ))}
     </div>
   );

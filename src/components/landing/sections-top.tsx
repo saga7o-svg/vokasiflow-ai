@@ -60,7 +60,8 @@ export function Hero() {
           <Reveal delay={180}>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Cta href="#cta" size="lg" className="w-full sm:w-auto">
-                Mulai Sekarang <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                Mulai Sekarang{" "}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Cta>
               <Cta href="#cara-kerja" variant="ghost" size="lg" className="w-full sm:w-auto">
                 Lihat Cara Kerja

@@ -46,7 +46,10 @@ export function Workflow() {
   return (
     <section id="cara-kerja" className="py-24 sm:py-32">
       <Container>
-        <SectionHeading eyebrow="Cara Kerja" title="Dari pengajuan hingga evaluasi. Lebih sederhana." />
+        <SectionHeading
+          eyebrow="Cara Kerja"
+          title="Dari pengajuan hingga evaluasi. Lebih sederhana."
+        />
         <ol className="mt-14 grid gap-4 md:grid-cols-5">
           {steps.map((s, i) => (
             <Reveal as="li" key={s.n} delay={i * 80}>
@@ -117,7 +120,10 @@ export function Roles() {
                 {i === 0 ? <AdminMiniDashboard /> : <TeacherMiniDashboard />}
                 <ul className="grid gap-2 sm:grid-cols-2">
                   {r.items.map((it) => (
-                    <li key={it} className="flex items-center gap-2 text-[14px] text-muted-foreground">
+                    <li
+                      key={it}
+                      className="flex items-center gap-2 text-[14px] text-muted-foreground"
+                    >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ai" aria-hidden />
                       {it}
                     </li>
@@ -302,12 +308,28 @@ export function Impact() {
 }
 
 const useCases = [
-  { icon: Database, title: "Manajemen Data Siswa", desc: "Profil siswa terpusat dan mudah dicari." },
-  { icon: Users, title: "Penempatan Magang", desc: "Cocokkan keahlian siswa dengan peluang perusahaan." },
+  {
+    icon: Database,
+    title: "Manajemen Data Siswa",
+    desc: "Profil siswa terpusat dan mudah dicari.",
+  },
+  {
+    icon: Users,
+    title: "Penempatan Magang",
+    desc: "Cocokkan keahlian siswa dengan peluang perusahaan.",
+  },
   { icon: Activity, title: "Monitoring Magang", desc: "Pantau aktivitas dan kedisiplinan siswa." },
-  { icon: BarChart3, title: "Evaluasi Sekolah", desc: "Ukur performa program magang tiap sekolah." },
+  {
+    icon: BarChart3,
+    title: "Evaluasi Sekolah",
+    desc: "Ukur performa program magang tiap sekolah.",
+  },
   { icon: Brain, title: "Forecasting SDM", desc: "Prediksi kebutuhan keahlian di masa depan." },
-  { icon: MapPin, title: "Rekomendasi Lokasi", desc: "Temukan wilayah perusahaan yang paling optimal." },
+  {
+    icon: MapPin,
+    title: "Rekomendasi Lokasi",
+    desc: "Temukan wilayah perusahaan yang paling optimal.",
+  },
 ];
 
 export function UseCases() {
@@ -347,7 +369,8 @@ export function FinalCta() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Cta size="lg" className="w-full sm:w-auto">
-              Mulai Sekarang <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              Mulai Sekarang{" "}
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Cta>
             <Cta variant="ghost" size="lg" className="w-full sm:w-auto">
               Jadwalkan Demo
@@ -371,7 +394,10 @@ export function FinalCta() {
 
 const footerCols = [
   { title: "Produk", links: ["Fitur", "AI Analytics", "AI Forecasting", "Dashboard"] },
-  { title: "Solusi", links: ["Untuk Admin", "Untuk Sekolah", "Untuk Guru", "Untuk Program Vokasi"] },
+  {
+    title: "Solusi",
+    links: ["Untuk Admin", "Untuk Sekolah", "Untuk Guru", "Untuk Program Vokasi"],
+  },
   { title: "Resources", links: ["Dokumentasi", "Panduan", "FAQ", "Contact"] },
   { title: "Company", links: ["Tentang", "Kontak", "Privacy", "Terms"] },
 ];

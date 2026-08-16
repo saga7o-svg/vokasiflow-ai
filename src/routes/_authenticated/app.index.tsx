@@ -1,50 +1,38 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { AppShell, Kpi, Loading, Card, useMe } from "@/components/app/shell";
-import { getDashboard } from "@/lib/api.functions";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useMe, Loading } from "@/components/app/shell";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({
     meta: [
       { title: "Dashboard — VokasiFlow AI" },
-      { name: "description", content: "Ringkasan program magang vokasi berdasarkan data aktual." },
-      { property: "og:title", content: "Dashboard — VokasiFlow AI" },
-      { property: "og:description", content: "Ringkasan program magang vokasi berdasarkan data aktual." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "description", content: "Ringkasan program magang vokasi." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: AppHome,
+  component: AppIndexRedirect,
 });
 
-function AppHome() {
-  const { data: me } = useMe();
-  const fetchDashboard = useServerFn(getDashboard);
-  const { data, isPending, isError } = useQuery({ queryKey: ["dashboard"], queryFn: () => fetchDashboard() });
+function AppIndexRedirect() {
+  const { data: me, isPending } = useMe();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (me) {
+      if (me.role === "ADMIN") {
+        navigate({ to: "/app/admin/dashboard", replace: true });
+      } else {
+        navigate({ to: "/app/guru/dashboard", replace: true });
+      }
+    }
+  }, [me, navigate]);
 
   return (
-    <AppShell title="Dashboard">
-      {isPending ? <Loading /> : null}
-      {isError ? (
-        <Card>
-          <p className="text-sm text-destructive">Data gagal dimuat. Silakan muat ulang halaman.</p>
-        </Card>
-      ) : null}
-      {data ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {me?.role === "ADMIN" ? <Kpi label="Total Sekolah" value={data.totalSchools} /> : null}
-          <Kpi label="Total Siswa" value={data.totalStudents} />
-          {me?.role === "ADMIN" ? <Kpi label="Perusahaan Mitra" value={data.totalCompanies} /> : null}
-          <Kpi label="Siswa Sedang Magang" value={data.activeInternships} />
-          <Kpi label="Menunggu Approval" value={data.pendingApprovals} />
-          <Kpi label="Siswa Belum Ditempatkan" value={data.unplacedStudents} />
-          <Kpi label="Selesai Magang" value={data.completedInternships} />
-          <Kpi label="Tingkat Keberhasilan" value={`${data.successRate}%`} hint="Selesai dibanding magang yang berakhir" />
-          <Kpi label="Rata-rata Nilai Akhir" value={data.averageScore} />
-        </div>
-      ) : null}
-    </AppShell>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+      <Loading count={2} />
+      <p className="mt-4 text-xs text-muted-foreground animate-pulse">
+        Mengarahkan ke dashboard Anda...
+      </p>
+    </div>
   );
 }

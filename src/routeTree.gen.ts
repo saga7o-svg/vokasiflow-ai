@@ -13,6 +13,19 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppAdminCompaniesRouteImport } from './routes/_authenticated/app.admin.companies'
+import { Route as AuthenticatedAppAdminDashboardRouteImport } from './routes/_authenticated/app.admin.dashboard'
+import { Route as AuthenticatedAppAdminForecastingRouteImport } from './routes/_authenticated/app.admin.forecasting'
+import { Route as AuthenticatedAppAdminInternshipsRouteImport } from './routes/_authenticated/app.admin.internships'
+import { Route as AuthenticatedAppAdminPerformanceRouteImport } from './routes/_authenticated/app.admin.performance'
+import { Route as AuthenticatedAppAdminSchoolsRouteImport } from './routes/_authenticated/app.admin.schools'
+import { Route as AuthenticatedAppAdminStudentsRouteImport } from './routes/_authenticated/app.admin.students'
+import { Route as AuthenticatedAppAdminUsersRouteImport } from './routes/_authenticated/app.admin.users'
+import { Route as AuthenticatedAppGuruDashboardRouteImport } from './routes/_authenticated/app.guru.dashboard'
+import { Route as AuthenticatedAppGuruEvaluationsRouteImport } from './routes/_authenticated/app.guru.evaluations'
+import { Route as AuthenticatedAppGuruInternshipsRouteImport } from './routes/_authenticated/app.guru.internships'
+import { Route as AuthenticatedAppGuruMonitoringRouteImport } from './routes/_authenticated/app.guru.monitoring'
+import { Route as AuthenticatedAppGuruStudentsRouteImport } from './routes/_authenticated/app.guru.students'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,16 +46,120 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/app/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAppAdminCompaniesRoute =
+  AuthenticatedAppAdminCompaniesRouteImport.update({
+    id: '/app/admin/companies',
+    path: '/app/admin/companies',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminDashboardRoute =
+  AuthenticatedAppAdminDashboardRouteImport.update({
+    id: '/app/admin/dashboard',
+    path: '/app/admin/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminForecastingRoute =
+  AuthenticatedAppAdminForecastingRouteImport.update({
+    id: '/app/admin/forecasting',
+    path: '/app/admin/forecasting',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminInternshipsRoute =
+  AuthenticatedAppAdminInternshipsRouteImport.update({
+    id: '/app/admin/internships',
+    path: '/app/admin/internships',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminPerformanceRoute =
+  AuthenticatedAppAdminPerformanceRouteImport.update({
+    id: '/app/admin/performance',
+    path: '/app/admin/performance',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminSchoolsRoute =
+  AuthenticatedAppAdminSchoolsRouteImport.update({
+    id: '/app/admin/schools',
+    path: '/app/admin/schools',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminStudentsRoute =
+  AuthenticatedAppAdminStudentsRouteImport.update({
+    id: '/app/admin/students',
+    path: '/app/admin/students',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppAdminUsersRoute =
+  AuthenticatedAppAdminUsersRouteImport.update({
+    id: '/app/admin/users',
+    path: '/app/admin/users',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppGuruDashboardRoute =
+  AuthenticatedAppGuruDashboardRouteImport.update({
+    id: '/app/guru/dashboard',
+    path: '/app/guru/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppGuruEvaluationsRoute =
+  AuthenticatedAppGuruEvaluationsRouteImport.update({
+    id: '/app/guru/evaluations',
+    path: '/app/guru/evaluations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppGuruInternshipsRoute =
+  AuthenticatedAppGuruInternshipsRouteImport.update({
+    id: '/app/guru/internships',
+    path: '/app/guru/internships',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppGuruMonitoringRoute =
+  AuthenticatedAppGuruMonitoringRouteImport.update({
+    id: '/app/guru/monitoring',
+    path: '/app/guru/monitoring',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppGuruStudentsRoute =
+  AuthenticatedAppGuruStudentsRouteImport.update({
+    id: '/app/guru/students',
+    path: '/app/guru/students',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
+  '/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
+  '/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
+  '/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
+  '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
+  '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
+  '/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
+  '/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
+  '/app/guru/monitoring': typeof AuthenticatedAppGuruMonitoringRoute
+  '/app/guru/students': typeof AuthenticatedAppGuruStudentsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
+  '/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
+  '/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
+  '/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
+  '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
+  '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
+  '/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
+  '/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
+  '/app/guru/monitoring': typeof AuthenticatedAppGuruMonitoringRoute
+  '/app/guru/students': typeof AuthenticatedAppGuruStudentsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +167,76 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/app/admin/companies': typeof AuthenticatedAppAdminCompaniesRoute
+  '/_authenticated/app/admin/dashboard': typeof AuthenticatedAppAdminDashboardRoute
+  '/_authenticated/app/admin/forecasting': typeof AuthenticatedAppAdminForecastingRoute
+  '/_authenticated/app/admin/internships': typeof AuthenticatedAppAdminInternshipsRoute
+  '/_authenticated/app/admin/performance': typeof AuthenticatedAppAdminPerformanceRoute
+  '/_authenticated/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
+  '/_authenticated/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
+  '/_authenticated/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/_authenticated/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
+  '/_authenticated/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
+  '/_authenticated/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
+  '/_authenticated/app/guru/monitoring': typeof AuthenticatedAppGuruMonitoringRoute
+  '/_authenticated/app/guru/students': typeof AuthenticatedAppGuruStudentsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/app/'
+    | '/app/admin/companies'
+    | '/app/admin/dashboard'
+    | '/app/admin/forecasting'
+    | '/app/admin/internships'
+    | '/app/admin/performance'
+    | '/app/admin/schools'
+    | '/app/admin/students'
+    | '/app/admin/users'
+    | '/app/guru/dashboard'
+    | '/app/guru/evaluations'
+    | '/app/guru/internships'
+    | '/app/guru/monitoring'
+    | '/app/guru/students'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/app/'
+  to:
+    | '/'
+    | '/auth'
+    | '/app'
+    | '/app/admin/companies'
+    | '/app/admin/dashboard'
+    | '/app/admin/forecasting'
+    | '/app/admin/internships'
+    | '/app/admin/performance'
+    | '/app/admin/schools'
+    | '/app/admin/students'
+    | '/app/admin/users'
+    | '/app/guru/dashboard'
+    | '/app/guru/evaluations'
+    | '/app/guru/internships'
+    | '/app/guru/monitoring'
+    | '/app/guru/students'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/app/'
+    | '/_authenticated/app/admin/companies'
+    | '/_authenticated/app/admin/dashboard'
+    | '/_authenticated/app/admin/forecasting'
+    | '/_authenticated/app/admin/internships'
+    | '/_authenticated/app/admin/performance'
+    | '/_authenticated/app/admin/schools'
+    | '/_authenticated/app/admin/students'
+    | '/_authenticated/app/admin/users'
+    | '/_authenticated/app/guru/dashboard'
+    | '/_authenticated/app/guru/evaluations'
+    | '/_authenticated/app/guru/internships'
+    | '/_authenticated/app/guru/monitoring'
+    | '/_authenticated/app/guru/students'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +275,132 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/admin/companies': {
+      id: '/_authenticated/app/admin/companies'
+      path: '/app/admin/companies'
+      fullPath: '/app/admin/companies'
+      preLoaderRoute: typeof AuthenticatedAppAdminCompaniesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/dashboard': {
+      id: '/_authenticated/app/admin/dashboard'
+      path: '/app/admin/dashboard'
+      fullPath: '/app/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/forecasting': {
+      id: '/_authenticated/app/admin/forecasting'
+      path: '/app/admin/forecasting'
+      fullPath: '/app/admin/forecasting'
+      preLoaderRoute: typeof AuthenticatedAppAdminForecastingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/internships': {
+      id: '/_authenticated/app/admin/internships'
+      path: '/app/admin/internships'
+      fullPath: '/app/admin/internships'
+      preLoaderRoute: typeof AuthenticatedAppAdminInternshipsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/performance': {
+      id: '/_authenticated/app/admin/performance'
+      path: '/app/admin/performance'
+      fullPath: '/app/admin/performance'
+      preLoaderRoute: typeof AuthenticatedAppAdminPerformanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/schools': {
+      id: '/_authenticated/app/admin/schools'
+      path: '/app/admin/schools'
+      fullPath: '/app/admin/schools'
+      preLoaderRoute: typeof AuthenticatedAppAdminSchoolsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/students': {
+      id: '/_authenticated/app/admin/students'
+      path: '/app/admin/students'
+      fullPath: '/app/admin/students'
+      preLoaderRoute: typeof AuthenticatedAppAdminStudentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/admin/users': {
+      id: '/_authenticated/app/admin/users'
+      path: '/app/admin/users'
+      fullPath: '/app/admin/users'
+      preLoaderRoute: typeof AuthenticatedAppAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/guru/dashboard': {
+      id: '/_authenticated/app/guru/dashboard'
+      path: '/app/guru/dashboard'
+      fullPath: '/app/guru/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppGuruDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/guru/evaluations': {
+      id: '/_authenticated/app/guru/evaluations'
+      path: '/app/guru/evaluations'
+      fullPath: '/app/guru/evaluations'
+      preLoaderRoute: typeof AuthenticatedAppGuruEvaluationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/guru/internships': {
+      id: '/_authenticated/app/guru/internships'
+      path: '/app/guru/internships'
+      fullPath: '/app/guru/internships'
+      preLoaderRoute: typeof AuthenticatedAppGuruInternshipsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/guru/monitoring': {
+      id: '/_authenticated/app/guru/monitoring'
+      path: '/app/guru/monitoring'
+      fullPath: '/app/guru/monitoring'
+      preLoaderRoute: typeof AuthenticatedAppGuruMonitoringRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/guru/students': {
+      id: '/_authenticated/app/guru/students'
+      path: '/app/guru/students'
+      fullPath: '/app/guru/students'
+      preLoaderRoute: typeof AuthenticatedAppGuruStudentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppAdminCompaniesRoute: typeof AuthenticatedAppAdminCompaniesRoute
+  AuthenticatedAppAdminDashboardRoute: typeof AuthenticatedAppAdminDashboardRoute
+  AuthenticatedAppAdminForecastingRoute: typeof AuthenticatedAppAdminForecastingRoute
+  AuthenticatedAppAdminInternshipsRoute: typeof AuthenticatedAppAdminInternshipsRoute
+  AuthenticatedAppAdminPerformanceRoute: typeof AuthenticatedAppAdminPerformanceRoute
+  AuthenticatedAppAdminSchoolsRoute: typeof AuthenticatedAppAdminSchoolsRoute
+  AuthenticatedAppAdminStudentsRoute: typeof AuthenticatedAppAdminStudentsRoute
+  AuthenticatedAppAdminUsersRoute: typeof AuthenticatedAppAdminUsersRoute
+  AuthenticatedAppGuruDashboardRoute: typeof AuthenticatedAppGuruDashboardRoute
+  AuthenticatedAppGuruEvaluationsRoute: typeof AuthenticatedAppGuruEvaluationsRoute
+  AuthenticatedAppGuruInternshipsRoute: typeof AuthenticatedAppGuruInternshipsRoute
+  AuthenticatedAppGuruMonitoringRoute: typeof AuthenticatedAppGuruMonitoringRoute
+  AuthenticatedAppGuruStudentsRoute: typeof AuthenticatedAppGuruStudentsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppAdminCompaniesRoute: AuthenticatedAppAdminCompaniesRoute,
+  AuthenticatedAppAdminDashboardRoute: AuthenticatedAppAdminDashboardRoute,
+  AuthenticatedAppAdminForecastingRoute: AuthenticatedAppAdminForecastingRoute,
+  AuthenticatedAppAdminInternshipsRoute: AuthenticatedAppAdminInternshipsRoute,
+  AuthenticatedAppAdminPerformanceRoute: AuthenticatedAppAdminPerformanceRoute,
+  AuthenticatedAppAdminSchoolsRoute: AuthenticatedAppAdminSchoolsRoute,
+  AuthenticatedAppAdminStudentsRoute: AuthenticatedAppAdminStudentsRoute,
+  AuthenticatedAppAdminUsersRoute: AuthenticatedAppAdminUsersRoute,
+  AuthenticatedAppGuruDashboardRoute: AuthenticatedAppGuruDashboardRoute,
+  AuthenticatedAppGuruEvaluationsRoute: AuthenticatedAppGuruEvaluationsRoute,
+  AuthenticatedAppGuruInternshipsRoute: AuthenticatedAppGuruInternshipsRoute,
+  AuthenticatedAppGuruMonitoringRoute: AuthenticatedAppGuruMonitoringRoute,
+  AuthenticatedAppGuruStudentsRoute: AuthenticatedAppGuruStudentsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
