@@ -96,19 +96,17 @@ export function BarChartMini({
   const { ref, visible } = useInView<HTMLDivElement>();
   const max = Math.max(...data);
   return (
-    <div ref={ref} className="flex h-32 items-stretch gap-2">
+    <div ref={ref} className="flex h-32 gap-2">
       {data.map((d, i) => (
-        <div key={labels[i]} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <div className="flex w-full flex-1 items-end">
-            <div
-              className="w-full rounded-t-md bg-foreground/85 transition-[height] duration-700 ease-out"
-              style={{
-                height: visible ? `${(d / max) * 100}%` : "0%",
-                transitionDelay: `${i * 70}ms`,
-              }}
-            />
-          </div>
-          <span className="w-full truncate text-center text-[10px] text-muted-foreground">
+        <div key={labels[i]} className="relative min-w-0 flex-1">
+          <div
+            className="absolute right-0 bottom-5 left-0 rounded-t-md bg-foreground/85 transition-[height] duration-700 ease-out"
+            style={{
+              height: visible ? `${Math.round((d / max) * 104)}px` : "0px",
+              transitionDelay: `${i * 70}ms`,
+            }}
+          />
+          <span className="absolute inset-x-0 bottom-0 truncate text-center text-[10px] text-muted-foreground">
             {labels[i]}
           </span>
         </div>
