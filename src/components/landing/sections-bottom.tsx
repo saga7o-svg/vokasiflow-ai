@@ -368,12 +368,12 @@ export function FinalCta() {
             dengan bantuan AI.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Cta size="lg" className="w-full sm:w-auto">
+            <Cta href="/auth" size="lg" className="w-full sm:w-auto">
               Mulai Sekarang{" "}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Cta>
-            <Cta variant="ghost" size="lg" className="w-full sm:w-auto">
-              Jadwalkan Demo
+            <Cta href="/auth" variant="ghost" size="lg" className="w-full sm:w-auto">
+              Masuk ke Portal
             </Cta>
           </div>
         </Reveal>

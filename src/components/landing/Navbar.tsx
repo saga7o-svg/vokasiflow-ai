@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Menu, X, Sparkles } from "lucide-react";
 import { Container, Cta } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -58,13 +59,13 @@ export function Navbar() {
           </ul>
 
           <div className="flex items-center gap-2">
-            <a
-              href="#cta"
-              className="hidden rounded-full px-4 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+            <Link
+              to="/auth"
+              className="hidden rounded-full px-4 py-2 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
             >
               Masuk
-            </a>
-            <Cta href="#cta" className="hidden sm:inline-flex">
+            </Link>
+            <Cta href="/auth" className="hidden sm:inline-flex">
               Mulai Sekarang
             </Cta>
             <button
@@ -95,10 +96,10 @@ export function Navbar() {
               ))}
             </ul>
             <div className="mt-3 flex gap-2">
-              <Cta href="#cta" variant="ghost" className="flex-1">
+              <Cta href="/auth" variant="ghost" className="flex-1">
                 Masuk
               </Cta>
-              <Cta href="#cta" className="flex-1">
+              <Cta href="/auth" className="flex-1">
                 Mulai Sekarang
               </Cta>
             </div>

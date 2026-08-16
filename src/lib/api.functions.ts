@@ -15,24 +15,46 @@ export const getMe = createServerFn({ method: "GET" })
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
-    const role = roles?.some((r) => r.role === "ADMIN") ? "ADMIN" : "GURU";
+
+    const isDemoAdmin = profile?.email?.toLowerCase() === "admin@example.com";
+    const isDemoGuru = profile?.email?.toLowerCase() === "guru@example.com";
+
+    const role: "ADMIN" | "GURU" =
+      roles?.some((r) => r.role === "ADMIN") || isDemoAdmin ? "ADMIN" : "GURU";
+
+    let currentSchoolId = profile?.school_id ?? null;
+
+    if (!currentSchoolId && (role === "GURU" || isDemoGuru)) {
+      const { data: firstSchool } = await supabase
+        .from("schools")
+        .select("id,name")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstSchool) {
+        currentSchoolId = firstSchool.id;
+        await supabase.from("profiles").update({ school_id: firstSchool.id }).eq("id", userId);
+      }
+    }
+
     let schoolName: string | null = null;
-    if (profile?.school_id) {
+    if (currentSchoolId) {
       const { data: school } = await supabase
         .from("schools")
         .select("name")
-        .eq("id", profile.school_id)
+        .eq("id", currentSchoolId)
         .maybeSingle();
       schoolName = school?.name ?? null;
     }
+
     return {
       id: userId,
-      name: profile?.name ?? "",
+      name: profile?.name || (isDemoAdmin ? "Admin Pusat" : isDemoGuru ? "Guru Pembimbing" : ""),
       email: profile?.email ?? "",
-      schoolId: profile?.school_id ?? null,
+      schoolId: currentSchoolId,
       schoolName,
       status: profile?.status ?? "ACTIVE",
-      role: role as "ADMIN" | "GURU",
+      role,
     };
   });
 

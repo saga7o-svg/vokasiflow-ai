@@ -29,36 +29,75 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function handleLogin(targetEmail?: string, targetPassword?: string) {
+    const emailVal = (targetEmail || email).trim().toLowerCase();
+    const passVal = targetPassword || password;
+
     setError(null);
-    if (!email.trim() || !password) {
+    if (!emailVal || !passVal) {
       setError("Email dan password wajib diisi.");
       return;
     }
+
     setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+
+    // 1. Attempt standard signInWithPassword
+    let { error: signInError } = await supabase.auth.signInWithPassword({
+      email: emailVal,
+      password: passVal,
     });
-    setLoading(false);
+
+    // 2. Fallback auto-signup if user doesn't exist in Supabase Auth yet
     if (signInError) {
-      setError("Email atau password salah.");
+      const displayName = emailVal === "admin@example.com" ? "Admin Pusat" : "Guru Pembimbing";
+      await supabase.auth.signUp({
+        email: emailVal,
+        password: passVal,
+        options: {
+          data: { name: displayName },
+        },
+      });
+
+      const retry = await supabase.auth.signInWithPassword({
+        email: emailVal,
+        password: passVal,
+      });
+      signInError = retry.error;
+    }
+
+    if (!signInError) {
+      try {
+        await supabase.rpc("setup_demo_user" as never, { target_email: emailVal } as never);
+      } catch (e) {
+        console.warn("setup_demo_user warning:", e);
+      }
+    }
+
+    setLoading(false);
+
+    if (signInError) {
+      setError(signInError.message || "Email atau password salah.");
       return;
     }
+
     navigate({ to: "/app", replace: true });
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    await handleLogin();
   }
 
   function setDemoAdmin() {
     setEmail("admin@example.com");
     setPassword("Admin123!");
-    setError(null);
+    handleLogin("admin@example.com", "Admin123!");
   }
 
   function setDemoGuru() {
     setEmail("guru@example.com");
     setPassword("Guru123!");
-    setError(null);
+    handleLogin("guru@example.com", "Guru123!");
   }
 
   return (
