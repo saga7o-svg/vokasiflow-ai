@@ -906,3 +906,34 @@ export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST"
     return candidates;
   });
 
+export const updateTeacherProfileFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        name: z.string().trim().min(2),
+        schoolId: z.string().uuid(),
+        position: z.string().trim().min(2),
+        phone: z.string().trim().min(5),
+        email: z.string().trim().email().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        name: data.name,
+        school_id: data.schoolId,
+        position: data.position,
+        phone: data.phone,
+        ...(data.email ? { email: data.email } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    if (error) throw new Error(error.message || "Gagal memperbarui profil guru.");
+    return { success: true };
+  });
+

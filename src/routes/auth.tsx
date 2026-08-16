@@ -207,6 +207,66 @@ function AuthPage() {
     }
   }
 
+  async function handleGoogleRegister() {
+    setError(null);
+
+    const cleanEmail = regEmail.trim().toLowerCase();
+    const selectedSchool = regSchoolId || (schools?.[0]?.id ?? "");
+
+    if (!regName.trim()) {
+      setError("Silakan isi Nama Lengkap & Gelar Anda terlebih dahulu.");
+      return;
+    }
+    if (!selectedSchool) {
+      setError("Silakan pilih Asal Sekolah Mitra Anda.");
+      return;
+    }
+    if (!regPosition.trim()) {
+      setError("Silakan isi Jabatan / Peran di Sekolah Anda.");
+      return;
+    }
+    if (!regPhone.trim()) {
+      setError("Silakan isi Nomor WhatsApp / Telegram Anda.");
+      return;
+    }
+    if (!cleanEmail) {
+      setError("Silakan isi Email Sekolah / Resmi Anda.");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "pending_teacher_profile",
+        JSON.stringify({
+          name: regName.trim(),
+          school_id: selectedSchool,
+          position: regPosition.trim() || "Guru Pembimbing Magang",
+          phone: regPhone.trim(),
+          email: cleanEmail,
+        }),
+      );
+    }
+
+    setLoading(true);
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/app`,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message || "Gagal melakukan pendaftaran via Google.");
+        setLoading(false);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Terjadi kesalahan pendaftaran Google.";
+      setError(msg);
+      setLoading(false);
+    }
+  }
+
   async function onLoginSubmit(event: React.FormEvent) {
     event.preventDefault();
     await handleLogin();
@@ -398,31 +458,10 @@ function AuthPage() {
               Pendaftaran Guru Baru
             </h1>
             <p className="mt-1 text-xs text-muted-foreground">
-              Daftarkan akun guru pembimbing untuk mengelola siswa dan pengajuan magang.
+              Lengkapi data profil guru di bawah ini, lalu pilih metode pendaftaran (Google / Email).
             </p>
 
-            {/* Google OAuth Register Button */}
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <GoogleIcon className="h-4 w-4 shrink-0" />
-                <span>Daftar dengan Google</span>
-              </button>
-              <div className="relative my-4 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <span className="relative bg-background px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  atau pendaftaran manual
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleRegister} className="mt-4 grid gap-3.5">
+            <form onSubmit={handleRegister} className="mt-5 grid gap-3.5">
               {/* Nama Guru */}
               <label className="grid gap-1.5 text-xs font-medium">
                 Nama Lengkap &amp; Gelar <span className="text-destructive">*</span>
@@ -476,12 +515,13 @@ function AuthPage() {
                 </div>
               </label>
 
-              {/* Nomor Telepon */}
+              {/* Nomor Telepon (WA / Telegram) */}
               <label className="grid gap-1.5 text-xs font-medium">
-                Nomor WhatsApp / Telepon
+                Nomor Telepon (WhatsApp / Telegram) <span className="text-destructive">*</span>
                 <div className="relative">
                   <input
                     type="tel"
+                    required
                     value={regPhone}
                     onChange={(e) => setRegPhone(e.target.value)}
                     placeholder="081234567890"
@@ -491,7 +531,7 @@ function AuthPage() {
                 </div>
               </label>
 
-              {/* Email */}
+              {/* Email Resmi */}
               <label className="grid gap-1.5 text-xs font-medium">
                 Email Sekolah / Resmi <span className="text-destructive">*</span>
                 <div className="relative">
@@ -509,11 +549,10 @@ function AuthPage() {
 
               {/* Password */}
               <label className="grid gap-1.5 text-xs font-medium">
-                Password <span className="text-destructive">*</span>
+                Password (Opsional jika via Google)
                 <div className="relative">
                   <input
                     type="password"
-                    required
                     minLength={6}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
@@ -530,14 +569,27 @@ function AuthPage() {
                 </div>
               ) : null}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? "Mendaftarkan Akun Guru..." : "Daftar Akun Guru Sekarang"}
-                {!loading && <ArrowRight className="h-4 w-4" />}
-              </button>
+              {/* Submit Actions: Google vs Email Password */}
+              <div className="mt-2 grid gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleGoogleRegister}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-background px-4 py-3 text-xs font-bold text-foreground shadow-xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <GoogleIcon className="h-4.5 w-4.5 shrink-0" />
+                  <span>{loading ? "Memproses..." : "Daftar dengan Akun Google"}</span>
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? "Mendaftarkan..." : "Daftar dengan Password Email"}
+                  {!loading && <ArrowRight className="h-4 w-4" />}
+                </button>
+              </div>
             </form>
           </div>
         )}

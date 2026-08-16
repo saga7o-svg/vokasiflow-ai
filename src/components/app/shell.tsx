@@ -28,8 +28,9 @@ import {
   Compass,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getMe, globalSearch } from "@/lib/api.functions";
+import { getMe, globalSearch, listSchools, updateTeacherProfileFn } from "@/lib/api.functions";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function useMe() {
   const fetchMe = useServerFn(getMe);
@@ -75,10 +76,50 @@ export function AppShell({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = me?.role === "ADMIN" ? adminNav : guruNav;
+
+  const updateProfile = useServerFn(updateTeacherProfileFn);
+
+  const isProfileIncomplete =
+    me?.role === "GURU" &&
+    me?.email !== "guru@example.com" &&
+    (!me?.phone || !me?.position);
+
+  useEffect(() => {
+    if (isProfileIncomplete) {
+      setShowCompleteProfileModal(true);
+    }
+  }, [isProfileIncomplete]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && me?.id) {
+      const pendingRaw = sessionStorage.getItem("pending_teacher_profile");
+      if (pendingRaw) {
+        try {
+          const pending = JSON.parse(pendingRaw);
+          sessionStorage.removeItem("pending_teacher_profile");
+          updateProfile({
+            data: {
+              name: pending.name,
+              schoolId: pending.school_id,
+              position: pending.position,
+              phone: pending.phone,
+              email: pending.email,
+            },
+          }).then(() => {
+            queryClient.invalidateQueries({ queryKey: ["me"] });
+            toast.success("Pendaftaran akun guru dengan Google berhasil!");
+          });
+        } catch (e) {
+          console.warn("Failed parsing pending profile:", e);
+        }
+      }
+    }
+  }, [me?.id]);
 
   const runSearch = useServerFn(globalSearch);
   const { data: searchResults, isFetching: searchLoading } = useQuery({
@@ -295,6 +336,11 @@ export function AppShell({
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
         />
+      ) : null}
+
+      {/* Complete Profile Modal for Google users */}
+      {showCompleteProfileModal ? (
+        <CompleteProfileModal me={me} onClose={() => setShowCompleteProfileModal(false)} />
       ) : null}
 
       {/* Global Search Modal */}
@@ -559,6 +605,164 @@ export function Loading({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="h-20 animate-pulse rounded-2xl bg-softgray/80" />
       ))}
+    </div>
+  );
+}
+
+export function CompleteProfileModal({
+  me,
+  onClose,
+}: {
+  me: any;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const fetchSchools = useServerFn(listSchools);
+  const updateProfile = useServerFn(updateTeacherProfileFn);
+
+  const { data: schools } = useQuery({
+    queryKey: ["schools-list"],
+    queryFn: () => fetchSchools(),
+  });
+
+  const [name, setName] = useState(me?.name || "");
+  const [schoolId, setSchoolId] = useState(me?.schoolId || "");
+  const [position, setPosition] = useState(me?.position || "Guru Pembimbing Magang");
+  const [phone, setPhone] = useState(me?.phone || "");
+  const [email, setEmail] = useState(me?.email || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const selSchool = schoolId || (schools?.[0]?.id ?? "");
+
+    if (!name.trim() || !selSchool || !position.trim() || !phone.trim() || !email.trim()) {
+      setError("Semua bidang bertanda wajib diisi.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateProfile({
+        data: {
+          name: name.trim(),
+          schoolId: selSchool,
+          position: position.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+        },
+      });
+      toast.success("Profil Guru berhasil dilengkapi!");
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan data profil guru.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-ai-soft text-ai">
+            <UserCog className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-display text-lg font-bold">Lengkapi Data Profil Guru</h3>
+            <p className="text-xs text-muted-foreground">
+              Silakan lengkapi data resmi Anda untuk mulai mengelola magang siswa.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="grid gap-3 text-xs">
+          <label className="grid gap-1 font-medium">
+            Nama Lengkap &amp; Gelar <span className="text-destructive">*</span>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Drs. Budi Santoso, M.Pd."
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+            />
+          </label>
+
+          <label className="grid gap-1 font-medium">
+            Asal Sekolah Mitra <span className="text-destructive">*</span>
+            <select
+              required
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai font-medium"
+            >
+              <option value="">-- Pilih Sekolah Mitra --</option>
+              {(schools ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.city})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 font-medium">
+            Jabatan / Peran di Sekolah <span className="text-destructive">*</span>
+            <input
+              type="text"
+              required
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              placeholder="misal: Guru Pembimbing Magang / Kaprog"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+            />
+          </label>
+
+          <label className="grid gap-1 font-medium">
+            Nomor Telepon (WhatsApp &amp; Telegram) <span className="text-destructive">*</span>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="081234567890"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+            />
+          </label>
+
+          <label className="grid gap-1 font-medium">
+            Email Sekolah / Resmi <span className="text-destructive">*</span>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="guru@smk.sch.id"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+            />
+          </label>
+
+          {error ? (
+            <div className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? "Menyimpan Data..." : "Simpan Data Guru"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
