@@ -1,3 +1,27 @@
+function createMiddlewarePolyfill(options?: any, __opts?: any) {
+  const resolvedOptions = {
+    type: "request",
+    ...(__opts || options),
+  };
+  const setValidator = (validator: any) =>
+    createMiddlewarePolyfill({}, Object.assign(resolvedOptions, { validator, inputValidator: validator }));
+  return {
+    options: resolvedOptions,
+    middleware: (middleware: any) =>
+      createMiddlewarePolyfill({}, Object.assign(resolvedOptions, { middleware })),
+    validator: setValidator,
+    inputValidator: setValidator,
+    client: (client: any) =>
+      createMiddlewarePolyfill({}, Object.assign(resolvedOptions, { client })),
+    server: (server: any) =>
+      createMiddlewarePolyfill({}, Object.assign(resolvedOptions, { server })),
+  };
+}
+
+if (typeof (globalThis as any).createMiddleware !== "function") {
+  (globalThis as any).createMiddleware = createMiddlewarePolyfill;
+}
+
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
