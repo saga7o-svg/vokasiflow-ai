@@ -1,8 +1,12 @@
-import { defineNitroConfig } from "nitro/config";
-
 export default defineNitroConfig({
   preset: "vercel",
   inlineDynamicImports: true,
+  publicAssets: [
+    {
+      baseURL: "/",
+      dir: "./dist/client",
+    },
+  ],
   handlers: [
     {
       route: "/**",
