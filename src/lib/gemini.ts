@@ -68,18 +68,21 @@ export async function analyzeCurriculumWithGemini(params: {
   industryDemands?: { companyName: string; competency: string; quota: number; location: string }[];
 }): Promise<CurriculumAnalysisResult> {
   const ai = getGenAI();
+  const safeSchoolName = (params.schoolName || "").slice(0, 200);
+  const safeCompetency = (params.competency || "").slice(0, 200);
+  const safeModules = (params.schoolModules || []).slice(0, 50).map((m) => String(m).slice(0, 200));
 
   const prompt = `
 Anda adalah Pakar Kurikulum Vokasi (SMK) dan Analyst Industri Terkemuka.
 Lakukan analisis mendalam terhadap keselarasan kurikulum sekolah vokasi berikut dengan kebutuhan industri mitra saat ini.
 
 Informasi Sekolah:
-- Nama Sekolah: ${params.schoolName}
-- Program / Kompetensi Keahlian: ${params.competency}
-- Modul Pembelajaran Eksisting: ${params.schoolModules?.join(", ") || "Standar Kurikulum Merdeka Vokasi / K13 Vokasi"}
+- Nama Sekolah: ${safeSchoolName}
+- Program / Kompetensi Keahlian: ${safeCompetency}
+- Modul Pembelajaran Eksisting: ${safeModules.join(", ") || "Standar Kurikulum Merdeka Vokasi / K13 Vokasi"}
 
 Data Kebutuhan Industri Mitra Terbaru:
-${JSON.stringify(params.industryDemands || [], null, 2)}
+${JSON.stringify((params.industryDemands || []).slice(0, 50), null, 2)}
 
 Tugas Anda:
 Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
@@ -127,7 +130,10 @@ Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
           .replace(/```json/g, "")
           .replace(/```/g, "")
           .trim();
-        return JSON.parse(cleaned) as CurriculumAnalysisResult;
+        const parsed = JSON.parse(cleaned);
+        if (typeof parsed === "object" && parsed !== null && "matchPercentage" in parsed) {
+          return parsed as CurriculumAnalysisResult;
+        }
       }
     } catch (err) {
       console.warn("Gemini API call failed, falling back to smart heuristic response:", err);
@@ -223,18 +229,29 @@ export async function recommendNearestSchoolsWithGemini(params: {
   }[];
 }): Promise<NearestSchoolRecommendationResult[]> {
   const ai = getGenAI();
+  const safeCompanyName = (params.companyName || "").slice(0, 200);
+  const safeAddress = (params.companyAddress || "").slice(0, 300);
+  const safeCity = (params.companyCity || "").slice(0, 100);
+  const safeCompetency = (params.requiredCompetency || "").slice(0, 200);
+  const safeSchools = (params.schools || []).slice(0, 30).map((s) => ({
+    id: String(s.id).slice(0, 100),
+    name: String(s.name).slice(0, 200),
+    city: String(s.city).slice(0, 100),
+    address: String(s.address).slice(0, 300),
+    province: s.province ? String(s.province).slice(0, 100) : undefined,
+  }));
 
   const prompt = `
 Anda adalah Pakar Logistik Vokasi & Geospasial Indonesia.
 Tentukan rekomendasi sekolah vokasi (SMK) TERDEKAT dan PALING COCOK untuk penempatan magang perusahaan berikut.
 
 Informasi Perusahaan:
-- Nama: ${params.companyName}
-- Alamat: ${params.companyAddress}, Kota: ${params.companyCity}
-- Kebutuhan Kompetensi: ${params.requiredCompetency || "Umum / Semua Jurusan"}
+- Nama: ${safeCompanyName}
+- Alamat: ${safeAddress}, Kota: ${safeCity}
+- Kebutuhan Kompetensi: ${safeCompetency || "Umum / Semua Jurusan"}
 
 Daftar Sekolah Vokasi Terdaftar:
-${JSON.stringify(params.schools, null, 2)}
+${JSON.stringify(safeSchools, null, 2)}
 
 Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terdekat & terbaik:
 [
@@ -267,7 +284,10 @@ Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terd
           .replace(/```json/g, "")
           .replace(/```/g, "")
           .trim();
-        return JSON.parse(cleaned) as NearestSchoolRecommendationResult[];
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+          return parsed as NearestSchoolRecommendationResult[];
+        }
       }
     } catch (err) {
       console.warn("Gemini API call failed for nearest schools, using heuristic fallback:", err);
@@ -316,17 +336,27 @@ export async function matchSpecialSkillsStudentsWithGemini(params: {
   }[];
 }): Promise<SpecialSkillMatchCandidate[]> {
   const ai = getGenAI();
+  const safeCompanyName = (params.companyName || "").slice(0, 200);
+  const safeRequirement = (params.companyRequirementNote || "").slice(0, 1000);
+  const safeCompetency = (params.targetCompetency || "").slice(0, 200);
+  const safeStudents = (params.students || []).slice(0, 50).map((s) => ({
+    id: String(s.id).slice(0, 100),
+    name: String(s.name).slice(0, 200),
+    schoolName: String(s.schoolName).slice(0, 200),
+    competency: String(s.competency).slice(0, 200),
+    specialSkills: (s.specialSkills || []).slice(0, 20).map((sk) => String(sk).slice(0, 100)),
+  }));
 
   const prompt = `
 Anda adalah Asisten Rekrutmen Vokasi Cerdas.
 Cocokkan kandidat siswa magang dengan kebutuhan khusus perusahaan berikut:
 
-Perusahaan: ${params.companyName}
-Persyaratan Khusus Lapangan: "${params.companyRequirementNote}"
-Target Jurusan: ${params.targetCompetency || "Bebas / Semua Jurusan"}
+Perusahaan: ${safeCompanyName}
+Persyaratan Khusus Lapangan: "${safeRequirement}"
+Target Jurusan: ${safeCompetency || "Bebas / Semua Jurusan"}
 
 Daftar Kandidat Siswa:
-${JSON.stringify(params.students, null, 2)}
+${JSON.stringify(safeStudents, null, 2)}
 
 Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kandidat:
 [
@@ -359,7 +389,10 @@ Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kand
           .replace(/```json/g, "")
           .replace(/```/g, "")
           .trim();
-        return JSON.parse(cleaned) as SpecialSkillMatchCandidate[];
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+          return parsed as SpecialSkillMatchCandidate[];
+        }
       }
     } catch (err) {
       console.warn("Gemini API call failed for special skills match, using fallback:", err);

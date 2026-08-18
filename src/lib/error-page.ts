@@ -1,6 +1,17 @@
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function renderErrorPage(errorDetail?: string): string {
-  const detailHtml = errorDetail
-    ? `<pre style="text-align:left; background:#eee; padding:0.75rem; border-radius:0.375rem; font-size:0.8rem; overflow:auto; max-height:150px; margin-bottom:1rem;">${errorDetail}</pre>`
+  const isDev = process.env.NODE_ENV === "development";
+  const safeDetail = isDev && errorDetail ? escapeHtml(errorDetail.slice(0, 500)) : "";
+  const detailHtml = safeDetail
+    ? `<pre style="text-align:left; background:#eee; padding:0.75rem; border-radius:0.375rem; font-size:0.8rem; overflow:auto; max-height:150px; margin-bottom:1rem;">${safeDetail}</pre>`
     : "";
 
   return `<!doctype html>
