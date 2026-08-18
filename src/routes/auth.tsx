@@ -318,37 +318,41 @@ function AuthPage() {
         </Link>
 
         {/* Mode Selector Tabs (Sign In / Sign Up) */}
-        <div className="grid grid-cols-2 rounded-2xl bg-softgray p-1 mb-6">
+        <div role="tablist" aria-label="Pilihan autentikasi" className="grid grid-cols-2 rounded-2xl bg-softgray p-1 mb-6">
           <button
             type="button"
+            role="tab"
+            aria-selected={authMode === "login"}
             onClick={() => {
               setAuthMode("login");
               setError(null);
             }}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all",
+              "flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-ai",
               authMode === "login"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <LogIn className="h-3.5 w-3.5" />
+            <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Masuk (Sign In)</span>
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={authMode === "register"}
             onClick={() => {
               setAuthMode("register");
               setError(null);
             }}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all",
+              "flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-ai",
               authMode === "register"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <UserPlus className="h-3.5 w-3.5" />
+            <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Daftar Guru (Sign Up)</span>
           </button>
         </div>
@@ -368,12 +372,12 @@ function AuthPage() {
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+                className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
               >
-                <GoogleIcon className="h-4 w-4 shrink-0" />
+                <GoogleIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>Masuk dengan Google</span>
               </button>
-              <div className="relative my-4 flex items-center justify-center">
+              <div className="relative my-4 flex items-center justify-center" aria-hidden="true">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border" />
                 </div>
@@ -393,10 +397,11 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={setDemoAdmin}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group"
+                  aria-label="Masuk cepat sebagai Admin Demo (View Only)"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
                   <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                    <Shield className="h-3.5 w-3.5" />
+                    <Shield className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold leading-tight flex items-center gap-1">
@@ -410,10 +415,11 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={setDemoGuru}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group"
+                  aria-label="Masuk cepat sebagai Guru Demo (View Only)"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
                   <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                    <GraduationCap className="h-3.5 w-3.5" />
+                    <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold leading-tight flex items-center gap-1">
@@ -426,7 +432,7 @@ function AuthPage() {
               </div>
             </div>
 
-            <form onSubmit={onLoginSubmit} className="mt-5 grid gap-3.5">
+            <form onSubmit={onLoginSubmit} className="mt-5 grid gap-3.5" noValidate>
               <label className="grid gap-1.5 text-xs font-medium">
                 Email
                 <div className="relative">
@@ -437,9 +443,12 @@ function AuthPage() {
                     placeholder="nama@sekolah.sch.id"
                     autoComplete="email"
                     required
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-login-error" : undefined}
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
               <label className="grid gap-1.5 text-xs font-medium">
@@ -452,14 +461,22 @@ function AuthPage() {
                     placeholder="••••••••"
                     autoComplete="current-password"
                     required
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-login-error" : undefined}
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
               {error ? (
-                <div className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium">
+                <div
+                  id="auth-login-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium"
+                >
                   {error}
                 </div>
               ) : null}
@@ -467,10 +484,10 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer"
+                className="mt-1 flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
               >
                 {loading ? "Memverifikasi..." : "Masuk ke Sistem"}
-                {!loading && <ArrowRight className="h-4 w-4" />}
+                {!loading && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
               </button>
             </form>
           </div>
@@ -484,7 +501,7 @@ function AuthPage() {
               Email).
             </p>
 
-            <form onSubmit={handleRegister} className="mt-5 grid gap-3.5">
+            <form onSubmit={handleRegister} className="mt-5 grid gap-3.5" noValidate>
               {/* Nama Guru */}
               <label className="grid gap-1.5 text-xs font-medium">
                 Nama Lengkap &amp; Gelar <span className="text-destructive">*</span>
@@ -492,12 +509,15 @@ function AuthPage() {
                   <input
                     type="text"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
                     placeholder="Drs. Budi Santoso, M.Pd."
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
@@ -507,9 +527,12 @@ function AuthPage() {
                 <div className="relative">
                   <select
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regSchoolId}
                     onChange={(e) => setRegSchoolId(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 font-medium"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai font-medium"
                   >
                     <option value="">-- Pilih Sekolah Mitra --</option>
                     {(schools ?? []).map((s) => (
@@ -518,7 +541,7 @@ function AuthPage() {
                       </option>
                     ))}
                   </select>
-                  <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
                 </div>
               </label>
 
@@ -529,12 +552,15 @@ function AuthPage() {
                   <input
                     type="text"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regPosition}
                     onChange={(e) => setRegPosition(e.target.value)}
                     placeholder="misal: Guru Pembimbing Magang / Kaprog TKJ"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
@@ -545,12 +571,15 @@ function AuthPage() {
                   <input
                     type="tel"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regPhone}
                     onChange={(e) => setRegPhone(e.target.value)}
                     placeholder="081234567890"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
@@ -561,12 +590,15 @@ function AuthPage() {
                   <input
                     type="email"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="guru@smk.sch.id"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
@@ -577,17 +609,24 @@ function AuthPage() {
                   <input
                     type="password"
                     minLength={6}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "auth-register-error" : undefined}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Minimal 6 karakter"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </label>
 
               {error ? (
-                <div className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium">
+                <div
+                  id="auth-register-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium"
+                >
                   {error}
                 </div>
               ) : null}
@@ -598,19 +637,19 @@ function AuthPage() {
                   type="button"
                   onClick={handleGoogleRegister}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-background px-4 py-3 text-xs font-bold text-foreground shadow-xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-background px-4 py-3 text-xs font-bold text-foreground shadow-xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
                 >
-                  <GoogleIcon className="h-4.5 w-4.5 shrink-0" />
+                  <GoogleIcon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
                   <span>{loading ? "Memproses..." : "Daftar dengan Akun Google"}</span>
                 </button>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
                 >
                   {loading ? "Mendaftarkan..." : "Daftar dengan Password Email"}
-                  {!loading && <ArrowRight className="h-4 w-4" />}
+                  {!loading && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             </form>

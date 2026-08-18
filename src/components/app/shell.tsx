@@ -132,6 +132,25 @@ export function AppShell({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Global accessibility keyboard handlers (Escape to close modals/menus, Cmd+K / Ctrl+K to search)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        if (searchOpen) {
+          setSearchOpen(false);
+          setSearchQuery("");
+        }
+        if (userMenuOpen) setUserMenuOpen(false);
+        if (open) setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen, userMenuOpen, open]);
+
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -141,9 +160,13 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-offwhite text-foreground flex flex-col">
+      <a href="#main-content" className="skip-link">
+        Lewati ke konten utama
+      </a>
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside
+          aria-label="Navigasi Menu Utama"
           className={cn(
             "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background flex flex-col p-4 transition-transform duration-200 lg:static lg:translate-x-0",
             open ? "translate-x-0 shadow-xl" : "-translate-x-full",
@@ -152,7 +175,8 @@ export function AppShell({
           {/* Brand Header */}
           <Link
             to={me?.role === "ADMIN" ? "/app/admin/dashboard" : "/app/guru/dashboard"}
-            className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity"
+            aria-label="Kembali ke Dashboard"
+            className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity focus-visible:rounded-lg"
           >
             <img
               src="/vokasi.png"
@@ -170,7 +194,7 @@ export function AppShell({
           </Link>
 
           {/* Navigation Links */}
-          <nav className="flex-1 space-y-1 py-4 overflow-y-auto">
+          <nav aria-label="Menu Aplikasi" className="flex-1 space-y-1 py-4 overflow-y-auto">
             {nav.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -179,14 +203,16 @@ export function AppShell({
                   key={item.to}
                   to={item.to}
                   onClick={() => setOpen(false)}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all focus-visible:ring-2 focus-visible:ring-ai",
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-softgray hover:text-foreground",
                   )}
                 >
                   <Icon
+                    aria-hidden="true"
                     className={cn(
                       "h-4 w-4 shrink-0",
                       active ? "text-primary-foreground" : "text-muted-foreground",
@@ -201,7 +227,10 @@ export function AppShell({
           {/* User Profile Footer */}
           <div className="border-t border-border pt-3">
             <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-softgray/60 mb-2">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+              <div
+                aria-hidden="true"
+                className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs"
+              >
                 {me?.name ? me.name.charAt(0).toUpperCase() : "U"}
               </div>
               <div className="min-w-0 flex-1">
@@ -216,9 +245,10 @@ export function AppShell({
             <button
               type="button"
               onClick={signOut}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              aria-label="Keluar dari akun"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors focus-visible:ring-2 focus-visible:ring-destructive"
             >
-              <LogOut className="h-3.5 w-3.5" /> Keluar
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" /> Keluar
             </button>
           </div>
         </aside>
@@ -227,8 +257,11 @@ export function AppShell({
         <div className="min-w-0 flex-1 flex flex-col">
           {/* Demo Mode Notice Banner */}
           {me?.isDemo ? (
-            <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" />
+            <div
+              role="status"
+              className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" aria-hidden="true" />
               <span>
                 <strong>Mode Akun Demo (Lihat Saja):</strong> Anda sedang menguji coba mode demo
                 (View Only). Pengubahan data dinonaktifkan.
@@ -242,10 +275,11 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                aria-label="Menu"
-                className="grid h-9 w-9 place-items-center rounded-lg border border-border lg:hidden hover:bg-softgray"
+                aria-expanded={open}
+                aria-label={open ? "Tutup menu navigasi sidebar" : "Buka menu navigasi sidebar"}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-border lg:hidden hover:bg-softgray focus-visible:ring-2 focus-visible:ring-ai"
               >
-                {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                {open ? <X className="h-4 w-4" aria-hidden="true" /> : <Menu className="h-4 w-4" aria-hidden="true" />}
               </button>
               <div>
                 <h1 className="truncate text-base sm:text-lg font-bold tracking-tight">{title}</h1>
@@ -257,12 +291,13 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center gap-2 rounded-xl border border-border bg-softgray/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-softgray hover:text-foreground transition-colors"
+                aria-label="Buka pencarian global (Shortcut: ⌘K atau Ctrl+K)"
+                className="flex items-center gap-2 rounded-xl border border-border bg-softgray/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-softgray hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ai"
               >
-                <Search className="h-3.5 w-3.5" />
+                <Search className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden md:inline">Cari siswa, sekolah, mitra...</span>
                 <span className="inline md:hidden">Cari</span>
-                <kbd className="hidden md:inline-block rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                <kbd aria-hidden="true" className="hidden md:inline-block rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
                   ⌘K
                 </kbd>
               </button>
@@ -272,9 +307,15 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-1.5 pr-2.5 hover:bg-softgray transition-colors"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Menu profil pengguna"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-1.5 pr-2.5 hover:bg-softgray transition-colors focus-visible:ring-2 focus-visible:ring-ai"
                 >
-                  <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                  <div
+                    aria-hidden="true"
+                    className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs"
+                  >
                     {me?.name ? me.name.charAt(0).toUpperCase() : "U"}
                   </div>
                   <div className="hidden sm:block text-left">
@@ -287,8 +328,16 @@ export function AppShell({
 
                 {userMenuOpen ? (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-border bg-background p-2.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setUserMenuOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <div
+                      role="menu"
+                      aria-label="Menu Opsi Pengguna"
+                      className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-border bg-background p-2.5 shadow-xl animate-in fade-in zoom-in-95 duration-100"
+                    >
                       <div className="px-3 py-2 border-b border-border mb-1 space-y-1">
                         <p className="text-xs font-bold truncate">{me?.name || "Pengguna"}</p>
                         <p className="text-[11px] text-muted-foreground truncate">{me?.email}</p>
@@ -315,13 +364,14 @@ export function AppShell({
                       </div>
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           setUserMenuOpen(false);
                           signOut();
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors focus-visible:ring-2 focus-visible:ring-destructive"
                       >
-                        <LogOut className="h-4 w-4" />
+                        <LogOut className="h-4 w-4" aria-hidden="true" />
                         <span>Keluar (Logout)</span>
                       </button>
                     </div>
@@ -334,7 +384,9 @@ export function AppShell({
           </header>
 
           {/* Main Content */}
-          <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 flex-1">{children}</main>
+          <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 flex-1 outline-none">
+            {children}
+          </main>
         </div>
       </div>
 
@@ -342,7 +394,7 @@ export function AppShell({
       {open ? (
         <button
           type="button"
-          aria-label="Tutup menu"
+          aria-label="Tutup menu navigasi"
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
         />
@@ -355,15 +407,21 @@ export function AppShell({
 
       {/* Global Search Modal */}
       {searchOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pencarian Global"
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+        >
           <div className="w-full max-w-lg rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <Search className="h-4 w-4 text-muted-foreground" />
+              <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <input
-                type="text"
+                type="search"
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Cari siswa, sekolah, atau mitra industri"
                 placeholder="Ketik nama siswa, sekolah, atau perusahaan..."
                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
@@ -373,13 +431,14 @@ export function AppShell({
                   setSearchOpen(false);
                   setSearchQuery("");
                 }}
-                className="grid h-6 w-6 place-items-center rounded hover:bg-softgray text-muted-foreground"
+                aria-label="Tutup dialog pencarian"
+                className="grid h-6 w-6 place-items-center rounded hover:bg-softgray text-muted-foreground focus-visible:ring-2 focus-visible:ring-ai"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
-            <div className="max-h-80 overflow-y-auto p-3 space-y-3">
+            <div className="max-h-80 overflow-y-auto p-3 space-y-3" role="region" aria-live="polite">
               {searchLoading ? (
                 <p className="text-center py-6 text-xs text-muted-foreground">Mencari...</p>
               ) : null}
@@ -670,14 +729,21 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="complete-profile-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+    >
       <div className="w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
         <div className="flex items-center gap-3 mb-4">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-ai-soft text-ai">
+          <div aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-2xl bg-ai-soft text-ai">
             <UserCog className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-display text-lg font-bold">Lengkapi Data Profil Guru</h3>
+            <h3 id="complete-profile-title" className="font-display text-lg font-bold">
+              Lengkapi Data Profil Guru
+            </h3>
             <p className="text-xs text-muted-foreground">
               Silakan lengkapi data resmi Anda untuk mulai mengelola magang siswa.
             </p>
@@ -690,10 +756,11 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             <input
               type="text"
               required
+              aria-required="true"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Drs. Budi Santoso, M.Pd."
-              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai focus-visible:ring-2 focus-visible:ring-ai"
             />
           </label>
 
@@ -701,9 +768,10 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             Asal Sekolah Mitra <span className="text-destructive">*</span>
             <select
               required
+              aria-required="true"
               value={schoolId}
               onChange={(e) => setSchoolId(e.target.value)}
-              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai font-medium"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai focus-visible:ring-2 focus-visible:ring-ai font-medium"
             >
               <option value="">-- Pilih Sekolah Mitra --</option>
               {(schools ?? []).map((s) => (
@@ -719,10 +787,11 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             <input
               type="text"
               required
+              aria-required="true"
               value={position}
               onChange={(e) => setPosition(e.target.value)}
               placeholder="misal: Guru Pembimbing Magang / Kaprog"
-              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai focus-visible:ring-2 focus-visible:ring-ai"
             />
           </label>
 
@@ -731,10 +800,11 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             <input
               type="tel"
               required
+              aria-required="true"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="081234567890"
-              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai focus-visible:ring-2 focus-visible:ring-ai"
             />
           </label>
 
@@ -743,15 +813,16 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             <input
               type="email"
               required
+              aria-required="true"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="guru@smk.sch.id"
-              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai"
+              className="rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-ai focus-visible:ring-2 focus-visible:ring-ai"
             />
           </label>
 
           {error ? (
-            <div className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
+            <div role="alert" aria-live="assertive" className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
               {error}
             </div>
           ) : null}
@@ -760,7 +831,7 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              className="w-full rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
             >
               {loading ? "Menyimpan Data..." : "Simpan Data Guru"}
             </button>

@@ -170,11 +170,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="id">
       <head>
         <HeadContent />
       </head>
       <body>
+        <a href="#main-content" className="skip-link">
+          Lewati ke konten utama
+        </a>
         {children}
         <Scripts />
       </body>

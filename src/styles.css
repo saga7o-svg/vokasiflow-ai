@@ -169,9 +169,75 @@
     letter-spacing: -0.03em;
   }
 
+  /* Accessibility: WCAG 2.4.7 Focus Visible & WCAG 2.4.11 Focus Not Obscured */
   :focus-visible {
     outline: 2px solid var(--ai);
     outline-offset: 2px;
+  }
+
+  :focus,
+  :target {
+    scroll-margin-top: 80px;
+    scroll-margin-bottom: 60px;
+  }
+
+  /* Minimum touch target size recommendation (WCAG 2.5.8) */
+  button,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
+/* Accessibility: Skip Link Utility */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  transition: top 0.2s ease-in-out;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 1rem;
+  outline: 3px solid var(--ai);
+  outline-offset: 3px;
+}
+
+/* Accessibility: Screen Reader Only Utility */
+.visually-hidden,
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Accessibility: Respect Reduced Motion (WCAG 2.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -215,3 +281,4 @@
     stroke-dashoffset: -24;
   }
 }
+
