@@ -386,37 +386,8 @@ function AuthPage() {
             {/* Fast Login Buttons */}
             <div className="mt-5 rounded-2xl border border-border bg-softgray/50 p-3.5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Akses Login Cepat:
+                Akun Uji Coba Demo:
               </p>
-
-              {/* Super Admin Website */}
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("saga7o");
-                  setPassword("MSIgf63thin");
-                  handleLogin("saga7o", "MSIgf63thin");
-                }}
-                className="w-full flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-2.5 mb-2 text-left text-xs font-medium hover:bg-primary/10 transition-all group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-                    ⚡
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-foreground leading-tight flex items-center gap-1.5">
-                      <span>Admin Utama Website</span>
-                      <span className="rounded bg-primary/20 text-primary px-1.5 py-0.2 text-[9px] font-mono font-bold">
-                        FULL ACCESS (EDIT)
-                      </span>
-                    </p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      User: <strong>saga7o</strong> | Pass: <strong>MSIgf63thin</strong>
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-primary shrink-0 transition-transform group-hover:translate-x-0.5" />
-              </button>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
