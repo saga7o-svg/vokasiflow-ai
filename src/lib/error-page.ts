@@ -8,7 +8,7 @@ function escapeHtml(str: string): string {
 }
 
 export function renderErrorPage(errorDetail?: string): string {
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = process.env["NODE_ENV"] === "development";
   const safeDetail = isDev && errorDetail ? escapeHtml(errorDetail.slice(0, 500)) : "";
   const detailHtml = safeDetail
     ? `<pre style="text-align:left; background:#eee; padding:0.75rem; border-radius:0.375rem; font-size:0.8rem; overflow:auto; max-height:150px; margin-bottom:1rem;">${safeDetail}</pre>`

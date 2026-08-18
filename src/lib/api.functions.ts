@@ -679,7 +679,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       context.claims.email === "guru@example.com"
     ) {
       throw new Error(
-        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+        "Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan.",
       );
     }
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
@@ -730,7 +730,7 @@ export const updateUser = createServerFn({ method: "POST" })
       context.claims.email === "guru@example.com"
     ) {
       throw new Error(
-        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+        "Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan.",
       );
     }
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
@@ -943,7 +943,7 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
       context.claims.email === "guru@example.com"
     ) {
       throw new Error(
-        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+        "Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan.",
       );
     }
     const { supabase, userId } = context;

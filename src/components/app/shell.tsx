@@ -231,8 +231,7 @@ export function AppShell({
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" />
               <span>
                 <strong>Mode Akun Demo (Lihat Saja):</strong> Anda sedang menguji coba mode demo
-                (View Only). Pengubahan data dinonaktifkan. Gunakan akun admin (
-                <strong>saga7o</strong>) untuk akses edit penuh.
+                (View Only). Pengubahan data dinonaktifkan.
               </span>
             </div>
           ) : null}
