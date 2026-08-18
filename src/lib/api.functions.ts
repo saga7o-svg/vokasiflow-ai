@@ -147,7 +147,7 @@ export const listSchools = createServerFn({ method: "GET" })
 
 export const saveSchool = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid().optional(),
@@ -192,7 +192,7 @@ export const listStudents = createServerFn({ method: "GET" })
 
 export const saveStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid().optional(),
@@ -250,7 +250,7 @@ export const listCompanies = createServerFn({ method: "GET" })
 
 export const saveCompany = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid().optional(),
@@ -286,7 +286,7 @@ export const saveCompany = createServerFn({ method: "POST" })
 
 export const saveQuota = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid().optional(),
@@ -328,7 +328,7 @@ export const listInternships = createServerFn({ method: "GET" })
 
 export const getInternship = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: internship, error } = await supabase
@@ -369,7 +369,7 @@ export const getInternship = createServerFn({ method: "GET" })
 
 export const submitInternship = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         student_id: z.string().uuid(),
@@ -411,7 +411,7 @@ export const submitInternship = createServerFn({ method: "POST" })
 
 export const decideInternship = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -440,7 +440,7 @@ export const decideInternship = createServerFn({ method: "POST" })
 
 export const updateInternshipStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({ id: z.string().uuid(), status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]) })
       .parse(input),
@@ -476,7 +476,7 @@ export const updateInternshipStatus = createServerFn({ method: "POST" })
 
 export const saveReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         internship_id: z.string().uuid(),
@@ -506,7 +506,7 @@ export const saveReport = createServerFn({ method: "POST" })
 
 export const saveAttendance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         internship_id: z.string().uuid(),
@@ -526,7 +526,7 @@ export const saveAttendance = createServerFn({ method: "POST" })
 
 export const saveEvaluation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         internship_id: z.string().uuid(),
@@ -662,7 +662,7 @@ export const listUsers = createServerFn({ method: "GET" })
 
 export const createGuruUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         name: z.string().trim().min(2).max(120),
@@ -713,7 +713,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
 export const updateUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -754,7 +754,7 @@ export const updateUser = createServerFn({ method: "POST" })
 
 export const globalSearch = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ q: z.string().trim().max(80) }).parse(input))
+  .validator((input: unknown) => z.object({ q: z.string().trim().max(80) }).parse(input))
   .handler(async ({ data, context }) => {
     if (data.q.length < 2) return { students: [], schools: [], companies: [] };
     const term = `%${data.q.replace(/[%_]/g, "")}%`;
@@ -776,7 +776,7 @@ export const globalSearch = createServerFn({ method: "GET" })
 
 export const analyzeCurriculumFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         schoolId: z.string().uuid().optional(),
@@ -818,7 +818,7 @@ export const analyzeCurriculumFn = createServerFn({ method: "POST" })
 
 export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         companyId: z.string().uuid(),
@@ -863,7 +863,7 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
 
 export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         companyName: z.string().trim().min(2),
@@ -926,7 +926,7 @@ export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST"
 
 export const updateTeacherProfileFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         name: z.string().trim().min(2),

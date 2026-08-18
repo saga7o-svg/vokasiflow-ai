@@ -13,6 +13,12 @@
       "skillPath": "skills/gemini-api-dev/SKILL.md",
       "computedHash": "ade92313b4a3fafbc647fb2c4a67f32640bbb6fc5a875a6c56fe1e10580c4278"
     },
+    "performance-optimization": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/performance-optimization/SKILL.md",
+      "computedHash": "cd729dc7d35b5c2d17fd574dd08f765f0a2775117f01da2f65a6b25c21e879bb"
+    },
     "security-and-hardening": {
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
