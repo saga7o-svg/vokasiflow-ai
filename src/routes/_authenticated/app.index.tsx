@@ -25,7 +25,7 @@ function AppIndexRedirect() {
         navigate({ to: "/app/guru/dashboard", replace: true });
       }
     } else if (isError) {
-      navigate({ to: "/auth", replace: true });
+      navigate({ to: "/auth", search: { mode: "login" }, replace: true });
     }
   }, [me, isError, navigate]);
 

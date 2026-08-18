@@ -123,7 +123,10 @@ Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
       });
 
       if (response.text) {
-        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const cleaned = response.text
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
         return JSON.parse(cleaned) as CurriculumAnalysisResult;
       }
     } catch (err) {
@@ -143,24 +146,28 @@ Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
     curriculumGaps: [
       {
         skill: "Otomatisasi & Alat Kerja Digital Industri 4.0",
-        description: "Penggunaan software simulasi & tools otomatisasi terkini belum terintegrasi secara intensif dalam modul reguler.",
+        description:
+          "Penggunaan software simulasi & tools otomatisasi terkini belum terintegrasi secara intensif dalam modul reguler.",
         urgency: "HIGH",
       },
       {
         skill: "Sertifikasi Keselamatan Kerja (K3) & Standar ISO",
-        description: "Kurangnya pemahaman praktis mengenai regulasi keselamatan kerja spesifik industri mitra.",
+        description:
+          "Kurangnya pemahaman praktis mengenai regulasi keselamatan kerja spesifik industri mitra.",
         urgency: "HIGH",
       },
       {
         skill: "Softskill & Komunikasi Profesional",
-        description: "Kemampuan kerja tim lintas disiplin dan pemecahan masalah (troubleshooting) mandiri di lapangan.",
+        description:
+          "Kemampuan kerja tim lintas disiplin dan pemecahan masalah (troubleshooting) mandiri di lapangan.",
         urgency: "MEDIUM",
       },
     ],
     recommendedModules: [
       {
         title: `Modul Otomatisasi & Digitalisasi ${params.competency}`,
-        description: "Pembekalan software industri, pemeliharaan berbasis IoT, dan workflow digital.",
+        description:
+          "Pembekalan software industri, pemeliharaan berbasis IoT, dan workflow digital.",
         targetCompetency: params.competency,
         estimatedHours: 40,
       },
@@ -256,7 +263,10 @@ Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terd
       });
 
       if (response.text) {
-        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const cleaned = response.text
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
         return JSON.parse(cleaned) as NearestSchoolRecommendationResult[];
       }
     } catch (err) {
@@ -345,7 +355,10 @@ Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kand
       });
 
       if (response.text) {
-        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const cleaned = response.text
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
         return JSON.parse(cleaned) as SpecialSkillMatchCandidate[];
       }
     } catch (err) {

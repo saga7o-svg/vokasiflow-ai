@@ -23,6 +23,7 @@ export const getMe = createServerFn({ method: "GET" })
 
     const isDemoAdmin = profile?.email?.toLowerCase() === "admin@example.com";
     const isDemoGuru = profile?.email?.toLowerCase() === "guru@example.com";
+    const isDemo = isDemoAdmin || isDemoGuru;
 
     const role: "ADMIN" | "GURU" =
       roles?.some((r) => r.role === "ADMIN") || isDemoAdmin ? "ADMIN" : "GURU";
@@ -64,6 +65,7 @@ export const getMe = createServerFn({ method: "GET" })
       schoolName,
       status: profile?.status ?? "ACTIVE",
       role,
+      isDemo,
     };
   });
 
@@ -672,6 +674,14 @@ export const createGuruUser = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (
+      context.claims.email === "admin@example.com" ||
+      context.claims.email === "guru@example.com"
+    ) {
+      throw new Error(
+        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+      );
+    }
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (!isAdmin) throw new Error("Anda tidak memiliki akses ke tindakan ini.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -715,6 +725,14 @@ export const updateUser = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (
+      context.claims.email === "admin@example.com" ||
+      context.claims.email === "guru@example.com"
+    ) {
+      throw new Error(
+        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+      );
+    }
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (!isAdmin) throw new Error("Anda tidak memiliki akses ke tindakan ini.");
     const { error } = await context.supabase
@@ -920,6 +938,14 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (
+      context.claims.email === "admin@example.com" ||
+      context.claims.email === "guru@example.com"
+    ) {
+      throw new Error(
+        "Akun Demo hanya memiliki akses lihat (View Only). Silakan masuk menggunakan akun admin (saga7o) untuk membuat/mengubah data.",
+      );
+    }
     const { supabase, userId } = context;
     const { error } = await supabase
       .from("profiles")
@@ -936,4 +962,3 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message || "Gagal memperbarui profil guru.");
     return { success: true };
   });
-

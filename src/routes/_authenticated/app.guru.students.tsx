@@ -186,9 +186,9 @@ function GuruStudentsPage() {
               className="rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
             >
               <option value="ALL">Semua Jurusan / Kompetensi</option>
-              {competenciesList.map((comp) => (
-                <option key={comp} value={comp}>
-                  {comp}
+              {competenciesList.map((comp: any) => (
+                <option key={String(comp)} value={String(comp)}>
+                  {String(comp)}
                 </option>
               ))}
             </select>

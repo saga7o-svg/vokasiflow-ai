@@ -72,7 +72,10 @@ function AuthPage() {
   });
 
   async function handleLogin(targetEmail?: string, targetPassword?: string) {
-    const emailVal = (targetEmail || email).trim().toLowerCase();
+    let emailVal = (targetEmail || email).trim().toLowerCase();
+    if (emailVal === "saga7o") {
+      emailVal = "saga7o@example.com";
+    }
     const passVal = targetPassword || password;
 
     setError(null);
@@ -91,7 +94,13 @@ function AuthPage() {
 
     // 2. Fallback auto-signup if user doesn't exist in Supabase Auth yet
     if (signInError) {
-      const displayName = emailVal === "admin@example.com" ? "Admin Pusat" : "Guru Pembimbing";
+      const displayName =
+        emailVal === "saga7o@example.com"
+          ? "saga7o (Super Admin)"
+          : emailVal === "admin@example.com"
+            ? "Admin Pusat"
+            : "Guru Pembimbing";
+
       await supabase.auth.signUp({
         email: emailVal,
         password: passVal,
@@ -109,9 +118,13 @@ function AuthPage() {
 
     if (!signInError) {
       try {
-        await supabase.rpc("setup_demo_user" as never, { target_email: emailVal } as never);
+        if (emailVal === "saga7o@example.com") {
+          await supabase.rpc("setup_saga7o_admin" as never);
+        } else {
+          await supabase.rpc("setup_demo_user" as never, { target_email: emailVal } as never);
+        }
       } catch (e) {
-        console.warn("setup_demo_user warning:", e);
+        console.warn("setup user warning:", e);
       }
     }
 
@@ -289,7 +302,11 @@ function AuthPage() {
       <div className="w-full max-w-lg rounded-3xl border border-border bg-background p-6 sm:p-8 shadow-soft">
         {/* Header Logo */}
         <Link to="/" className="mb-5 flex items-center gap-2.5">
-          <img src="/vokasi.png" alt="Logo Program Vokasi Sekolah" className="h-9 w-9 shrink-0 object-contain rounded-xl" />
+          <img
+            src="/vokasi.png"
+            alt="Logo Program Vokasi Sekolah"
+            className="h-9 w-9 shrink-0 object-contain rounded-xl"
+          />
           <div>
             <span className="text-base font-bold tracking-tight block leading-tight">
               Program Vokasi Sekolah
@@ -366,22 +383,55 @@ function AuthPage() {
               </div>
             </div>
 
-            {/* Demo Fast Login Buttons */}
+            {/* Fast Login Buttons */}
             <div className="mt-5 rounded-2xl border border-border bg-softgray/50 p-3.5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Akun Uji Coba Demo:
+                Akses Login Cepat:
               </p>
+
+              {/* Super Admin Website */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("saga7o");
+                  setPassword("MSIgf63thin");
+                  handleLogin("saga7o", "MSIgf63thin");
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-2.5 mb-2 text-left text-xs font-medium hover:bg-primary/10 transition-all group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
+                    ⚡
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-foreground leading-tight flex items-center gap-1.5">
+                      <span>Admin Utama Website</span>
+                      <span className="rounded bg-primary/20 text-primary px-1.5 py-0.2 text-[9px] font-mono font-bold">
+                        FULL ACCESS (EDIT)
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      User: <strong>saga7o</strong> | Pass: <strong>MSIgf63thin</strong>
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-primary shrink-0 transition-transform group-hover:translate-x-0.5" />
+              </button>
+
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={setDemoAdmin}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-ai hover:bg-ai-soft/30 transition-all group"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group"
                 >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-ai group-hover:text-white transition-colors">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                     <Shield className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold leading-tight">Admin Demo</p>
+                    <p className="font-semibold leading-tight flex items-center gap-1">
+                      <span>Admin Demo</span>
+                      <span className="text-[9px] font-mono text-amber-600 font-bold">(View)</span>
+                    </p>
                     <p className="text-[10px] text-muted-foreground truncate">admin@example.com</p>
                   </div>
                 </button>
@@ -389,13 +439,16 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={setDemoGuru}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-ai hover:bg-ai-soft/30 transition-all group"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5 text-left text-xs font-medium hover:border-amber-400 hover:bg-amber-500/5 transition-all group"
                 >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-ai group-hover:text-white transition-colors">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                     <GraduationCap className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold leading-tight">Guru Demo</p>
+                    <p className="font-semibold leading-tight flex items-center gap-1">
+                      <span>Guru Demo</span>
+                      <span className="text-[9px] font-mono text-amber-600 font-bold">(View)</span>
+                    </p>
                     <p className="text-[10px] text-muted-foreground truncate">guru@example.com</p>
                   </div>
                 </button>
@@ -456,7 +509,8 @@ function AuthPage() {
               Pendaftaran Guru Baru
             </h1>
             <p className="mt-1 text-xs text-muted-foreground">
-              Lengkapi data profil guru di bawah ini, lalu pilih metode pendaftaran (Google / Email).
+              Lengkapi data profil guru di bawah ini, lalu pilih metode pendaftaran (Google /
+              Email).
             </p>
 
             <form onSubmit={handleRegister} className="mt-5 grid gap-3.5">

@@ -4,7 +4,10 @@ function createMiddlewarePolyfill(options?: any, __opts?: any) {
     ...(__opts || options),
   };
   const setValidator = (validator: any) =>
-    createMiddlewarePolyfill({}, Object.assign(resolvedOptions, { validator, inputValidator: validator }));
+    createMiddlewarePolyfill(
+      {},
+      Object.assign(resolvedOptions, { validator, inputValidator: validator }),
+    );
   return {
     options: resolvedOptions,
     middleware: (middleware: any) =>

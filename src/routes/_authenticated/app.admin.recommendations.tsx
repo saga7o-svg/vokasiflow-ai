@@ -27,10 +27,7 @@ import {
   getNearestSchoolsRecommendationFn,
   getSpecialSkillsStudentMatchingFn,
 } from "@/lib/api.functions";
-import type {
-  NearestSchoolRecommendationResult,
-  SpecialSkillMatchCandidate,
-} from "@/lib/gemini";
+import type { NearestSchoolRecommendationResult, SpecialSkillMatchCandidate } from "@/lib/gemini";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +36,9 @@ export const Route = createFileRoute("/_authenticated/app/admin/recommendations"
 });
 
 function SmartMatchingPage() {
-  const [activeTab, setActiveTab] = useState<"NEAREST_SCHOOLS" | "SPECIAL_SKILLS">("NEAREST_SCHOOLS");
+  const [activeTab, setActiveTab] = useState<"NEAREST_SCHOOLS" | "SPECIAL_SKILLS">(
+    "NEAREST_SCHOOLS",
+  );
 
   // Server functions
   const fetchNearestSchools = useServerFn(getNearestSchoolsRecommendationFn);
@@ -118,7 +117,9 @@ function SmartMatchingPage() {
               Smart Matching & Rekomendasi Penempatan AI
             </h1>
             <p className="text-sm md:text-base text-slate-300 leading-relaxed">
-              Temukan SMK terdekat dari lokasi perusahaan mitra dan filter kandidat siswa magang berdasarkan kualifikasi & kemampuan khusus (seperti kepemilikan SIM A/C, mengemudi, sertifikasi K3, software, dll).
+              Temukan SMK terdekat dari lokasi perusahaan mitra dan filter kandidat siswa magang
+              berdasarkan kualifikasi & kemampuan khusus (seperti kepemilikan SIM A/C, mengemudi,
+              sertifikasi K3, software, dll).
             </p>
           </div>
         </div>
@@ -313,37 +314,32 @@ function SmartMatchingPage() {
                     Quick Filter Kemampuan Khusus
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      "Mengemudi",
-                      "SIM A",
-                      "SIM C",
-                      "K3",
-                      "AutoCAD",
-                      "Bahasa Inggris",
-                    ].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => {
-                          setSkillFilter(tag);
-                          setRequirementNote(
-                            `Dibutuhkan siswa magang dengan kualifikasi khusus: ${tag} untuk operasional tim.`,
-                          );
-                        }}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border",
-                          skillFilter === tag
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-softgray text-muted-foreground border-border hover:bg-background",
-                        )}
-                      >
-                        {tag === "Mengemudi" || tag === "SIM A" || tag === "SIM C"
-                          ? `🚗 ${tag}`
-                          : tag === "K3"
-                            ? `🛡️ ${tag}`
-                            : `⭐ ${tag}`}
-                      </button>
-                    ))}
+                    {["Mengemudi", "SIM A", "SIM C", "K3", "AutoCAD", "Bahasa Inggris"].map(
+                      (tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            setSkillFilter(tag);
+                            setRequirementNote(
+                              `Dibutuhkan siswa magang dengan kualifikasi khusus: ${tag} untuk operasional tim.`,
+                            );
+                          }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border",
+                            skillFilter === tag
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-softgray text-muted-foreground border-border hover:bg-background",
+                          )}
+                        >
+                          {tag === "Mengemudi" || tag === "SIM A" || tag === "SIM C"
+                            ? `🚗 ${tag}`
+                            : tag === "K3"
+                              ? `🛡️ ${tag}`
+                              : `⭐ ${tag}`}
+                        </button>
+                      ),
+                    )}
                   </div>
                 </div>
               </div>
@@ -429,9 +425,7 @@ function SmartMatchingPage() {
 
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
-                            <span className="text-xs text-muted-foreground block">
-                              Fit Score
-                            </span>
+                            <span className="text-xs text-muted-foreground block">Fit Score</span>
                             <span className="text-base font-black text-primary">
                               {cand.matchScore}% Match
                             </span>

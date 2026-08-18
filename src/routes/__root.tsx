@@ -89,7 +89,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
       // Open Graph / Facebook / WhatsApp / LinkedIn
       { property: "og:site_name", content: "Program Vokasi Sekolah" },
-      { property: "og:title", content: "Program Vokasi Sekolah — Sistem Manajemen Magang Vokasi Berbasis AI" },
+      {
+        property: "og:title",
+        content: "Program Vokasi Sekolah — Sistem Manajemen Magang Vokasi Berbasis AI",
+      },
       {
         property: "og:description",
         content:

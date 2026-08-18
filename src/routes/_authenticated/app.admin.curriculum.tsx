@@ -47,7 +47,9 @@ function CurriculumAnalysisPage() {
   });
 
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
-  const [selectedCompetency, setSelectedCompetency] = useState<string>(DEFAULT_COMPETENCIES[0] ?? "");
+  const [selectedCompetency, setSelectedCompetency] = useState<string>(
+    DEFAULT_COMPETENCIES[0] ?? "",
+  );
   const [analysisResult, setAnalysisResult] = useState<CurriculumAnalysisResult | null>(null);
 
   const analyzeMutation = useMutation({
@@ -82,7 +84,8 @@ function CurriculumAnalysisPage() {
             </h1>
             <p className="text-sm md:text-base text-slate-300 leading-relaxed">
               Bandingkan silabus & modul pembelajaran SMK dengan kebutuhan aktual industri mitra.
-              Dapatkan rekomendasi celah *skill*, pembaruan modul, dan analisis SWOT terstruktur secara otomatis.
+              Dapatkan rekomendasi celah *skill*, pembaruan modul, dan analisis SWOT terstruktur
+              secara otomatis.
             </p>
           </div>
           <div className="absolute right-0 top-0 -bottom-10 w-96 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
@@ -160,7 +163,8 @@ function CurriculumAnalysisPage() {
             </div>
             <h3 className="text-lg font-bold text-foreground">AI Sedang Mengevaluasi Kurikulum</h3>
             <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
-              Gemini AI sedang memetakan silabus {selectedCompetency} terhadap tren industri, permintaan kualifikasi perusahaan, dan standar kompetensi kerja nasional.
+              Gemini AI sedang memetakan silabus {selectedCompetency} terhadap tren industri,
+              permintaan kualifikasi perusahaan, dan standar kompetensi kerja nasional.
             </p>
           </div>
         )}
@@ -191,7 +195,8 @@ function CurriculumAnalysisPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-                  Berdasarkan pemetaan otomatis terhadap data kebutuhan industri mitra aktif dalam sistem vokasi.
+                  Berdasarkan pemetaan otomatis terhadap data kebutuhan industri mitra aktif dalam
+                  sistem vokasi.
                 </p>
               </div>
 
@@ -208,7 +213,9 @@ function CurriculumAnalysisPage() {
                 </div>
                 <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2 text-xs">
                   <span className="font-semibold text-muted-foreground">Target Sekolah:</span>
-                  <span className="font-medium text-foreground">{selectedSchool?.name || "SMK Vokasi"}</span>
+                  <span className="font-medium text-foreground">
+                    {selectedSchool?.name || "SMK Vokasi"}
+                  </span>
                   <span className="text-muted-foreground">•</span>
                   <span className="font-semibold text-muted-foreground">Jurusan:</span>
                   <span className="font-medium text-foreground">{selectedCompetency}</span>
@@ -268,7 +275,8 @@ function CurriculumAnalysisPage() {
                     Rekomendasi Pembaruan Modul Pembelajaran
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Modul pelatihan singkat yang direkomendasikan AI untuk dimasukkan ke dalam kurikulum tambahan.
+                    Modul pelatihan singkat yang direkomendasikan AI untuk dimasukkan ke dalam
+                    kurikulum tambahan.
                   </p>
                 </div>
               </div>
@@ -362,7 +370,8 @@ function CurriculumAnalysisPage() {
                     Kesesuaian Tren Industri Terkini
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Proyeksi pertumbuhan lapangan kerja dan kualifikasi yang dicari perusahaan mitra vokasi.
+                    Proyeksi pertumbuhan lapangan kerja dan kualifikasi yang dicari perusahaan mitra
+                    vokasi.
                   </p>
                   <p className="text-sm font-medium text-foreground bg-softgray p-4 rounded-xl border border-border mt-4 leading-relaxed">
                     {analysisResult.industryTrendAlignment}

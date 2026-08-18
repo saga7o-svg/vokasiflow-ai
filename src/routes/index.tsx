@@ -28,7 +28,11 @@ export const Route = createFileRoute("/")({
     meta: [
       { title },
       { name: "description", content: description },
-      { name: "keywords", content: "magang vokasi, manajemen magang smk, ai magang, pkl vokasi, portal magang, vokasiflow" },
+      {
+        name: "keywords",
+        content:
+          "magang vokasi, manajemen magang smk, ai magang, pkl vokasi, portal magang, vokasiflow",
+      },
       { property: "og:title", content: title },
       { property: "og:description", content: description },
       { property: "og:type", content: "website" },

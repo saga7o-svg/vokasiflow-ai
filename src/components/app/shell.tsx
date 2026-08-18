@@ -60,7 +60,6 @@ export const guruNav = [
   { to: "/app/guru/evaluations", label: "Penilaian Magang", icon: Award },
 ];
 
-
 export function AppShell({
   children,
   title,
@@ -85,9 +84,7 @@ export function AppShell({
   const updateProfile = useServerFn(updateTeacherProfileFn);
 
   const isProfileIncomplete =
-    me?.role === "GURU" &&
-    me?.email !== "guru@example.com" &&
-    (!me?.phone || !me?.position);
+    me?.role === "GURU" && me?.email !== "guru@example.com" && (!me?.phone || !me?.position);
 
   useEffect(() => {
     if (isProfileIncomplete) {
@@ -157,7 +154,11 @@ export function AppShell({
             to={me?.role === "ADMIN" ? "/app/admin/dashboard" : "/app/guru/dashboard"}
             className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity"
           >
-            <img src="/vokasi.png" alt="Logo Program Vokasi Sekolah" className="h-8 w-8 shrink-0 object-contain rounded-xl" />
+            <img
+              src="/vokasi.png"
+              alt="Logo Program Vokasi Sekolah"
+              className="h-8 w-8 shrink-0 object-contain rounded-xl"
+            />
             <div>
               <span className="text-[15px] font-bold tracking-tight block leading-none">
                 Program Vokasi Sekolah
@@ -224,6 +225,18 @@ export function AppShell({
 
         {/* Content Area */}
         <div className="min-w-0 flex-1 flex flex-col">
+          {/* Demo Mode Notice Banner */}
+          {me?.isDemo ? (
+            <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" />
+              <span>
+                <strong>Mode Akun Demo (Lihat Saja):</strong> Anda sedang menguji coba mode demo
+                (View Only). Pengubahan data dinonaktifkan. Gunakan akun admin (
+                <strong>saga7o</strong>) untuk akses edit penuh.
+              </span>
+            </div>
+          ) : null}
+
           {/* Header */}
           <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-4 sm:px-6 py-3 backdrop-blur">
             <div className="flex min-w-0 items-center gap-3">
@@ -607,13 +620,7 @@ export function Loading({ count = 3 }: { count?: number }) {
   );
 }
 
-export function CompleteProfileModal({
-  me,
-  onClose,
-}: {
-  me: any;
-  onClose: () => void;
-}) {
+export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => void }) {
   const queryClient = useQueryClient();
   const fetchSchools = useServerFn(listSchools);
   const updateProfile = useServerFn(updateTeacherProfileFn);
