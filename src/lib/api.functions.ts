@@ -8,6 +8,35 @@ import {
   matchSpecialSkillsStudentsWithGemini,
 } from "@/lib/gemini";
 
+function isDemoEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase().trim();
+  return lower === "admin@example.com" || lower === "guru@example.com";
+}
+
+function assertNotDemo(context: { claims?: { email?: string } }) {
+  if (isDemoEmail(context.claims?.email)) {
+    throw new Error(
+      "Akses Ditolak: Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan demi keamanan.",
+    );
+  }
+}
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+async function assertAdminRole(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<boolean> {
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "ADMIN");
+  if (!isAdmin) {
+    throw new Error("Akses Ditolak: Tindakan ini memerlukan hak akses Administrator.");
+  }
+  return true;
+}
+
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -163,6 +192,8 @@ export const saveSchool = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
     const { id, ...values } = data;
     const query = id
       ? context.supabase.from("schools").update(values).eq("id", id)
@@ -209,6 +240,7 @@ export const saveStudent = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles")
@@ -268,6 +300,8 @@ export const saveCompany = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
     const { id, ...values } = data;
     const query = id
       ? context.supabase.from("companies").update(values).eq("id", id)
@@ -301,6 +335,8 @@ export const saveQuota = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
     const { id, ...values } = data;
     const query = id
       ? context.supabase.from("company_quotas").update(values).eq("id", id)
@@ -385,6 +421,7 @@ export const submitInternship = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     if (data.end_date <= data.start_date)
       throw new Error("Tanggal selesai harus setelah tanggal mulai.");
     const { error } = await context.supabase.rpc("submit_internship", {
@@ -421,6 +458,8 @@ export const decideInternship = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
     if (data.decision === "REJECT" && !data.note) throw new Error("Alasan penolakan wajib diisi.");
     const { error } = await context.supabase.rpc(
       data.decision === "APPROVE" ? "approve_internship" : "reject_internship",
@@ -446,6 +485,7 @@ export const updateInternshipStatus = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     const { data: current } = await context.supabase
       .from("internships")
       .select("status")
@@ -489,6 +529,7 @@ export const saveReport = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     const { error } = await context.supabase.from("internship_reports").insert({
       ...data,
       created_by: context.userId,
@@ -517,6 +558,7 @@ export const saveAttendance = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     const { error } = await context.supabase
       .from("attendance")
       .upsert({ ...data }, { onConflict: "internship_id,date" });
@@ -539,6 +581,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    assertNotDemo(context);
     const { error } = await context.supabase
       .from("evaluations")
       .upsert({ ...data }, { onConflict: "internship_id" });
@@ -756,8 +799,9 @@ export const globalSearch = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ q: z.string().trim().max(80) }).parse(input))
   .handler(async ({ data, context }) => {
-    if (data.q.length < 2) return { students: [], schools: [], companies: [] };
-    const term = `%${data.q.replace(/[%_]/g, "")}%`;
+    const cleanQ = data.q.replace(/[%_\\]/g, "").trim();
+    if (cleanQ.length < 2) return { students: [], schools: [], companies: [] };
+    const term = `%${cleanQ}%`;
     const [students, schools, companies] = await Promise.all([
       context.supabase
         .from("students")

@@ -318,7 +318,11 @@ function AuthPage() {
         </Link>
 
         {/* Mode Selector Tabs (Sign In / Sign Up) */}
-        <div role="tablist" aria-label="Pilihan autentikasi" className="grid grid-cols-2 rounded-2xl bg-softgray p-1 mb-6">
+        <div
+          role="tablist"
+          aria-label="Pilihan autentikasi"
+          className="grid grid-cols-2 rounded-2xl bg-softgray p-1 mb-6"
+        >
           <button
             type="button"
             role="tab"
@@ -448,7 +452,10 @@ function AuthPage() {
                     aria-describedby={error ? "auth-login-error" : undefined}
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Mail
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
               <label className="grid gap-1.5 text-xs font-medium">
@@ -466,7 +473,10 @@ function AuthPage() {
                     aria-describedby={error ? "auth-login-error" : undefined}
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Lock
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -517,7 +527,10 @@ function AuthPage() {
                     placeholder="Drs. Budi Santoso, M.Pd."
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <User
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -541,7 +554,10 @@ function AuthPage() {
                       </option>
                     ))}
                   </select>
-                  <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+                  <School
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -560,7 +576,10 @@ function AuthPage() {
                     placeholder="misal: Guru Pembimbing Magang / Kaprog TKJ"
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Briefcase
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -579,7 +598,10 @@ function AuthPage() {
                     placeholder="081234567890"
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Phone
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -598,7 +620,10 @@ function AuthPage() {
                     placeholder="guru@smk.sch.id"
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Mail
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 
@@ -616,7 +641,10 @@ function AuthPage() {
                     placeholder="Minimal 6 karakter"
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai"
                   />
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Lock
+                    className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               </label>
 

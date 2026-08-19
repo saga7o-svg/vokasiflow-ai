@@ -83,20 +83,37 @@ export const requireSupabaseAuth = {
         },
       });
 
-      const { data, error } = await supabase.auth.getClaims(token);
-      if (error || !data?.claims) {
-        throw new Error("Unauthorized: Invalid token");
+      let userId = "";
+      let claims: Record<string, any> = {};
+
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (!userError && userData?.user) {
+        userId = userData.user.id;
+        claims = {
+          sub: userData.user.id,
+          email: userData.user.email,
+          user_metadata: userData.user.user_metadata,
+          app_metadata: userData.user.app_metadata,
+        };
+      } else {
+        // Fallback to getClaims if getUser returns an error
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+        if (claimsError || !claimsData?.claims?.sub) {
+          throw new Error("Unauthorized: Invalid or expired token");
+        }
+        userId = claimsData.claims.sub;
+        claims = claimsData.claims;
       }
 
-      if (!data.claims.sub) {
+      if (!userId) {
         throw new Error("Unauthorized: No user ID found in token");
       }
 
       return next({
         context: {
           supabase,
-          userId: data.claims.sub,
-          claims: data.claims,
+          userId,
+          claims,
         },
       });
     },

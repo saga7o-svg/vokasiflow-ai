@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { z } from "zod";
 
 function getGenAI() {
   const apiKey =
@@ -10,53 +11,105 @@ function getGenAI() {
   return new GoogleGenAI({ apiKey });
 }
 
-export interface CurriculumAnalysisResult {
-  matchPercentage: number;
-  summary: string;
-  strengths: string[];
-  curriculumGaps: {
-    skill: string;
-    description: string;
-    urgency: "HIGH" | "MEDIUM" | "LOW";
-  }[];
-  recommendedModules: {
-    title: string;
-    description: string;
-    targetCompetency: string;
-    estimatedHours: number;
-  }[];
-  swotAnalysis: {
-    strengths: string[];
-    weaknesses: string[];
-    opportunities: string[];
-    threats: string[];
-  };
-  industryTrendAlignment: string;
-}
+// Zod schemas for strict validation of LLM outputs (OWASP LLM05: Improper Output Handling defense)
+const CurriculumAnalysisSchema = z.object({
+  matchPercentage: z
+    .number()
+    .min(0)
+    .max(100)
+    .transform((n) => Math.round(n)),
+  summary: z.string().trim().min(1).max(3000),
+  strengths: z.array(z.string().trim().max(500)).default([]),
+  curriculumGaps: z
+    .array(
+      z.object({
+        skill: z.string().trim().max(200),
+        description: z.string().trim().max(1000),
+        urgency: z.enum(["HIGH", "MEDIUM", "LOW"]).default("MEDIUM"),
+      }),
+    )
+    .default([]),
+  recommendedModules: z
+    .array(
+      z.object({
+        title: z.string().trim().max(200),
+        description: z.string().trim().max(1000),
+        targetCompetency: z.string().trim().max(200),
+        estimatedHours: z
+          .number()
+          .min(1)
+          .max(500)
+          .transform((n) => Math.round(n)),
+      }),
+    )
+    .default([]),
+  swotAnalysis: z
+    .object({
+      strengths: z.array(z.string().trim().max(500)).default([]),
+      weaknesses: z.array(z.string().trim().max(500)).default([]),
+      opportunities: z.array(z.string().trim().max(500)).default([]),
+      threats: z.array(z.string().trim().max(500)).default([]),
+    })
+    .default({ strengths: [], weaknesses: [], opportunities: [], threats: [] }),
+  industryTrendAlignment: z.string().trim().max(2000),
+});
 
-export interface NearestSchoolRecommendationResult {
-  schoolId: string;
-  schoolName: string;
-  estimatedDistanceKm: number;
-  travelTimeMinutes: number;
-  matchScore: number;
-  logisticalFeasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING";
-  aiReasoning: string;
-  availableCompetencies: string[];
-  recommendedInternSlots: number;
-}
+const NearestSchoolSchema = z.array(
+  z.object({
+    schoolId: z.string().trim(),
+    schoolName: z.string().trim().max(200),
+    estimatedDistanceKm: z
+      .number()
+      .min(0)
+      .max(5000)
+      .transform((n) => Math.round(n * 10) / 10),
+    travelTimeMinutes: z
+      .number()
+      .min(0)
+      .max(5000)
+      .transform((n) => Math.round(n)),
+    matchScore: z
+      .number()
+      .min(0)
+      .max(100)
+      .transform((n) => Math.round(n)),
+    logisticalFeasibility: z.enum(["EXCELLENT", "GOOD", "MODERATE", "CHALLENGING"]).default("GOOD"),
+    aiReasoning: z.string().trim().max(2000),
+    availableCompetencies: z.array(z.string().trim().max(200)).default([]),
+    recommendedInternSlots: z
+      .number()
+      .min(0)
+      .max(100)
+      .default(3)
+      .transform((n) => Math.round(n)),
+  }),
+);
 
-export interface SpecialSkillMatchCandidate {
-  studentId: string;
-  studentName: string;
-  schoolName: string;
-  competency: string;
-  specialSkills: string[];
-  matchScore: number;
-  specialSkillFitScore: number;
-  aiMatchReasoning: string;
-  suggestedRoles: string[];
-}
+const SpecialSkillCandidateSchema = z.array(
+  z.object({
+    studentId: z.string().trim(),
+    studentName: z.string().trim().max(200),
+    schoolName: z.string().trim().max(200),
+    competency: z.string().trim().max(200),
+    specialSkills: z.array(z.string().trim().max(200)).default([]),
+    matchScore: z
+      .number()
+      .min(0)
+      .max(100)
+      .transform((n) => Math.round(n)),
+    specialSkillFitScore: z
+      .number()
+      .min(0)
+      .max(100)
+      .transform((n) => Math.round(n)),
+    aiMatchReasoning: z.string().trim().max(2000),
+    suggestedRoles: z.array(z.string().trim().max(200)).default([]),
+  }),
+);
+
+export type CurriculumAnalysisResult = z.infer<typeof CurriculumAnalysisSchema>;
+export type NearestSchoolRecommendationResult = z.infer<typeof NearestSchoolSchema>[number];
+export type SpecialSkillMatchCandidate = z.infer<typeof SpecialSkillCandidateSchema>[number];
 
 /**
  * Analisis Kurikulum Sekolah vs Kebutuhan Industri dengan Gemini AI
@@ -68,24 +121,28 @@ export async function analyzeCurriculumWithGemini(params: {
   industryDemands?: { companyName: string; competency: string; quota: number; location: string }[];
 }): Promise<CurriculumAnalysisResult> {
   const ai = getGenAI();
-  const safeSchoolName = (params.schoolName || "").slice(0, 200);
-  const safeCompetency = (params.competency || "").slice(0, 200);
-  const safeModules = (params.schoolModules || []).slice(0, 50).map((m) => String(m).slice(0, 200));
+  const safeSchoolName = (params.schoolName || "").slice(0, 200).replace(/[<>{}]/g, "");
+  const safeCompetency = (params.competency || "").slice(0, 200).replace(/[<>{}]/g, "");
+  const safeModules = (params.schoolModules || []).slice(0, 50).map((m) =>
+    String(m)
+      .slice(0, 200)
+      .replace(/[<>{}]/g, ""),
+  );
 
   const prompt = `
 Anda adalah Pakar Kurikulum Vokasi (SMK) dan Analyst Industri Terkemuka.
 Lakukan analisis mendalam terhadap keselarasan kurikulum sekolah vokasi berikut dengan kebutuhan industri mitra saat ini.
 
-Informasi Sekolah:
-- Nama Sekolah: ${safeSchoolName}
-- Program / Kompetensi Keahlian: ${safeCompetency}
-- Modul Pembelajaran Eksisting: ${safeModules.join(", ") || "Standar Kurikulum Merdeka Vokasi / K13 Vokasi"}
-
-Data Kebutuhan Industri Mitra Terbaru:
+<<<DATA_SEKOLAH_DAN_INDUSTRI>>>
+- Nama Sekolah: ${JSON.stringify(safeSchoolName)}
+- Program / Kompetensi Keahlian: ${JSON.stringify(safeCompetency)}
+- Modul Pembelajaran Eksisting: ${JSON.stringify(safeModules.length > 0 ? safeModules : ["Standar Kurikulum Merdeka Vokasi / K13 Vokasi"])}
+- Data Kebutuhan Industri Mitra Terbaru:
 ${JSON.stringify((params.industryDemands || []).slice(0, 50), null, 2)}
+<<<AKHIR_DATA>>>
 
 Tugas Anda:
-Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
+Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper dan tanpa teks tambahan):
 {
   "matchPercentage": number (misal 85),
   "summary": string (ringkasan eksekutif keselarasan kurikulum),
@@ -131,9 +188,11 @@ Kembalikan JSON murni dengan format persis berikut (tanpa markdown wrapper):
           .replace(/```/g, "")
           .trim();
         const parsed = JSON.parse(cleaned);
-        if (typeof parsed === "object" && parsed !== null && "matchPercentage" in parsed) {
-          return parsed as CurriculumAnalysisResult;
+        const validated = CurriculumAnalysisSchema.safeParse(parsed);
+        if (validated.success) {
+          return validated.data;
         }
+        console.warn("Gemini output schema validation failed:", validated.error.issues);
       }
     } catch (err) {
       console.warn("Gemini API call failed, falling back to smart heuristic response:", err);
@@ -229,31 +288,43 @@ export async function recommendNearestSchoolsWithGemini(params: {
   }[];
 }): Promise<NearestSchoolRecommendationResult[]> {
   const ai = getGenAI();
-  const safeCompanyName = (params.companyName || "").slice(0, 200);
-  const safeAddress = (params.companyAddress || "").slice(0, 300);
-  const safeCity = (params.companyCity || "").slice(0, 100);
-  const safeCompetency = (params.requiredCompetency || "").slice(0, 200);
+  const safeCompanyName = (params.companyName || "").slice(0, 200).replace(/[<>{}]/g, "");
+  const safeAddress = (params.companyAddress || "").slice(0, 300).replace(/[<>{}]/g, "");
+  const safeCity = (params.companyCity || "").slice(0, 100).replace(/[<>{}]/g, "");
+  const safeCompetency = (params.requiredCompetency || "").slice(0, 200).replace(/[<>{}]/g, "");
   const safeSchools = (params.schools || []).slice(0, 30).map((s) => ({
     id: String(s.id).slice(0, 100),
-    name: String(s.name).slice(0, 200),
-    city: String(s.city).slice(0, 100),
-    address: String(s.address).slice(0, 300),
-    province: s.province ? String(s.province).slice(0, 100) : undefined,
+    name: String(s.name)
+      .slice(0, 200)
+      .replace(/[<>{}]/g, ""),
+    city: String(s.city)
+      .slice(0, 100)
+      .replace(/[<>{}]/g, ""),
+    address: String(s.address)
+      .slice(0, 300)
+      .replace(/[<>{}]/g, ""),
+    province: s.province
+      ? String(s.province)
+          .slice(0, 100)
+          .replace(/[<>{}]/g, "")
+      : undefined,
   }));
 
   const prompt = `
 Anda adalah Pakar Logistik Vokasi & Geospasial Indonesia.
 Tentukan rekomendasi sekolah vokasi (SMK) TERDEKAT dan PALING COCOK untuk penempatan magang perusahaan berikut.
 
+<<<DATA_PERUSAHAAN_DAN_SEKOLAH>>>
 Informasi Perusahaan:
-- Nama: ${safeCompanyName}
-- Alamat: ${safeAddress}, Kota: ${safeCity}
-- Kebutuhan Kompetensi: ${safeCompetency || "Umum / Semua Jurusan"}
+- Nama: ${JSON.stringify(safeCompanyName)}
+- Alamat: ${JSON.stringify(safeAddress)}, Kota: ${JSON.stringify(safeCity)}
+- Kebutuhan Kompetensi: ${JSON.stringify(safeCompetency || "Umum / Semua Jurusan")}
 
 Daftar Sekolah Vokasi Terdaftar:
 ${JSON.stringify(safeSchools, null, 2)}
+<<<AKHIR_DATA>>>
 
-Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terdekat & terbaik:
+Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan sekolah terdekat & terbaik:
 [
   {
     "schoolId": "string (sesuai id sekolah)",
@@ -285,9 +356,11 @@ Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terd
           .replace(/```/g, "")
           .trim();
         const parsed = JSON.parse(cleaned);
-        if (Array.isArray(parsed)) {
-          return parsed as NearestSchoolRecommendationResult[];
+        const validated = NearestSchoolSchema.safeParse(parsed);
+        if (validated.success && validated.data.length > 0) {
+          return validated.data;
         }
+        console.warn("Nearest schools validation failed, using fallback heuristic.");
       }
     } catch (err) {
       console.warn("Gemini API call failed for nearest schools, using heuristic fallback:", err);
@@ -325,7 +398,7 @@ Kembalikan array JSON murni (tanpa markdown) berisi analisis urutan sekolah terd
  */
 export async function matchSpecialSkillsStudentsWithGemini(params: {
   companyName: string;
-  companyRequirementNote: string; // e.g. "Dibutuhkan siswa teknisi lapangan yang bisa mengemudi mobil (SIM A) untuk inspeksi lokasi"
+  companyRequirementNote: string;
   targetCompetency?: string;
   students: {
     id: string;
@@ -336,29 +409,43 @@ export async function matchSpecialSkillsStudentsWithGemini(params: {
   }[];
 }): Promise<SpecialSkillMatchCandidate[]> {
   const ai = getGenAI();
-  const safeCompanyName = (params.companyName || "").slice(0, 200);
-  const safeRequirement = (params.companyRequirementNote || "").slice(0, 1000);
-  const safeCompetency = (params.targetCompetency || "").slice(0, 200);
+  const safeCompanyName = (params.companyName || "").slice(0, 200).replace(/[<>{}]/g, "");
+  const safeRequirement = (params.companyRequirementNote || "")
+    .slice(0, 1000)
+    .replace(/[<>{}]/g, "");
+  const safeCompetency = (params.targetCompetency || "").slice(0, 200).replace(/[<>{}]/g, "");
   const safeStudents = (params.students || []).slice(0, 50).map((s) => ({
     id: String(s.id).slice(0, 100),
-    name: String(s.name).slice(0, 200),
-    schoolName: String(s.schoolName).slice(0, 200),
-    competency: String(s.competency).slice(0, 200),
-    specialSkills: (s.specialSkills || []).slice(0, 20).map((sk) => String(sk).slice(0, 100)),
+    name: String(s.name)
+      .slice(0, 200)
+      .replace(/[<>{}]/g, ""),
+    schoolName: String(s.schoolName)
+      .slice(0, 200)
+      .replace(/[<>{}]/g, ""),
+    competency: String(s.competency)
+      .slice(0, 200)
+      .replace(/[<>{}]/g, ""),
+    specialSkills: (s.specialSkills || []).slice(0, 20).map((sk) =>
+      String(sk)
+        .slice(0, 100)
+        .replace(/[<>{}]/g, ""),
+    ),
   }));
 
   const prompt = `
 Anda adalah Asisten Rekrutmen Vokasi Cerdas.
 Cocokkan kandidat siswa magang dengan kebutuhan khusus perusahaan berikut:
 
-Perusahaan: ${safeCompanyName}
-Persyaratan Khusus Lapangan: "${safeRequirement}"
-Target Jurusan: ${safeCompetency || "Bebas / Semua Jurusan"}
+<<<DATA_PERSYARATAN_DAN_SISWA>>>
+Perusahaan: ${JSON.stringify(safeCompanyName)}
+Persyaratan Khusus Lapangan: ${JSON.stringify(safeRequirement)}
+Target Jurusan: ${JSON.stringify(safeCompetency || "Bebas / Semua Jurusan")}
 
 Daftar Kandidat Siswa:
 ${JSON.stringify(safeStudents, null, 2)}
+<<<AKHIR_DATA>>>
 
-Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kandidat:
+Kembalikan array JSON murni (tanpa markdown wrapper) berisi pemeringkatan kecocokan kandidat:
 [
   {
     "studentId": "string (sesuai id siswa)",
@@ -368,7 +455,7 @@ Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kand
     "specialSkills": ["string"],
     "matchScore": number (0-100),
     "specialSkillFitScore": number (0-100),
-    "aiMatchReasoning": "string (penjelasan spesifik mengapa siswa ini cocok, misal kepemilikan SIM A / kemampuan mengemudi)",
+    "aiMatchReasoning": "string (penjelasan spesifik mengapa siswa ini cocok)",
     "suggestedRoles": ["string"]
   }
 ]
@@ -390,9 +477,11 @@ Kembalikan array JSON murni (tanpa markdown) berisi pemeringkatan kecocokan kand
           .replace(/```/g, "")
           .trim();
         const parsed = JSON.parse(cleaned);
-        if (Array.isArray(parsed)) {
-          return parsed as SpecialSkillMatchCandidate[];
+        const validated = SpecialSkillCandidateSchema.safeParse(parsed);
+        if (validated.success && validated.data.length > 0) {
+          return validated.data;
         }
+        console.warn("Special skills candidate validation failed, using fallback heuristic.");
       }
     } catch (err) {
       console.warn("Gemini API call failed for special skills match, using fallback:", err);

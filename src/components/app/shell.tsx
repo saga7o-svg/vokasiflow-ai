@@ -261,7 +261,10 @@ export function AppShell({
               role="status"
               className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2"
             >
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" aria-hidden="true" />
+              <AlertTriangle
+                className="h-4 w-4 shrink-0 text-amber-500 animate-pulse"
+                aria-hidden="true"
+              />
               <span>
                 <strong>Mode Akun Demo (Lihat Saja):</strong> Anda sedang menguji coba mode demo
                 (View Only). Pengubahan data dinonaktifkan.
@@ -279,7 +282,11 @@ export function AppShell({
                 aria-label={open ? "Tutup menu navigasi sidebar" : "Buka menu navigasi sidebar"}
                 className="grid h-9 w-9 place-items-center rounded-lg border border-border lg:hidden hover:bg-softgray focus-visible:ring-2 focus-visible:ring-ai"
               >
-                {open ? <X className="h-4 w-4" aria-hidden="true" /> : <Menu className="h-4 w-4" aria-hidden="true" />}
+                {open ? (
+                  <X className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Menu className="h-4 w-4" aria-hidden="true" />
+                )}
               </button>
               <div>
                 <h1 className="truncate text-base sm:text-lg font-bold tracking-tight">{title}</h1>
@@ -297,7 +304,10 @@ export function AppShell({
                 <Search className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden md:inline">Cari siswa, sekolah, mitra...</span>
                 <span className="inline md:hidden">Cari</span>
-                <kbd aria-hidden="true" className="hidden md:inline-block rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                <kbd
+                  aria-hidden="true"
+                  className="hidden md:inline-block rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono"
+                >
                   ⌘K
                 </kbd>
               </button>
@@ -384,7 +394,11 @@ export function AppShell({
           </header>
 
           {/* Main Content */}
-          <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 flex-1 outline-none">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 flex-1 outline-none"
+          >
             {children}
           </main>
         </div>
@@ -438,7 +452,11 @@ export function AppShell({
               </button>
             </div>
 
-            <div className="max-h-80 overflow-y-auto p-3 space-y-3" role="region" aria-live="polite">
+            <div
+              className="max-h-80 overflow-y-auto p-3 space-y-3"
+              role="region"
+              aria-live="polite"
+            >
               {searchLoading ? (
                 <p className="text-center py-6 text-xs text-muted-foreground">Mencari...</p>
               ) : null}
@@ -737,7 +755,10 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
     >
       <div className="w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
         <div className="flex items-center gap-3 mb-4">
-          <div aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-2xl bg-ai-soft text-ai">
+          <div
+            aria-hidden="true"
+            className="grid h-10 w-10 place-items-center rounded-2xl bg-ai-soft text-ai"
+          >
             <UserCog className="h-5 w-5" />
           </div>
           <div>
@@ -822,7 +843,11 @@ export function CompleteProfileModal({ me, onClose }: { me: any; onClose: () => 
           </label>
 
           {error ? (
-            <div role="alert" aria-live="assertive" className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive font-medium"
+            >
               {error}
             </div>
           ) : null}
