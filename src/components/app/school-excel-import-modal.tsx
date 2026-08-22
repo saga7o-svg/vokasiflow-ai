@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import * as XLSX from "xlsx";
 import {
   Upload,
   FileSpreadsheet,
@@ -45,103 +44,106 @@ interface SchoolExcelImportModalProps {
       status: "ACTIVE" | "INACTIVE";
     }>,
     upsert: boolean,
-  ) => Promise<void>;
+  ) => Promise<unknown>;
   isImporting: boolean;
 }
 
-export function downloadSchoolExcelTemplate() {
-  const headers = [
-    "Nama Sekolah",
-    "Kode Sekolah",
-    "Alamat",
-    "Kota / Kab",
-    "Provinsi",
-    "Pendamping",
-    "Status Sekolah",
-    "Kepesertaan Sekolah",
-    "Kepala Sekolah",
-    "Nomor Telpon",
-  ];
+export async function downloadSchoolExcelTemplate() {
+  try {
+    const XLSX = await import("xlsx");
+    const headers = [
+      "Nama Sekolah",
+      "Kode Sekolah",
+      "Alamat",
+      "Kota / Kab",
+      "Provinsi",
+      "Pendamping",
+      "Status Sekolah",
+      "Kepesertaan Sekolah",
+      "Kepala Sekolah",
+      "Nomor Telpon",
+    ];
 
-  const sampleData = [
-    [
-      "BLK Don Bosco",
-      "119",
-      "Jl. Rangga Rame, Desa Weepangali, Kec. Kota Tambolaka, Kabupaten Sumba Barat Daya, Nusa Tenggara Tim. 87255",
-      "Kabupaten Sumba Barat",
-      "Nusa Tenggara Timur",
-      "Aldi",
-      "Aktif",
-      "SMK Rujukan",
-      "Br. Ephrem Santos, SPd",
-      "08123599602",
-    ],
-    [
-      "SMK Negeri 1 Tengaran",
-      "2",
-      "Jl. Durian Na'im, Karangduren, Kec. Tengaran, Kabupaten Semarang, Jawa Tengah 50775",
-      "Kabupaten Semarang",
-      "Jawa Tengah",
-      "Aldi",
-      "Aktif",
-      "SMK Mandiri",
-      "Drs. Santoso, M.M.",
-      "081225364647",
-    ],
-    [
-      "SMK Al-Mufti Subang",
-      "60",
-      "Jl. Raya K.H. Zaenal Mufti, Wanakarta, Kec. Purwadadi, Kabupaten Subang, Jawa Barat 41261",
-      "Kabupaten Subang",
-      "Jawa Barat",
-      "Hani",
-      "Aktif",
-      "SMK Rujukan",
-      "Rusmanudin, S.Si",
-      "081394335281",
-    ],
-    [
-      "SMK Antartika 2 Sidoarjo",
-      "102",
-      "Jl. Raya Siwalanpanji No.6, Bedrek, Siwalanpanji, Kec. Buduran, Kabupaten Sidoarjo, Jawa Timur 61252",
-      "Kabupaten Sidoarjo",
-      "Jawa Timur",
-      "Hani",
-      "Aktif",
-      "SMK Mandiri",
-      "Retno Purwolistyorini, S.E., M.M.Pd",
-      "081235987255",
-    ],
-  ];
+    const sampleData = [
+      [
+        "BLK Don Bosco",
+        "119",
+        "Jl. Rangga Rame, Desa Weepangali, Kec. Kota Tambolaka, Kabupaten Sumba Barat Daya, Nusa Tenggara Tim. 87255",
+        "Kabupaten Sumba Barat",
+        "Nusa Tenggara Timur",
+        "Aldi",
+        "Aktif",
+        "SMK Rujukan",
+        "Br. Ephrem Santos, SPd",
+        "08123599602",
+      ],
+      [
+        "SMK Negeri 1 Tengaran",
+        "2",
+        "Jl. Durian Na'im, Karangduren, Kec. Tengaran, Kabupaten Semarang, Jawa Tengah 50775",
+        "Kabupaten Semarang",
+        "Jawa Tengah",
+        "Aldi",
+        "Aktif",
+        "SMK Mandiri",
+        "Drs. Santoso, M.M.",
+        "081225364647",
+      ],
+      [
+        "SMK Al-Mufti Subang",
+        "60",
+        "Jl. Raya K.H. Zaenal Mufti, Wanakarta, Kec. Purwadadi, Kabupaten Subang, Jawa Barat 41261",
+        "Kabupaten Subang",
+        "Jawa Barat",
+        "Hani",
+        "Aktif",
+        "SMK Rujukan",
+        "Rusmanudin, S.Si",
+        "081394335281",
+      ],
+      [
+        "SMK Antartika 2 Sidoarjo",
+        "102",
+        "Jl. Raya Siwalanpanji No.6, Bedrek, Siwalanpanji, Kec. Buduran, Kabupaten Sidoarjo, Jawa Timur 61252",
+        "Kabupaten Sidoarjo",
+        "Jawa Timur",
+        "Hani",
+        "Aktif",
+        "SMK Mandiri",
+        "Retno Purwolistyorini, S.E., M.M.Pd",
+        "081235987255",
+      ],
+    ];
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
 
-  // Set column widths
-  ws["!cols"] = [
-    { wch: 30 }, // Nama Sekolah
-    { wch: 14 }, // Kode Sekolah
-    { wch: 45 }, // Alamat
-    { wch: 24 }, // Kota / Kab
-    { wch: 22 }, // Provinsi
-    { wch: 16 }, // Pendamping
-    { wch: 16 }, // Status Sekolah
-    { wch: 22 }, // Kepesertaan Sekolah
-    { wch: 30 }, // Kepala Sekolah
-    { wch: 20 }, // Nomor Telpon
-  ];
+    ws["!cols"] = [
+      { wch: 30 },
+      { wch: 14 },
+      { wch: 45 },
+      { wch: 24 },
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 30 },
+      { wch: 20 },
+    ];
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data Sekolah");
-  XLSX.writeFile(wb, "template_data_sekolah_vokasiflow.xlsx");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Sekolah");
+    XLSX.writeFile(wb, "template_data_sekolah_vokasiflow.xlsx");
+  } catch (err) {
+    console.error("Failed to generate template:", err);
+    toast.error("Gagal mengunduh template Excel.");
+  }
 }
 
 function normalizePhone(val: unknown): string | null {
   if (val === null || val === undefined || val === "") return null;
   let str = String(val).trim();
-  // Remove spaces, dashes, parentheses, dots
   str = str.replace(/[\s\-().]/g, "");
   if (!str) return null;
-  // If starts with +62
   if (str.startsWith("+62")) {
     str = "0" + str.slice(3);
   } else if (str.startsWith("62")) {
@@ -191,6 +193,7 @@ export function SchoolExcelImportModal({
   const [parsedRows, setParsedRows] = useState<ParsedSchoolRow[]>([]);
   const [upsert, setUpsert] = useState(true);
   const [filterInvalidOnly, setFilterInvalidOnly] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -199,6 +202,7 @@ export function SchoolExcelImportModal({
     setFile(null);
     setParsedRows([]);
     setFilterInvalidOnly(false);
+    setIsSubmitting(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -211,6 +215,7 @@ export function SchoolExcelImportModal({
 
   async function handleFileProcess(selectedFile: File) {
     try {
+      const XLSX = await import("xlsx");
       const buffer = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const firstSheetName = workbook.SheetNames[0];
@@ -327,7 +332,7 @@ export function SchoolExcelImportModal({
         }
 
         processed.push({
-          rowIndex: idx + 2, // Excel row index starts from 2 (header = 1)
+          rowIndex: idx + 2,
           name,
           school_code: code,
           address,
@@ -370,8 +375,6 @@ export function SchoolExcelImportModal({
     }
   }
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const validRows = parsedRows.filter((r) => r.isValid);
   const invalidRows = parsedRows.filter((r) => !r.isValid);
   const displayedRows = filterInvalidOnly ? invalidRows : parsedRows;
@@ -409,7 +412,7 @@ export function SchoolExcelImportModal({
         err instanceof Error
           ? err.message
           : typeof err === "object" && err && "message" in err
-            ? String((err as any).message)
+            ? String((err as Record<string, unknown>).message)
             : "Gagal mengimpor data sekolah ke database.";
       toast.error(errMsg, { id: toastId, duration: 6000 });
     } finally {
@@ -496,7 +499,7 @@ export function SchoolExcelImportModal({
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Mendukung format <strong>.xlsx</strong>, <strong>.xls</strong>, dan{" "}
-                <strong>.csv</strong> (Maksimal 500 baris)
+                <strong>.csv</strong> (Maksimal 1000 baris)
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/50">

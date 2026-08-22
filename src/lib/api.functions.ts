@@ -171,7 +171,37 @@ export const listSchools = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase.from("schools").select("*").order("name");
     if (error) throw new Error("Gagal memuat data sekolah.");
-    return data;
+
+    // Enrich rows if mentor/partnership_type are stored in embedded metadata
+    const enriched = (data || []).map((s: Record<string, unknown>) => {
+      let mentor = (s.mentor as string | null) ?? null;
+      let partnership_type = (s.partnership_type as string | null) ?? null;
+      let cleanAddress = (s.address as string | null) ?? null;
+
+      if (cleanAddress && cleanAddress.includes("<!--meta:")) {
+        try {
+          const match = cleanAddress.match(/<!--meta:(.*?)-->/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (!mentor && meta.mentor) mentor = meta.mentor;
+            if (!partnership_type && meta.partnership_type)
+              partnership_type = meta.partnership_type;
+            cleanAddress = cleanAddress.replace(/<!--meta:.*?-->/, "").trim();
+          }
+        } catch {
+          // ignore parse error
+        }
+      }
+
+      return {
+        ...s,
+        address: cleanAddress,
+        mentor,
+        partnership_type,
+      };
+    });
+
+    return enriched;
   });
 
 export const saveSchool = createServerFn({ method: "POST" })
@@ -198,10 +228,18 @@ export const saveSchool = createServerFn({ method: "POST" })
     await assertAdminRole(context.supabase, context.userId);
     const { id, ...values } = data;
 
+    const embeddedAddress =
+      values.mentor || values.partnership_type
+        ? `${values.address || ""} <!--meta:${JSON.stringify({
+            mentor: values.mentor || null,
+            partnership_type: values.partnership_type || null,
+          })}-->`.trim()
+        : values.address;
+
     const baseValues = {
       name: values.name,
       school_code: values.school_code,
-      address: values.address,
+      address: embeddedAddress,
       city: values.city,
       province: values.province,
       contact_name: values.contact_name,
@@ -309,16 +347,26 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
         status: item.status,
       }));
 
-      const baseChunk = slice.map((item) => ({
-        name: item.name,
-        school_code: item.school_code.toUpperCase(),
-        address: item.address || null,
-        city: item.city || null,
-        province: item.province || null,
-        contact_name: item.contact_name || null,
-        contact_phone: item.contact_phone || null,
-        status: item.status,
-      }));
+      const baseChunk = slice.map((item) => {
+        const embeddedAddress =
+          item.mentor || item.partnership_type
+            ? `${item.address || ""} <!--meta:${JSON.stringify({
+                mentor: item.mentor || null,
+                partnership_type: item.partnership_type || null,
+              })}-->`.trim()
+            : item.address || null;
+
+        return {
+          name: item.name,
+          school_code: item.school_code.toUpperCase(),
+          address: embeddedAddress,
+          city: item.city || null,
+          province: item.province || null,
+          contact_name: item.contact_name || null,
+          contact_phone: item.contact_phone || null,
+          status: item.status,
+        };
+      });
 
       let insertErr: { message?: string; code?: string } | null = null;
 

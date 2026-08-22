@@ -178,10 +178,12 @@ function AdminSchoolsPage() {
   }
 
   const filteredSchools = (schools ?? []).filter((s) => {
-    const q = search.toLowerCase();
+    if (!s) return false;
+    const q = (search || "").toLowerCase().trim();
+    if (!q) return true;
     return (
-      s.name.toLowerCase().includes(q) ||
-      s.school_code.toLowerCase().includes(q) ||
+      (s.name ?? "").toLowerCase().includes(q) ||
+      (s.school_code ?? "").toLowerCase().includes(q) ||
       (s.city ?? "").toLowerCase().includes(q) ||
       (s.province ?? "").toLowerCase().includes(q) ||
       (s.mentor ?? "").toLowerCase().includes(q) ||
@@ -310,9 +312,9 @@ function AdminSchoolsPage() {
                           {s.partnership_type ? (
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border ${
-                                s.partnership_type.toLowerCase().includes("rujukan")
+                                String(s.partnership_type).toLowerCase().includes("rujukan")
                                   ? "bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200/50"
-                                  : s.partnership_type.toLowerCase().includes("mandiri")
+                                  : String(s.partnership_type).toLowerCase().includes("mandiri")
                                     ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200/50"
                                     : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/50"
                               }`}
