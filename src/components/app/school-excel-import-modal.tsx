@@ -38,6 +38,8 @@ interface SchoolExcelImportModalProps {
       address: string | null;
       city: string | null;
       province: string | null;
+      mentor: string | null;
+      partnership_type: string | null;
       contact_name: string | null;
       contact_phone: string | null;
       status: "ACTIVE" | "INACTIVE";
@@ -368,9 +370,12 @@ export function SchoolExcelImportModal({
     }
   }
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const validRows = parsedRows.filter((r) => r.isValid);
   const invalidRows = parsedRows.filter((r) => !r.isValid);
   const displayedRows = filterInvalidOnly ? invalidRows : parsedRows;
+  const isBusy = isImporting || isSubmitting;
 
   async function handleProceedImport() {
     if (validRows.length === 0) {
@@ -378,19 +383,38 @@ export function SchoolExcelImportModal({
       return;
     }
 
-    const payload = validRows.map((r) => ({
-      name: r.name,
-      school_code: r.school_code,
-      address: r.address,
-      city: r.city,
-      province: r.province,
-      contact_name: r.contact_name,
-      contact_phone: r.contact_phone,
-      status: r.status,
-    }));
+    setIsSubmitting(true);
+    const toastId = toast.loading(`Sedang mengimpor ${validRows.length} data sekolah...`);
 
-    await onImport(payload, upsert);
-    handleClose();
+    try {
+      const payload = validRows.map((r) => ({
+        name: r.name,
+        school_code: r.school_code,
+        address: r.address,
+        city: r.city,
+        province: r.province,
+        mentor: r.mentor || null,
+        partnership_type: r.partnershipType || null,
+        contact_name: r.contact_name,
+        contact_phone: r.contact_phone,
+        status: r.status,
+      }));
+
+      await onImport(payload, upsert);
+      toast.success(`Berhasil mengimpor ${validRows.length} data sekolah!`, { id: toastId });
+      handleClose();
+    } catch (err: unknown) {
+      console.error("Import failed:", err);
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err && "message" in err
+            ? String((err as any).message)
+            : "Gagal mengimpor data sekolah ke database.";
+      toast.error(errMsg, { id: toastId, duration: 6000 });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -674,10 +698,10 @@ export function SchoolExcelImportModal({
             <button
               type="button"
               onClick={handleProceedImport}
-              disabled={isImporting || validRows.length === 0}
+              disabled={isBusy || validRows.length === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-2 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xs"
             >
-              {isImporting ? (
+              {isBusy ? (
                 <>
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                   Mengimpor Data...

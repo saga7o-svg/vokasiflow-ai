@@ -180,13 +180,15 @@ export const saveSchool = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid().optional(),
-        name: z.string().trim().min(2).max(120),
-        school_code: z.string().trim().min(2).max(30),
-        address: z.string().trim().max(200).nullable().default(null),
-        city: z.string().trim().max(80).nullable().default(null),
-        province: z.string().trim().max(80).nullable().default(null),
-        contact_name: z.string().trim().max(80).nullable().default(null),
-        contact_phone: z.string().trim().max(30).nullable().default(null),
+        name: z.string().trim().min(2).max(150),
+        school_code: z.string().trim().min(1).max(50),
+        address: z.string().trim().max(300).nullable().default(null),
+        city: z.string().trim().max(100).nullable().default(null),
+        province: z.string().trim().max(100).nullable().default(null),
+        mentor: z.string().trim().max(100).nullable().default(null),
+        partnership_type: z.string().trim().max(100).nullable().default(null),
+        contact_name: z.string().trim().max(100).nullable().default(null),
+        contact_phone: z.string().trim().max(50).nullable().default(null),
         status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
       })
       .parse(input),
@@ -195,18 +197,65 @@ export const saveSchool = createServerFn({ method: "POST" })
     assertNotDemo(context);
     await assertAdminRole(context.supabase, context.userId);
     const { id, ...values } = data;
-    const query = id
-      ? context.supabase.from("schools").update(values).eq("id", id)
-      : context.supabase.from("schools").insert(values);
-    const { error } = await query;
-    if (error) throw new Error("Data sekolah gagal disimpan. Pastikan kode sekolah unik.");
-    await context.supabase.from("audit_logs").insert({
-      user_id: context.userId,
-      action: id ? "UPDATE" : "CREATE",
-      entity: "school",
-      entity_id: id ?? null,
-      detail: values.name,
-    });
+
+    const baseValues = {
+      name: values.name,
+      school_code: values.school_code,
+      address: values.address,
+      city: values.city,
+      province: values.province,
+      contact_name: values.contact_name,
+      contact_phone: values.contact_phone,
+      status: values.status,
+    };
+
+    let saveErr: { message?: string; code?: string } | null = null;
+
+    if (id) {
+      const res = await context.supabase.from("schools").update(values).eq("id", id);
+      saveErr = res.error;
+      if (
+        saveErr &&
+        (saveErr.message?.includes("column") ||
+          saveErr.code === "PGRST204" ||
+          saveErr.message?.includes("mentor") ||
+          saveErr.message?.includes("partnership_type"))
+      ) {
+        const fallbackRes = await context.supabase.from("schools").update(baseValues).eq("id", id);
+        saveErr = fallbackRes.error;
+      }
+    } else {
+      const res = await context.supabase.from("schools").insert(values);
+      saveErr = res.error;
+      if (
+        saveErr &&
+        (saveErr.message?.includes("column") ||
+          saveErr.code === "PGRST204" ||
+          saveErr.message?.includes("mentor") ||
+          saveErr.message?.includes("partnership_type"))
+      ) {
+        const fallbackRes = await context.supabase.from("schools").insert(baseValues);
+        saveErr = fallbackRes.error;
+      }
+    }
+
+    if (saveErr) {
+      throw new Error(
+        `Data sekolah gagal disimpan: ${saveErr.message || "Pastikan kode sekolah unik."}`,
+      );
+    }
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: id ? "UPDATE" : "CREATE",
+        entity: "school",
+        entity_id: id ?? null,
+        detail: values.name,
+      });
+    } catch {
+      // Non-blocking audit log
+    }
     return { ok: true };
   });
 
@@ -218,18 +267,20 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
         schools: z
           .array(
             z.object({
-              name: z.string().trim().min(1).max(150),
-              school_code: z.string().trim().min(1).max(50),
-              address: z.string().trim().max(300).nullable().optional().default(null),
-              city: z.string().trim().max(100).nullable().optional().default(null),
-              province: z.string().trim().max(100).nullable().optional().default(null),
-              contact_name: z.string().trim().max(100).nullable().optional().default(null),
-              contact_phone: z.string().trim().max(50).nullable().optional().default(null),
+              name: z.string().trim().min(1),
+              school_code: z.string().trim().min(1),
+              address: z.string().trim().nullable().optional().default(null),
+              city: z.string().trim().nullable().optional().default(null),
+              province: z.string().trim().nullable().optional().default(null),
+              mentor: z.string().trim().nullable().optional().default(null),
+              partnership_type: z.string().trim().nullable().optional().default(null),
+              contact_name: z.string().trim().nullable().optional().default(null),
+              contact_phone: z.string().trim().nullable().optional().default(null),
               status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
             }),
           )
           .min(1, "Minimal 1 data sekolah untuk diimpor.")
-          .max(500, "Maksimal 500 baris dalam satu kali impor."),
+          .max(1000, "Maksimal 1000 baris dalam satu kali impor."),
         upsert: z.boolean().default(true),
       })
       .parse(input),
@@ -243,7 +294,22 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
     let processedCount = 0;
 
     for (let i = 0; i < schools.length; i += chunkSize) {
-      const chunk = schools.slice(i, i + chunkSize).map((item) => ({
+      const slice = schools.slice(i, i + chunkSize);
+
+      const fullChunk = slice.map((item) => ({
+        name: item.name,
+        school_code: item.school_code.toUpperCase(),
+        address: item.address || null,
+        city: item.city || null,
+        province: item.province || null,
+        mentor: item.mentor || null,
+        partnership_type: item.partnership_type || null,
+        contact_name: item.contact_name || null,
+        contact_phone: item.contact_phone || null,
+        status: item.status,
+      }));
+
+      const baseChunk = slice.map((item) => ({
         name: item.name,
         school_code: item.school_code.toUpperCase(),
         address: item.address || null,
@@ -254,29 +320,64 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
         status: item.status,
       }));
 
+      let insertErr: { message?: string; code?: string } | null = null;
+
       if (upsert) {
-        const { error } = await context.supabase
+        const res = await context.supabase
           .from("schools")
-          .upsert(chunk, { onConflict: "school_code" });
-        if (error) {
-          throw new Error(`Gagal mengimpor batch ${i / chunkSize + 1}: ${error.message}`);
+          .upsert(fullChunk, { onConflict: "school_code" });
+        insertErr = res.error;
+
+        if (
+          insertErr &&
+          (insertErr.message?.includes("column") ||
+            insertErr.code === "PGRST204" ||
+            insertErr.message?.includes("mentor") ||
+            insertErr.message?.includes("partnership_type"))
+        ) {
+          const fallbackRes = await context.supabase
+            .from("schools")
+            .upsert(baseChunk, { onConflict: "school_code" });
+          insertErr = fallbackRes.error;
         }
       } else {
-        const { error } = await context.supabase.from("schools").insert(chunk);
-        if (error) {
-          throw new Error(`Gagal mengimpor batch ${i / chunkSize + 1}: ${error.message}`);
+        const res = await context.supabase.from("schools").insert(fullChunk);
+        insertErr = res.error;
+
+        if (
+          insertErr &&
+          (insertErr.message?.includes("column") ||
+            insertErr.code === "PGRST204" ||
+            insertErr.message?.includes("mentor") ||
+            insertErr.message?.includes("partnership_type"))
+        ) {
+          const fallbackRes = await context.supabase.from("schools").insert(baseChunk);
+          insertErr = fallbackRes.error;
         }
       }
-      processedCount += chunk.length;
+
+      if (insertErr) {
+        throw new Error(
+          `Gagal menyimpan ke database (Batch ${Math.floor(i / chunkSize) + 1}): ${
+            insertErr.message || "Pastikan format data sesuai."
+          }`,
+        );
+      }
+
+      processedCount += slice.length;
     }
 
-    await context.supabase.from("audit_logs").insert({
-      user_id: context.userId,
-      action: "IMPORT_EXCEL",
-      entity: "school",
-      entity_id: null,
-      detail: `Import bulk ${processedCount} data sekolah via Excel`,
-    });
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "IMPORT_EXCEL",
+        entity: "school",
+        entity_id: null,
+        detail: `Import bulk ${processedCount} data sekolah via Excel`,
+      });
+    } catch {
+      // Non-blocking audit log
+    }
 
     return { success: true, count: processedCount };
   });

@@ -434,7 +434,9 @@ export type Database = {
           contact_phone: string | null;
           created_at: string;
           id: string;
+          mentor: string | null;
           name: string;
+          partnership_type: string | null;
           province: string | null;
           school_code: string;
           status: string;
@@ -447,7 +449,9 @@ export type Database = {
           contact_phone?: string | null;
           created_at?: string;
           id?: string;
+          mentor?: string | null;
           name: string;
+          partnership_type?: string | null;
           province?: string | null;
           school_code: string;
           status?: string;
@@ -460,7 +464,9 @@ export type Database = {
           contact_phone?: string | null;
           created_at?: string;
           id?: string;
+          mentor?: string | null;
           name?: string;
+          partnership_type?: string | null;
           province?: string | null;
           school_code?: string;
           status?: string;
