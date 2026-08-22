@@ -22,7 +22,9 @@ import {
   RefreshCw,
   SlidersHorizontal,
 } from "lucide-react";
-import { AppShell } from "@/components/app/shell";
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { AppShell, useMe } from "@/components/app/shell";
 import {
   getNearestSchoolsRecommendationFn,
   getSpecialSkillsStudentMatchingFn,
@@ -36,6 +38,15 @@ export const Route = createFileRoute("/_authenticated/app/admin/recommendations"
 });
 
 function SmartMatchingPage() {
+  const { data: me } = useMe();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (me && me.role === "GURU") {
+      navigate({ to: "/app/guru/dashboard", replace: true });
+    }
+  }, [me, navigate]);
+
   const [activeTab, setActiveTab] = useState<"NEAREST_SCHOOLS" | "SPECIAL_SKILLS">(
     "NEAREST_SCHOOLS",
   );

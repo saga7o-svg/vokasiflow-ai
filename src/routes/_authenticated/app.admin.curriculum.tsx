@@ -37,7 +37,20 @@ const DEFAULT_COMPETENCIES = [
   "Otomatisasi & Tata Kelola Perkantoran",
 ];
 
+import { useMe } from "@/components/app/shell";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+
 function CurriculumAnalysisPage() {
+  const { data: me } = useMe();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (me && me.role === "GURU") {
+      navigate({ to: "/app/guru/dashboard", replace: true });
+    }
+  }, [me, navigate]);
+
   const fetchSchools = useServerFn(listSchools);
   const runAnalysis = useServerFn(analyzeCurriculumFn);
 

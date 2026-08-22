@@ -20,7 +20,6 @@ import {
   CheckCircle2,
   Filter,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 

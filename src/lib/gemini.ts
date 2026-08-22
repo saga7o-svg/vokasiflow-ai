@@ -2,10 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
 function getGenAI() {
-  const apiKey =
-    process.env["GEMINI_API_KEY"] ||
-    process.env["GOOGLE_GENERATIVE_AI_API_KEY"] ||
-    "";
+  const apiKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_GENERATIVE_AI_API_KEY"] || "";
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 }

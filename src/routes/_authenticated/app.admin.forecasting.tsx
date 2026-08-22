@@ -48,7 +48,20 @@ function getConfidenceBadge(confidence: "HIGH" | "MEDIUM" | "LOW") {
   return "bg-warn/20 text-warn border-warn/30";
 }
 
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useMe } from "@/components/app/shell";
+
 function ForecastingPage() {
+  const { data: me } = useMe();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (me && me.role === "GURU") {
+      navigate({ to: "/app/guru/dashboard", replace: true });
+    }
+  }, [me, navigate]);
+
   const fetchForecast = useServerFn(getForecast);
   const [selectedCompetency, setSelectedCompetency] = useState<string>("Software Development");
 

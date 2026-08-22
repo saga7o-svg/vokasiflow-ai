@@ -1007,10 +1007,7 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
       updatePayload["school_id"] = data.schoolId;
     }
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updatePayload)
-      .eq("id", userId);
+    const { error } = await supabase.from("profiles").update(updatePayload).eq("id", userId);
 
     if (error) throw new Error(error.message || "Gagal memperbarui profil guru.");
     return { success: true };

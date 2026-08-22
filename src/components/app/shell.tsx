@@ -52,8 +52,6 @@ export const adminNav = [
 
 export const guruNav = [
   { to: "/app/guru/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/admin/curriculum", label: "Analisis Kurikulum AI", icon: BookOpen },
-  { to: "/app/admin/recommendations", label: "Smart Matching AI", icon: Compass },
   { to: "/app/guru/students", label: "Data Siswa", icon: Users },
   { to: "/app/guru/internships", label: "Pengajuan Magang", icon: FileText },
   { to: "/app/guru/monitoring", label: "Monitoring & Log", icon: CalendarCheck },

@@ -62,7 +62,20 @@ interface SchoolPerformanceRow {
   score: number | null;
 }
 
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useMe } from "@/components/app/shell";
+
 function SchoolPerformancePage() {
+  const { data: me } = useMe();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (me && me.role === "GURU") {
+      navigate({ to: "/app/guru/dashboard", replace: true });
+    }
+  }, [me, navigate]);
+
   const fetchPerformance = useServerFn(getSchoolPerformance);
   const [selectedSchool, setSelectedSchool] = useState<SchoolPerformanceRow | null>(null);
 
