@@ -225,6 +225,10 @@ export function SchoolExcelImportModal({
       }
 
       const worksheet = workbook.Sheets[firstSheetName];
+      if (!worksheet) {
+        toast.error("Lembar kerja Excel kosong atau tidak terbaca.");
+        return;
+      }
       const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
         raw: false,
         defval: "",
@@ -412,7 +416,7 @@ export function SchoolExcelImportModal({
         err instanceof Error
           ? err.message
           : typeof err === "object" && err && "message" in err
-            ? String((err as Record<string, unknown>).message)
+            ? String((err as Record<string, unknown>)["message"])
             : "Gagal mengimpor data sekolah ke database.";
       toast.error(errMsg, { id: toastId, duration: 6000 });
     } finally {

@@ -303,8 +303,8 @@ function AdminStudentsPage() {
     });
   }
 
-  const batchList = Array.from(
-    new Set((students ?? []).map((s: any) => s.batch_id).filter(Boolean)),
+  const batchList: string[] = Array.from(
+    new Set((students ?? []).map((s: any) => String(s.batch_id || "")).filter(Boolean)),
   );
 
   const competenciesList = ["Kelas XI", "Kelas XII", "Alumni"];

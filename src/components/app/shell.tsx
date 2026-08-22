@@ -665,16 +665,23 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export function EmptyState({
+  icon: Icon,
   title,
   description,
   action,
 }: {
+  icon?: React.ComponentType<{ className?: string }>;
   title: string;
   description?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-border p-10 text-center flex flex-col items-center justify-center">
+      {Icon ? (
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+      ) : null}
       <p className="text-sm font-semibold">{title}</p>
       {description ? (
         <p className="mt-1 text-xs text-muted-foreground max-w-sm">{description}</p>

@@ -124,9 +124,12 @@ export function InternshipExcelImportModal({
     }
 
     if (positionIdx !== undefined && positionIdx < rowKeys.length) {
-      const val = row[rowKeys[positionIdx]];
-      if (val !== undefined && val !== null && String(val).trim() !== "") {
-        return val;
+      const colKey = rowKeys[positionIdx];
+      if (colKey !== undefined) {
+        const val = row[colKey];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          return val;
+        }
       }
     }
 
@@ -151,7 +154,12 @@ export function InternshipExcelImportModal({
       const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
 
       const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
+      if (!firstSheetName || !workbook.Sheets[firstSheetName]) {
+        toast.error("Lembar kerja Excel tidak ditemukan.");
+        setIsParsing(false);
+        return;
+      }
+      const worksheet = workbook.Sheets[firstSheetName]!;
       const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       if (jsonData.length === 0) {

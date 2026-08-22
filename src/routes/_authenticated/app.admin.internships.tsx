@@ -297,9 +297,15 @@ function AdminInternshipsPage() {
   const allItems: InternshipParticipantItem[] = (internships ?? []) as any[];
 
   // Dynamic filter options
-  const batchList = Array.from(new Set(allItems.map((i) => i.batch_no).filter(Boolean)));
-  const targetPktList = Array.from(new Set(allItems.map((i) => i.target_pkt).filter(Boolean)));
-  const jobdeskList = Array.from(new Set(allItems.map((i) => i.jobdesk).filter(Boolean)));
+  const batchList: string[] = Array.from(
+    new Set(allItems.map((i) => i.batch_no).filter((x): x is string => Boolean(x))),
+  );
+  const targetPktList: string[] = Array.from(
+    new Set(allItems.map((i) => i.target_pkt).filter((x): x is string => Boolean(x))),
+  );
+  const jobdeskList: string[] = Array.from(
+    new Set(allItems.map((i) => i.jobdesk).filter((x): x is string => Boolean(x))),
+  );
   const statusList = ["Peserta Baru", "Peserta Pengganti", "Aktif Magang", "Selesai", "Mundur"];
 
   const filteredItems = allItems.filter((i) => {

@@ -16,6 +16,12 @@ import {
   DUMMY_DASHBOARD_STATS,
   DUMMY_USERS,
 } from "./demo-data";
+import {
+  extractMetadata,
+  embedMetadata,
+  stripMetadata,
+  mergeMetadata,
+} from "./meta-serializer";
 
 export function isDemoEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -193,28 +199,18 @@ export const listSchools = createServerFn({ method: "GET" })
 
     // Enrich rows if mentor/partnership_type are stored in embedded metadata
     const enriched = (data || []).map((s: Record<string, unknown>) => {
-      let mentor = (s.mentor as string | null) ?? null;
-      let partnership_type = (s.partnership_type as string | null) ?? null;
-      let cleanAddress = (s.address as string | null) ?? null;
+      const { cleanText: cleanAddress, metadata: meta } = extractMetadata<{
+        mentor?: string | null;
+        partnership_type?: string | null;
+      }>(s["address"] as string | null);
 
-      if (cleanAddress && cleanAddress.includes("<!--meta:")) {
-        try {
-          const match = cleanAddress.match(/<!--meta:(.*?)-->/);
-          if (match && match[1]) {
-            const meta = JSON.parse(match[1]);
-            if (!mentor && meta.mentor) mentor = meta.mentor;
-            if (!partnership_type && meta.partnership_type)
-              partnership_type = meta.partnership_type;
-            cleanAddress = cleanAddress.replace(/<!--meta:.*?-->/, "").trim();
-          }
-        } catch {
-          // ignore parse error
-        }
-      }
+      const mentor = (s["mentor"] as string | null) ?? meta?.mentor ?? null;
+      const partnership_type =
+        (s["partnership_type"] as string | null) ?? meta?.partnership_type ?? null;
 
       return {
         ...s,
-        address: cleanAddress,
+        address: cleanAddress || null,
         mentor,
         partnership_type,
       };
@@ -249,10 +245,10 @@ export const saveSchool = createServerFn({ method: "POST" })
 
     const embeddedAddress =
       values.mentor || values.partnership_type
-        ? `${values.address || ""} <!--meta:${JSON.stringify({
+        ? embedMetadata(values.address, {
             mentor: values.mentor || null,
             partnership_type: values.partnership_type || null,
-          })}-->`.trim()
+          })
         : values.address;
 
     const baseValues = {
@@ -461,53 +457,45 @@ export const listStudents = createServerFn({ method: "GET" })
       .order("name");
     if (error) throw new Error("Gagal memuat data siswa.");
 
+interface StudentMeta {
+  batch_id?: string | null;
+  mentor?: string | null;
+  city?: string | null;
+  program_status?: string | null;
+  talent_pool_year?: string | null;
+  driving_r4?: string | null;
+  sim_a?: string | null;
+  sim_c?: string | null;
+  theory_score?: string | null;
+  interview_score?: string | null;
+  graduation_status?: string | null;
+}
+
     // Enrich rows with parsed vocational metadata if embedded
     const enriched = (data || []).map((s: Record<string, unknown>) => {
-      let batch_id = (s.batch_id as string | null) ?? "Batch 01";
-      let mentor = (s.mentor as string | null) ?? null;
-      let city = (s.city as string | null) ?? null;
-      let program_status = (s.program_status as string | null) ?? "TalentPool";
-      let talent_pool_year = (s.talent_pool_year as string | null) ?? "2024";
-      let driving_r4 = (s.driving_r4 as string | null) ?? null;
-      let sim_a = (s.sim_a as string | null) ?? null;
-      let sim_c = (s.sim_c as string | null) ?? null;
-      let theory_score = (s.theory_score as string | null) ?? null;
-      let interview_score = (s.interview_score as string | null) ?? null;
-      let graduation_status =
-        (s.graduation_status as string | null) ?? (s.status === "ACTIVE" ? "Lulus" : "Tidak Lulus");
+      const sourceStr = `${s["email"] || ""} ${s["phone"] || ""} ${s["competency"] || ""}`;
+      const { metadata: meta } = extractMetadata<StudentMeta>(sourceStr);
 
-      let cleanEmail = (s.email as string | null) ?? null;
-      let cleanPhone = (s.phone as string | null) ?? null;
+      const batch_id = (s["batch_id"] as string | null) ?? meta?.batch_id ?? "Batch 01";
+      const mentor = (s["mentor"] as string | null) ?? meta?.mentor ?? null;
+      const city = (s["city"] as string | null) ?? meta?.city ?? null;
+      const program_status =
+        (s["program_status"] as string | null) ?? meta?.program_status ?? "TalentPool";
+      const talent_pool_year =
+        (s["talent_pool_year"] as string | null) ?? meta?.talent_pool_year ?? "2024";
+      const driving_r4 = (s["driving_r4"] as string | null) ?? meta?.driving_r4 ?? null;
+      const sim_a = (s["sim_a"] as string | null) ?? meta?.sim_a ?? null;
+      const sim_c = (s["sim_c"] as string | null) ?? meta?.sim_c ?? null;
+      const theory_score = (s["theory_score"] as string | null) ?? meta?.theory_score ?? null;
+      const interview_score =
+        (s["interview_score"] as string | null) ?? meta?.interview_score ?? null;
+      const graduation_status =
+        (s["graduation_status"] as string | null) ??
+        meta?.graduation_status ??
+        (s["status"] === "ACTIVE" ? "Lulus" : "Tidak Lulus");
 
-      const sourceStr = `${s.email || ""} ${s.phone || ""} ${s.competency || ""}`;
-      if (sourceStr.includes("<!--meta:")) {
-        try {
-          const match = sourceStr.match(/<!--meta:(.*?)-->/);
-          if (match && match[1]) {
-            const meta = JSON.parse(match[1]);
-            if (meta.batch_id) batch_id = meta.batch_id;
-            if (meta.mentor) mentor = meta.mentor;
-            if (meta.city) city = meta.city;
-            if (meta.program_status) program_status = meta.program_status;
-            if (meta.talent_pool_year) talent_pool_year = meta.talent_pool_year;
-            if (meta.driving_r4) driving_r4 = meta.driving_r4;
-            if (meta.sim_a) sim_a = meta.sim_a;
-            if (meta.sim_c) sim_c = meta.sim_c;
-            if (meta.theory_score) theory_score = meta.theory_score;
-            if (meta.interview_score) interview_score = meta.interview_score;
-            if (meta.graduation_status) graduation_status = meta.graduation_status;
-          }
-        } catch {
-          // ignore parse error
-        }
-      }
-
-      if (cleanEmail && cleanEmail.includes("<!--meta:")) {
-        cleanEmail = cleanEmail.replace(/<!--meta:.*?-->/, "").trim() || null;
-      }
-      if (cleanPhone && cleanPhone.includes("<!--meta:")) {
-        cleanPhone = cleanPhone.replace(/<!--meta:.*?-->/, "").trim() || null;
-      }
+      const cleanEmail = stripMetadata(s["email"] as string | null) || null;
+      const cleanPhone = stripMetadata(s["phone"] as string | null) || null;
 
       return {
         ...s,
@@ -515,7 +503,7 @@ export const listStudents = createServerFn({ method: "GET" })
         phone: cleanPhone,
         batch_id,
         mentor,
-        city: city || (s.schools as any)?.city || null,
+        city: city || (s["schools"] as any)?.city || null,
         program_status,
         talent_pool_year,
         driving_r4,
@@ -672,11 +660,11 @@ export const importStudentsBulk = createServerFn({ method: "POST" })
               const serial = parseInt(raw, 10);
               const d = new Date((serial - 25569) * 86400 * 1000);
               if (!isNaN(d.getTime())) {
-                formattedBirthDate = d.toISOString().split("T")[0];
+                formattedBirthDate = d.toISOString().split("T")[0] ?? null;
               }
             } else {
               const dmyMatch = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-              if (dmyMatch) {
+              if (dmyMatch && dmyMatch[1] && dmyMatch[2] && dmyMatch[3]) {
                 let day = parseInt(dmyMatch[1], 10);
                 let month = parseInt(dmyMatch[2], 10);
                 let year = parseInt(dmyMatch[3], 10);
@@ -693,7 +681,7 @@ export const importStudentsBulk = createServerFn({ method: "POST" })
                 }
               } else {
                 const ymdMatch = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                if (ymdMatch) {
+                if (ymdMatch && ymdMatch[1] && ymdMatch[2] && ymdMatch[3]) {
                   let year = parseInt(ymdMatch[1], 10);
                   let month = parseInt(ymdMatch[2], 10);
                   let day = parseInt(ymdMatch[3], 10);
@@ -873,7 +861,7 @@ export const bulkUpdateStudentsStatus = createServerFn({ method: "POST" })
               meta = JSON.parse(match[1]);
             } catch {}
           }
-          if (status) meta.program_status = status;
+          if (status) meta["program_status"] = status;
           const metaTag = `<!--meta:${JSON.stringify(meta)}-->`;
           let cleanEmail = st.email ? st.email.replace(/<!--meta:.*?-->/, "").trim() : "";
           const newEmail = cleanEmail ? `${cleanEmail} ${metaTag}` : metaTag;
@@ -881,8 +869,8 @@ export const bulkUpdateStudentsStatus = createServerFn({ method: "POST" })
           const updatePayload: Record<string, any> = {
             email: newEmail,
           };
-          if (status) updatePayload.status = status;
-          if (competency) updatePayload.competency = competency;
+          if (status) updatePayload["status"] = status;
+          if (competency) updatePayload["competency"] = competency;
 
           return supabase.from("students").update(updatePayload).eq("id", st.id);
         }),
@@ -988,7 +976,7 @@ export const saveStudent = createServerFn({ method: "POST" })
           existingMeta = JSON.parse(match[1]);
         } catch {}
       }
-      existingMeta.program_status = data.status;
+      existingMeta["program_status"] = data.status;
       const metaTag = `<!--meta:${JSON.stringify(existingMeta)}-->`;
       finalEmail = finalEmail ? `${finalEmail} ${metaTag}` : metaTag;
     }
@@ -1077,40 +1065,30 @@ export const listCompanies = createServerFn({ method: "GET" })
     }
 
     const enrichedCompanies = rawCompanies.map((comp: Record<string, unknown>) => {
-      let cleanAddress = (comp.address as string | null) ?? "";
-      let branches: Array<{
-        id: string;
-        branch_name: string;
-        address: string;
-        city?: string | null;
-        province?: string | null;
-        contact_person?: string | null;
-        phone?: string | null;
-        internCount?: number;
-      }> = [];
+      const { cleanText: cleanAddress, metadata: meta } = extractMetadata<{
+        branches?: Array<{
+          id: string;
+          branch_name: string;
+          address: string;
+          city?: string | null;
+          province?: string | null;
+          contact_person?: string | null;
+          phone?: string | null;
+          internCount?: number;
+        }>;
+      }>(comp["address"] as string | null);
 
-      if (cleanAddress && cleanAddress.includes("<!--meta:")) {
-        try {
-          const match = cleanAddress.match(/<!--meta:(.*?)-->/);
-          if (match && match[1]) {
-            const meta = JSON.parse(match[1]);
-            if (Array.isArray(meta.branches)) {
-              branches = meta.branches;
-            }
-          }
-        } catch {}
-        cleanAddress = cleanAddress.replace(/<!--meta:.*?-->/, "").trim();
-      }
+      let branches = Array.isArray(meta?.branches) ? meta.branches : [];
 
       // If no branches defined, create a default branch from company's own address
       if (branches.length === 0 && cleanAddress) {
         branches = [
           {
-            id: `b-${comp.id}-main`,
-            branch_name: `${comp.company_code || comp.name} - Pusat`,
+            id: `b-${comp["id"]}-main`,
+            branch_name: `${comp["company_code"] || comp["name"]} - Pusat`,
             address: cleanAddress,
-            city: (comp.city as string) || null,
-            province: (comp.province as string) || null,
+            city: (comp["city"] as string) || null,
+            province: (comp["province"] as string) || null,
           },
         ];
       }
@@ -2267,21 +2245,12 @@ export const bulkUpdateInternshipsStatus = createServerFn({ method: "POST" })
       const chunk = (existingList ?? []).slice(i, i + 25);
       await Promise.all(
         chunk.map(async (intItem) => {
-          const note = intItem.approval_note || "";
-          const match = note.match(/<!--meta:(.*?)-->/);
-          let meta: Record<string, any> = {};
-          if (match && match[1]) {
-            try {
-              meta = JSON.parse(match[1]);
-            } catch {}
-          }
-          meta.internship_status = status;
-          const metaTag = `<!--meta:${JSON.stringify(meta)}-->`;
+          const updatedNote = mergeMetadata(intItem.approval_note, { internship_status: status });
 
           return supabase
             .from("internships")
             .update({
-              approval_note: metaTag,
+              approval_note: updatedNote,
               status: status === "Selesai" ? "COMPLETED" : "ACTIVE",
               updated_at: new Date().toISOString(),
             })

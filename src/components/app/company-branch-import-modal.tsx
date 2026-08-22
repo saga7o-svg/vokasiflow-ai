@@ -40,7 +40,11 @@ export function CompanyBranchImportModal({
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      if (!sheetName || !workbook.Sheets[sheetName]) {
+        setErrorMsg("File Excel tidak memiliki lembar kerja (worksheet).");
+        return;
+      }
+      const worksheet = workbook.Sheets[sheetName]!;
       const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       if (!rawRows || rawRows.length === 0) {

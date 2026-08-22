@@ -1,4 +1,5 @@
 // Dynamic XLSX export & template utilities for Students Data
+import { stripMetadata } from "./meta-serializer";
 
 export interface StudentExcelExportItem {
   id?: string;
@@ -181,8 +182,8 @@ export async function exportStudentsToExcel(
     s.program_status || "TalentPool",
     s.talent_pool_year || "2024",
     s.student_number,
-    s.email || "-",
-    s.phone || "-",
+    stripMetadata(s.email) || "-",
+    stripMetadata(s.phone) || "-",
     s.driving_r4 || "Tidak Bisa",
     s.sim_a || "Tidak Memiliki",
     s.sim_c || "Tidak Memiliki",

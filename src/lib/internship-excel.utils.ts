@@ -1,4 +1,5 @@
 // Dynamic XLSX export & template utilities for Internship Participants (Data Peserta Magang)
+import { stripMetadata } from "./meta-serializer";
 
 export interface InternshipExcelExportItem {
   id?: string;
@@ -181,8 +182,8 @@ export async function exportInternshipsToExcel(
     item.target_pkt || "-",
     item.jobdesk || "-",
     item.placement_month || "-",
-    item.email || "-",
-    item.phone || "-",
+    stripMetadata(item.email) || "-",
+    stripMetadata(item.phone) || "-",
     item.internship_status || "Peserta Baru",
   ]);
 
