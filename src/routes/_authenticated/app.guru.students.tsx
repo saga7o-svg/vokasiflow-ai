@@ -4,8 +4,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell, Card, StatusBadge, Loading, EmptyState, useMe } from "@/components/app/shell";
 import { listStudents, saveStudent } from "@/lib/api.functions";
-import { Search, Plus, Edit2, X, User, GraduationCap, Phone, Mail, Filter } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  X,
+  User,
+  GraduationCap,
+  Phone,
+  Mail,
+  Filter,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
+import { exportStudentsToExcel } from "@/lib/student-excel.utils";
 
 export const Route = createFileRoute("/_authenticated/app/guru/students")({
   head: () => ({
@@ -48,8 +60,8 @@ function GuruStudentsPage() {
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [competency, setCompetency] = useState("Software Development");
-  const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [competency, setCompetency] = useState("Kelas XII");
+  const [status, setStatus] = useState("Aktif Akademi");
 
   const {
     data: students,
@@ -70,7 +82,7 @@ function GuruStudentsPage() {
       phone: string | null;
       email: string | null;
       competency: string;
-      status: "ACTIVE" | "INACTIVE";
+      status: string;
     }) => {
       return saveStudentFn({ data: payload });
     },
@@ -95,8 +107,8 @@ function GuruStudentsPage() {
     setBirthDate("");
     setPhone("");
     setEmail("");
-    setCompetency("Software Development");
-    setStatus("ACTIVE");
+    setCompetency("Kelas XII");
+    setStatus("Aktif Akademi");
     setModalOpen(true);
   }
 
@@ -108,8 +120,32 @@ function GuruStudentsPage() {
     setBirthDate(student.birth_date ?? "");
     setPhone(student.phone ?? "");
     setEmail(student.email ?? "");
-    setCompetency(student.competency);
-    setStatus(student.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
+
+    const rawComp = (student.competency || "").trim();
+    if (rawComp.toLowerCase().includes("xi") && !rawComp.toLowerCase().includes("xii")) {
+      setCompetency("Kelas XI");
+    } else if (
+      rawComp.toLowerCase().includes("alumni") ||
+      rawComp.toLowerCase().includes("lulus")
+    ) {
+      setCompetency("Alumni");
+    } else {
+      setCompetency(rawComp || "Kelas XII");
+    }
+
+    const rawSt = (student.status || "Aktif Akademi").trim();
+    if (rawSt.toLowerCase().includes("akademi")) {
+      setStatus("Aktif Akademi");
+    } else if (rawSt.toLowerCase().includes("talent")) {
+      setStatus("Talent Pool");
+    } else if (rawSt.toLowerCase().includes("vokasi")) {
+      setStatus("Vokasi");
+    } else if (rawSt.toLowerCase().includes("mundur") || rawSt.toLowerCase().includes("inactive")) {
+      setStatus("Mundur");
+    } else {
+      setStatus(rawSt || "Aktif Akademi");
+    }
+
     setModalOpen(true);
   }
 
@@ -151,17 +187,68 @@ function GuruStudentsPage() {
     return matchesSearch && matchesCompetency;
   });
 
+  async function handleExportExcel() {
+    if (filteredStudents.length === 0) {
+      toast.error("Tidak ada data siswa untuk diekspor.");
+      return;
+    }
+    const toastId = toast.loading(`Mengekspor ${filteredStudents.length} data siswa...`);
+    try {
+      const exportData = filteredStudents.map((s: any) => ({
+        batch_id: s.batch_id || "Batch 01",
+        school_name: me?.schoolName || "-",
+        name: s.name,
+        mentor: s.mentor || "-",
+        city: s.city || "-",
+        competency: s.competency || "Kelas XII",
+        program_status: s.program_status || "TalentPool",
+        talent_pool_year: s.talent_pool_year || "2024",
+        student_number: s.student_number,
+        email: s.email || "-",
+        phone: s.phone || "-",
+        driving_r4: s.driving_r4 || "Tidak Bisa",
+        sim_a: s.sim_a || "Tidak Memiliki",
+        sim_c: s.sim_c || "Tidak Memiliki",
+        birth_date: s.birth_date || "-",
+        gender: s.gender || "L",
+        theory_score: s.theory_score || null,
+        interview_score: s.interview_score || null,
+        graduation_status: s.graduation_status || (s.status === "ACTIVE" ? "Lulus" : "Tidak Lulus"),
+        status: s.status,
+      }));
+
+      await exportStudentsToExcel(
+        exportData,
+        `data_siswa_${(me?.schoolName || "sekolah").toLowerCase().replace(/\s+/g, "_")}.xlsx`,
+      );
+      toast.success(`Berhasil mengekspor ${filteredStudents.length} data siswa.`, { id: toastId });
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Gagal mengekspor data siswa.", { id: toastId });
+    }
+  }
+
   return (
     <AppShell
       title={`Data Siswa — ${me?.schoolName || "Sekolah"}`}
       actions={
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Tambah Siswa
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:bg-softgray hover:text-foreground transition-all shadow-xs"
+          >
+            <Download className="h-4 w-4 text-primary" />
+            Export Excel
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
+          >
+            <Plus className="h-4 w-4" /> Tambah Siswa
+          </button>
+        </div>
       }
     >
       <div className="space-y-4">
@@ -322,15 +409,16 @@ function GuruStudentsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="grid gap-1.5 text-xs font-semibold">
-                  Jurusan / Kompetensi
-                  <input
-                    type="text"
-                    required
+                  Kompetensi / Kelas
+                  <select
                     value={competency}
                     onChange={(e) => setCompetency(e.target.value)}
-                    placeholder="Software Development"
                     className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
+                  >
+                    <option value="Kelas XI">Kelas XI</option>
+                    <option value="Kelas XII">Kelas XII</option>
+                    <option value="Alumni">Alumni</option>
+                  </select>
                 </label>
                 <label className="grid gap-1.5 text-xs font-semibold">
                   Jenis Kelamin
@@ -369,14 +457,16 @@ function GuruStudentsPage() {
               </div>
 
               <label className="grid gap-1.5 text-xs font-semibold">
-                Status Siswa
+                Status Peserta
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+                  onChange={(e) => setStatus(e.target.value)}
                   className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
                 >
-                  <option value="ACTIVE">Aktif (ACTIVE)</option>
-                  <option value="INACTIVE">Non-Aktif (INACTIVE)</option>
+                  <option value="Aktif Akademi">Aktif Akademi</option>
+                  <option value="Talent Pool">Talent Pool</option>
+                  <option value="Vokasi">Vokasi</option>
+                  <option value="Mundur">Mundur</option>
                 </select>
               </label>
 

@@ -22,10 +22,10 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
-  Shield,
   School,
   BookOpen,
   Compass,
+  Briefcase,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMe, globalSearch, listSchools, updateTeacherProfileFn } from "@/lib/api.functions";
@@ -41,7 +41,7 @@ export const adminNav = [
   { to: "/app/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/admin/curriculum", label: "Analisis Kurikulum AI", icon: BookOpen },
   { to: "/app/admin/recommendations", label: "Smart Matching AI", icon: Compass },
-  { to: "/app/admin/internships", label: "Pengajuan Magang", icon: FileText },
+  { to: "/app/admin/internships", label: "Data Peserta Magang", icon: Briefcase },
   { to: "/app/admin/students", label: "Data Siswa", icon: Users },
   { to: "/app/admin/schools", label: "Data Sekolah", icon: School },
   { to: "/app/admin/companies", label: "Perusahaan Mitra", icon: Building2 },

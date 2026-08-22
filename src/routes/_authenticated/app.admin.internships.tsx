@@ -5,50 +5,108 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell, Card, StatusBadge, Loading, EmptyState } from "@/components/app/shell";
 import {
   listInternships,
-  getInternship,
-  decideInternship,
-  updateInternshipStatus,
+  saveInternshipParticipant,
+  deleteInternshipParticipant,
+  importInternshipsBulk,
+  listSchools,
+  listCompanies,
 } from "@/lib/api.functions";
 import {
   Search,
-  Filter,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Eye,
+  Plus,
+  Edit2,
+  Trash2,
   X,
-  FileText,
-  User,
+  FileSpreadsheet,
+  Download,
   Building2,
-  Calendar,
-  AlertCircle,
+  Users,
+  Briefcase,
+  Layers,
+  MapPin,
+  Car,
+  UserCheck,
+  UserPlus,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  InternshipExcelImportModal,
+  type InternshipImportItem,
+} from "@/components/app/internship-excel-import-modal";
+import { exportInternshipsToExcel } from "@/lib/internship-excel.utils";
 
 export const Route = createFileRoute("/_authenticated/app/admin/internships")({
   head: () => ({
     meta: [
-      { title: "Pengajuan Magang — VokasiFlow AI" },
-      { name: "description", content: "Daftar dan verifikasi penempatan magang vokasi." },
+      { title: "Data Peserta Magang — VokasiFlow AI" },
+      {
+        name: "description",
+        content: "Dashboard dan direktori data penempatan peserta magang vokasi.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: AdminInternshipsPage,
 });
 
+interface InternshipParticipantItem {
+  id: string;
+  student_id: string;
+  school_id: string;
+  company_id: string;
+  batch_no: string;
+  training_center: string;
+  student_name: string;
+  mentor: string | null;
+  city: string | null;
+  driving_skill: string | null;
+  student_status: string | null;
+  target_pkt: string;
+  jobdesk: string | null;
+  placement_month: string | null;
+  email: string | null;
+  phone: string | null;
+  internship_status: string;
+  students?: { name: string; student_number?: string; email?: string; phone?: string } | null;
+  schools?: { name: string; school_code?: string; city?: string } | null;
+  companies?: { name: string; city?: string } | null;
+}
+
 function AdminInternshipsPage() {
   const queryClient = useQueryClient();
   const fetchInternships = useServerFn(listInternships);
-  const fetchInternshipDetail = useServerFn(getInternship);
-  const decideFn = useServerFn(decideInternship);
-  const updateStatusFn = useServerFn(updateInternshipStatus);
+  const saveParticipantFn = useServerFn(saveInternshipParticipant);
+  const deleteParticipantFn = useServerFn(deleteInternshipParticipant);
+  const importBulkFn = useServerFn(importInternshipsBulk);
+  const fetchSchools = useServerFn(listSchools);
+  const fetchCompanies = useServerFn(listCompanies);
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [decisionNote, setDecisionNote] = useState("");
-  const [decisionType, setDecisionType] = useState<"APPROVE" | "REJECT" | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState("ALL");
+  const [selectedTargetPkt, setSelectedTargetPkt] = useState("ALL");
+  const [selectedJobdesk, setSelectedJobdesk] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InternshipParticipantItem | null>(null);
+
+  // Form states
+  const [batchNo, setBatchNo] = useState("Intra 3");
+  const [trainingCenter, setTrainingCenter] = useState("");
+  const [studentName, setStudentName] = useState("");
+  const [mentor, setMentor] = useState("");
+  const [city, setCity] = useState("");
+  const [drivingSkill, setDrivingSkill] = useState("Siswa Aktif");
+  const [studentStatus, setStudentStatus] = useState("Kelas XII");
+  const [targetPkt, setTargetPkt] = useState("SSI - Palu");
+  const [jobdesk, setJobdesk] = useState("CPC");
+  const [placementMonth, setPlacementMonth] = useState("02 Januari 2025");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [internshipStatus, setInternshipStatus] = useState("Peserta Baru");
 
   const {
     data: internships,
@@ -59,185 +117,533 @@ function AdminInternshipsPage() {
     queryFn: () => fetchInternships(),
   });
 
-  const { data: detailData, isFetching: detailLoading } = useQuery({
-    queryKey: ["internship-detail", selectedId],
-    queryFn: () => fetchInternshipDetail({ data: { id: selectedId! } }),
-    enabled: Boolean(selectedId),
+  const { data: schools } = useQuery({
+    queryKey: ["schools-list"],
+    queryFn: () => fetchSchools(),
   });
 
-  const decideMutation = useMutation({
-    mutationFn: async ({
-      id,
-      decision,
-      note,
-    }: {
-      id: string;
-      decision: "APPROVE" | "REJECT";
-      note: string;
-    }) => {
-      return decideFn({ data: { id, decision, note } });
+  const { data: companiesData } = useQuery({
+    queryKey: ["companies-list"],
+    queryFn: () => fetchCompanies(),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return saveParticipantFn({ data: payload });
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success(
-        variables.decision === "APPROVE"
-          ? "Pengajuan magang berhasil disetujui."
-          : "Pengajuan magang telah ditolak.",
+        editingItem
+          ? "Data peserta magang berhasil diperbarui."
+          : "Peserta magang baru berhasil ditambahkan.",
       );
       queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["internship-detail", selectedId] });
-      setReviewModalOpen(false);
-      setDecisionNote("");
-      setDecisionType(null);
+      closeModal();
     },
     onError: (err: Error) => {
-      toast.error(err?.message || "Terjadi kesalahan saat memproses keputusan.");
+      toast.error(err?.message || "Gagal menyimpan data peserta magang.");
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: "ACTIVE" | "COMPLETED" | "CANCELLED";
-    }) => {
-      return updateStatusFn({ data: { id, status } });
+  const bulkImportMutation = useMutation({
+    mutationFn: async (params: { items: InternshipImportItem[]; upsert: boolean }) => {
+      return importBulkFn({ data: params as any });
     },
     onSuccess: () => {
-      toast.success("Status magang berhasil diperbarui.");
+      queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
+      queryClient.invalidateQueries({ queryKey: ["schools-list"] });
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return deleteParticipantFn({ data: { id } });
+    },
+    onSuccess: () => {
+      toast.success("Peserta magang berhasil dihapus.");
       queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["internship-detail", selectedId] });
     },
     onError: (err: Error) => {
-      toast.error(err?.message || "Gagal memperbarui status.");
+      toast.error(err?.message || "Gagal menghapus data peserta magang.");
     },
   });
 
-  const filteredList = (internships ?? []).filter((item) => {
+  function handleDeleteParticipant(id: string, name: string) {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus data peserta magang "${name}"? Tindakan ini tidak dapat dibatalkan.`,
+    );
+    if (confirmed) {
+      deleteMutation.mutate(id);
+    }
+  }
+
+  function openCreateModal() {
+    setEditingItem(null);
+    setBatchNo("Intra 3");
+    setTrainingCenter(schools?.[0]?.name ?? "SMK Negeri 1 Gorontalo");
+    setStudentName("");
+    setMentor("Aldi");
+    setCity("Kota Gorontalo");
+    setDrivingSkill("Siswa Aktif");
+    setStudentStatus("Kelas XII");
+    setTargetPkt("SSI - Palu");
+    setJobdesk("CPC");
+    setPlacementMonth("02 Januari 2025");
+    setEmail("");
+    setPhone("");
+    setInternshipStatus("Peserta Baru");
+    setModalOpen(true);
+  }
+
+  function openEditModal(item: InternshipParticipantItem) {
+    setEditingItem(item);
+    setBatchNo(item.batch_no || "Intra 3");
+    setTrainingCenter(item.training_center || item.schools?.name || "");
+    setStudentName(item.student_name || item.students?.name || "");
+    setMentor(item.mentor || "");
+    setCity(item.city || item.schools?.city || "");
+    setDrivingSkill(item.driving_skill || "Siswa Aktif");
+    setStudentStatus(item.student_status || "Kelas XII");
+    setTargetPkt(item.target_pkt || item.companies?.name || "SSI - Palu");
+    setJobdesk(item.jobdesk || "CPC");
+    setPlacementMonth(item.placement_month || "02 Januari 2025");
+    setEmail(item.email || item.students?.email || "");
+    setPhone(item.phone || item.students?.phone || "");
+    setInternshipStatus(item.internship_status || "Peserta Baru");
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditingItem(null);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!studentName.trim() || !trainingCenter.trim() || !targetPkt.trim()) {
+      toast.error("Nama Peserta, Training Center, dan Target PKT wajib diisi.");
+      return;
+    }
+
+    const cleanEmail = email
+      ? email
+          .replace(/ı/g, "i")
+          .replace(/İ/g, "I")
+          .replace(/[\u200B-\u200D\uFEFF]/g, "")
+          .trim()
+      : null;
+
+    saveMutation.mutate({
+      id: editingItem?.id,
+      batch_no: batchNo.trim(),
+      training_center: trainingCenter.trim(),
+      student_name: studentName.trim(),
+      mentor: mentor.trim() || null,
+      city: city.trim() || null,
+      driving_skill: drivingSkill.trim() || "Siswa Aktif",
+      student_status: studentStatus.trim() || "Kelas XII",
+      target_pkt: targetPkt.trim(),
+      jobdesk: jobdesk.trim() || "CPC",
+      placement_month: placementMonth.trim() || "02 Januari 2025",
+      email: cleanEmail,
+      phone: phone.trim() || null,
+      internship_status: internshipStatus.trim() || "Peserta Baru",
+    });
+  }
+
+  const allItems: InternshipParticipantItem[] = (internships ?? []) as any[];
+
+  // Dynamic filter options
+  const batchList = Array.from(new Set(allItems.map((i) => i.batch_no).filter(Boolean)));
+  const targetPktList = Array.from(new Set(allItems.map((i) => i.target_pkt).filter(Boolean)));
+  const jobdeskList = Array.from(new Set(allItems.map((i) => i.jobdesk).filter(Boolean)));
+  const statusList = ["Peserta Baru", "Peserta Pengganti", "Aktif Magang", "Selesai", "Mundur"];
+
+  const filteredItems = allItems.filter((i) => {
+    if (!i) return false;
+    const q = (search || "").toLowerCase().trim();
     const matchesSearch =
-      (item.students?.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (item.schools?.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (item.companies?.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      item.competency.toLowerCase().includes(search.toLowerCase());
+      !q ||
+      (i.student_name || "").toLowerCase().includes(q) ||
+      (i.training_center || "").toLowerCase().includes(q) ||
+      (i.batch_no || "").toLowerCase().includes(q) ||
+      (i.target_pkt || "").toLowerCase().includes(q) ||
+      (i.jobdesk || "").toLowerCase().includes(q) ||
+      (i.city || "").toLowerCase().includes(q) ||
+      (i.mentor || "").toLowerCase().includes(q) ||
+      (i.email || "").toLowerCase().includes(q) ||
+      (i.phone || "").toLowerCase().includes(q);
 
-    const matchesStatus = statusFilter === "ALL" ? true : item.status === statusFilter;
+    const matchesBatch = selectedBatch === "ALL" || i.batch_no === selectedBatch;
+    const matchesPkt = selectedTargetPkt === "ALL" || i.target_pkt === selectedTargetPkt;
+    const matchesJobdesk = selectedJobdesk === "ALL" || i.jobdesk === selectedJobdesk;
+    const matchesStatus =
+      selectedStatus === "ALL" ||
+      (i.internship_status || "").toLowerCase() === selectedStatus.toLowerCase();
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesBatch && matchesPkt && matchesJobdesk && matchesStatus;
   });
 
-  function openDetail(id: string) {
-    setSelectedId(id);
-    setReviewModalOpen(true);
-    setDecisionNote("");
-    setDecisionType(null);
+  // KPI Calculations
+  const totalPeserta = allItems.length;
+  const pesertaBaruCount = allItems.filter((i) =>
+    (i.internship_status || "").toLowerCase().includes("baru"),
+  ).length;
+  const pesertaPenggantiCount = allItems.filter((i) =>
+    (i.internship_status || "").toLowerCase().includes("pengganti"),
+  ).length;
+  const uniquePktCount = new Set(allItems.map((i) => i.target_pkt).filter(Boolean)).size;
+  const uniqueBatchCount = new Set(allItems.map((i) => i.batch_no).filter(Boolean)).size;
+
+  async function handleExportExcel() {
+    if (filteredItems.length === 0) {
+      toast.error("Tidak ada data peserta magang untuk diekspor.");
+      return;
+    }
+    const toastId = toast.loading(`Mengekspor ${filteredItems.length} data peserta magang...`);
+    try {
+      const exportData = filteredItems.map((i) => ({
+        batch_no: i.batch_no,
+        training_center: i.training_center,
+        student_name: i.student_name,
+        mentor: i.mentor,
+        city: i.city,
+        driving_skill: i.driving_skill,
+        student_status: i.student_status,
+        target_pkt: i.target_pkt,
+        jobdesk: i.jobdesk,
+        placement_month: i.placement_month,
+        email: i.email,
+        phone: i.phone,
+        internship_status: i.internship_status,
+      }));
+      await exportInternshipsToExcel(exportData);
+      toast.dismiss(toastId);
+      toast.success("File Excel berhasil diunduh.");
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(`Gagal mengekspor data: ${err?.message || "Kesalahan tidak terduga"}`);
+    }
   }
 
   return (
-    <AppShell title="Manajemen Pengajuan Magang">
-      <div className="space-y-4">
-        {/* Filters & Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
+    <AppShell
+      title="Dashboard Data Peserta Magang"
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-softgray transition-colors shadow-2xs text-foreground"
+          >
+            <Download className="h-4 w-4 text-primary" />
+            Export Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-semibold hover:bg-emerald-500/20 transition-colors shadow-2xs"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Import Excel
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
+          >
+            <Plus className="h-4 w-4" /> Tambah Peserta
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        {/* KPI Metric Cards */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Peserta Magang</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{totalPeserta}</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Semua penempatan terdata</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Peserta Baru</p>
+              <h3 className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                {pesertaBaruCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Penempatan reguler baru</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <UserPlus className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Peserta Pengganti</p>
+              <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                {pesertaPenggantiCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Rotasi penggantian posisi</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <UserCheck className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Target PKT Aktif</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {uniquePktCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Cabang & lokasi mitra</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Building2 className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Batch</p>
+              <h3 className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-0.5">
+                {uniqueBatchCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Gelombang penempatan</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Layers className="h-5 w-5" />
+            </div>
+          </Card>
+        </div>
+
+        {/* Filter Controls (5 columns) */}
+        <div className="grid gap-3 sm:grid-cols-5">
+          <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari siswa, sekolah, mitra industri..."
+              placeholder="Cari peserta, sekolah, PKT, batch..."
               className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2 text-xs outline-none focus:border-ai transition-colors"
             />
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            {[
-              { id: "ALL", label: "Semua" },
-              { id: "SUBMITTED", label: "Menunggu" },
-              { id: "APPROVED", label: "Disetujui" },
-              { id: "ACTIVE", label: "Aktif" },
-              { id: "COMPLETED", label: "Selesai" },
-              { id: "REJECTED", label: "Ditolak" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setStatusFilter(tab.id)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-colors shrink-0 ${
-                  statusFilter === tab.id
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-background border border-border text-muted-foreground hover:bg-softgray"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div>
+            <select
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Batch</option>
+              {batchList.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={selectedTargetPkt}
+              onChange={(e) => setSelectedTargetPkt(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Target PKT</option>
+              {targetPktList.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={selectedJobdesk}
+              onChange={(e) => setSelectedJobdesk(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Jobdesk</option>
+              {jobdeskList.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Status Magang</option>
+              {statusList.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Table Content */}
-        {isPending ? <Loading count={4} /> : null}
+        {/* Counter Info */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+          <span>
+            Menampilkan <strong className="text-foreground">{filteredItems.length}</strong> dari{" "}
+            <strong className="text-foreground">{allItems.length}</strong> peserta magang
+          </span>
+        </div>
+
+        {/* Table View */}
+        {isPending ? <Loading count={5} /> : null}
 
         {isError ? (
           <Card className="border-destructive/20 bg-destructive/5 text-destructive p-4">
-            <p className="text-xs font-medium">Gagal memuat data pengajuan.</p>
+            <p className="text-xs font-medium">Gagal memuat data peserta magang.</p>
           </Card>
         ) : null}
 
         {!isPending && !isError ? (
-          filteredList.length > 0 ? (
+          filteredItems.length > 0 ? (
             <Card className="overflow-hidden p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-softgray/50 border-b border-border">
-                    <tr className="text-muted-foreground">
-                      <th className="px-4 py-3 font-semibold">Siswa & Sekolah</th>
-                      <th className="px-4 py-3 font-semibold">Perusahaan Mitra</th>
-                      <th className="px-4 py-3 font-semibold">Kompetensi</th>
-                      <th className="px-4 py-3 font-semibold">Periode & Durasi</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold text-right">Aksi</th>
+                  <thead className="bg-softgray/60 border-b border-border">
+                    <tr className="text-muted-foreground whitespace-nowrap">
+                      <th className="px-3.5 py-3 font-semibold">Batch No</th>
+                      <th className="px-3.5 py-3 font-semibold">Training Center</th>
+                      <th className="px-3.5 py-3 font-semibold">Nama Peserta</th>
+                      <th className="px-3.5 py-3 font-semibold">Pendamping</th>
+                      <th className="px-3.5 py-3 font-semibold">Kabupaten/Domisili</th>
+                      <th className="px-3.5 py-3 font-semibold">Kemampuan</th>
+                      <th className="px-3.5 py-3 font-semibold">Status Siswa</th>
+                      <th className="px-3.5 py-3 font-semibold">Target PKT</th>
+                      <th className="px-3.5 py-3 font-semibold">Jobdesk</th>
+                      <th className="px-3.5 py-3 font-semibold">Bulan Penempatan</th>
+                      <th className="px-3.5 py-3 font-semibold">Email</th>
+                      <th className="px-3.5 py-3 font-semibold">Nomor WA</th>
+                      <th className="px-3.5 py-3 font-semibold">Status Magang</th>
+                      <th className="px-3.5 py-3 font-semibold text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredList.map((row) => (
-                      <tr key={row.id} className="hover:bg-softgray/30 transition-colors">
-                        <td className="px-4 py-3.5">
-                          <span className="font-bold text-foreground block">
-                            {row.students?.name}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {row.schools?.name} • NIS: {row.students?.student_number}
+                    {filteredItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-softgray/30 transition-colors">
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                            {item.batch_no || "-"}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <span className="font-semibold block">{row.companies?.name}</span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="rounded-md bg-softgray px-2 py-0.5 font-mono text-[11px]">
-                            {row.competency}
+                        <td className="px-3.5 py-3 min-w-[170px]">
+                          <span className="font-semibold text-foreground block">
+                            {item.training_center}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <span className="font-medium block">{row.period}</span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {row.start_date} s/d {row.end_date}
+                        <td className="px-3.5 py-3 min-w-[170px]">
+                          <span className="font-bold text-foreground block text-xs">
+                            {item.student_name}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <StatusBadge status={row.status} />
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          {item.mentor ? (
+                            <span className="rounded bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-medium">
+                              {item.mentor}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openDetail(row.id)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-softgray transition-colors"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            {row.status === "SUBMITTED" ? "Review" : "Detail"}
-                          </button>
+                        <td className="px-3.5 py-3 text-muted-foreground whitespace-nowrap">
+                          {item.city || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
+                          {item.driving_skill || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-medium text-foreground">
+                            {item.student_status || "Kelas XII"}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-3 min-w-[150px]">
+                          <span className="font-semibold text-foreground block">
+                            {item.target_pkt}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap font-bold text-primary">
+                          {item.jobdesk || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
+                          {item.placement_month || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground min-w-[160px]">
+                          {item.email || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                          {item.phone || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          {(() => {
+                            const st = (item.internship_status || "Peserta Baru").trim();
+                            let badgeClass =
+                              "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+                            if (st.toLowerCase().includes("pengganti")) {
+                              badgeClass =
+                                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+                            } else if (st.toLowerCase().includes("selesai")) {
+                              badgeClass =
+                                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+                            } else if (
+                              st.toLowerCase().includes("mundur") ||
+                              st.toLowerCase().includes("keluar")
+                            ) {
+                              badgeClass =
+                                "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+                            }
+                            return (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}`}
+                              >
+                                {st}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(item)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray hover:text-foreground transition-colors shadow-2xs"
+                              title="Edit Data Peserta Magang"
+                            >
+                              <Edit2 className="h-3 w-3" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteParticipant(item.id, item.student_name)}
+                              disabled={deleteMutation.isPending}
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+                              title="Hapus Data Peserta Magang"
+                            >
+                              <Trash2 className="h-3 w-3" /> Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -247,251 +653,238 @@ function AdminInternshipsPage() {
             </Card>
           ) : (
             <EmptyState
-              title="Tidak ada pengajuan ditemukan"
-              description="Coba ubah kata kunci pencarian atau ganti filter status."
+              icon={Briefcase}
+              title="Belum ada data peserta magang"
+              description={
+                search || selectedBatch !== "ALL" || selectedTargetPkt !== "ALL"
+                  ? "Tidak ada data yang sesuai dengan filter pencarian Anda."
+                  : "Mulai dengan mengimpor data peserta magang dari template Excel atau tambah data manual."
+              }
+              action={
+                <button
+                  type="button"
+                  onClick={() => setImportModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold shadow-xs hover:opacity-95"
+                >
+                  <FileSpreadsheet className="h-4 w-4" /> Import Data Excel
+                </button>
+              }
             />
           )
         ) : null}
       </div>
 
-      {/* Review / Detail Modal */}
-      {reviewModalOpen && selectedId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl rounded-3xl border border-border bg-background shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div>
-                <h2 className="text-base font-bold tracking-tight">
-                  Detail & Verifikasi Penempatan Magang
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Informasi komprehensif alokasi kuota dan data siswa
-                </p>
-              </div>
+      {/* Tambah / Edit Modal */}
+      {modalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl rounded-3xl border border-border bg-background p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h2 className="text-base font-bold tracking-tight text-foreground">
+                {editingItem ? "Edit Data Peserta Magang" : "Tambah Peserta Magang Baru"}
+              </h2>
               <button
                 type="button"
-                onClick={() => setReviewModalOpen(false)}
+                onClick={closeModal}
                 className="grid h-8 w-8 place-items-center rounded-lg hover:bg-softgray text-muted-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {detailLoading ? (
-                <Loading count={3} />
-              ) : detailData?.internship ? (
-                <div className="space-y-5">
-                  {/* Summary Header Card */}
-                  <div className="rounded-2xl border border-border bg-softgray/40 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Status Saat Ini:
-                      </span>
-                      <StatusBadge status={detailData.internship.status} />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Siswa:</span>
-                        <p className="font-bold text-sm text-foreground">
-                          {detailData.internship.students?.name}
-                        </p>
-                        <p className="text-muted-foreground">
-                          NIS: {detailData.internship.students?.student_number} •{" "}
-                          {detailData.internship.students?.gender === "L"
-                            ? "Laki-laki"
-                            : "Perempuan"}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">
-                          Asal Sekolah:
-                        </span>
-                        <p className="font-semibold text-foreground">
-                          {detailData.internship.schools?.name}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {detailData.internship.schools?.city}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-border pt-3 grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">
-                          Perusahaan Tujuan:
-                        </span>
-                        <p className="font-semibold text-foreground">
-                          {detailData.internship.companies?.name}
-                        </p>
-                        <p className="text-muted-foreground">
-                          Bidang: {detailData.internship.companies?.industry || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">
-                          Kompetensi & Periode:
-                        </span>
-                        <p className="font-semibold text-foreground">
-                          {detailData.internship.competency} ({detailData.internship.period})
-                        </p>
-                        <p className="text-muted-foreground">
-                          {detailData.internship.start_date} s/d {detailData.internship.end_date}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Quota Status Info */}
-                    {detailData.quota ? (
-                      <div className="border-t border-border pt-2.5 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Kuota Perusahaan Periode Ini:</span>
-                        <span className="font-mono font-bold">
-                          Terpakai {detailData.quota.used_quota} / {detailData.quota.quota} Kuota
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Notes / History */}
-                  {detailData.internship.approval_note ? (
-                    <div className="rounded-xl border border-good/20 bg-good/5 p-3 text-xs">
-                      <span className="font-bold text-good block mb-1">Catatan Persetujuan:</span>
-                      <p className="text-foreground">{detailData.internship.approval_note}</p>
-                    </div>
-                  ) : null}
-
-                  {detailData.internship.rejection_note ? (
-                    <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs">
-                      <span className="font-bold text-destructive block mb-1">
-                        Catatan Penolakan:
-                      </span>
-                      <p className="text-foreground">{detailData.internship.rejection_note}</p>
-                    </div>
-                  ) : null}
-
-                  {/* Status Lifecycle Actions for Approved / Active */}
-                  {["APPROVED", "ACTIVE"].includes(detailData.internship.status) ? (
-                    <div className="rounded-2xl border border-border p-4 space-y-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Update Status Pelaksanaan Magang
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {detailData.internship.status === "APPROVED" ? (
-                          <button
-                            type="button"
-                            disabled={updateStatusMutation.isPending}
-                            onClick={() =>
-                              updateStatusMutation.mutate({
-                                id: detailData.internship.id,
-                                status: "ACTIVE",
-                              })
-                            }
-                            className="rounded-xl bg-ai text-white px-3.5 py-2 text-xs font-semibold hover:opacity-90 transition-opacity"
-                          >
-                            Tandai Sebagai "Aktif Berjalan"
-                          </button>
-                        ) : null}
-
-                        {detailData.internship.status === "ACTIVE" ? (
-                          <button
-                            type="button"
-                            disabled={updateStatusMutation.isPending}
-                            onClick={() =>
-                              updateStatusMutation.mutate({
-                                id: detailData.internship.id,
-                                status: "COMPLETED",
-                              })
-                            }
-                            className="rounded-xl bg-good text-white px-3.5 py-2 text-xs font-semibold hover:opacity-90 transition-opacity"
-                          >
-                            Tandai Sebagai "Selesai Magang"
-                          </button>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          disabled={updateStatusMutation.isPending}
-                          onClick={() =>
-                            updateStatusMutation.mutate({
-                              id: detailData.internship.id,
-                              status: "CANCELLED",
-                            })
-                          }
-                          className="rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 px-3.5 py-2 text-xs font-semibold transition-colors"
-                        >
-                          Batalkan Magang
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Approve / Reject Form for SUBMITTED */}
-                  {detailData.internship.status === "SUBMITTED" ? (
-                    <div className="rounded-2xl border border-ai/20 bg-ai-soft/20 p-4 space-y-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                        Tindakan Persetujuan Admin
-                      </h4>
-
-                      <label className="grid gap-1 text-xs">
-                        Catatan Verifikasi (Opsional untuk Approve, Wajib untuk Reject):
-                        <textarea
-                          rows={2}
-                          value={decisionNote}
-                          onChange={(e) => setDecisionNote(e.target.value)}
-                          placeholder="Masukkan catatan atau alasan jika menolak..."
-                          className="rounded-xl border border-border bg-background p-3 text-xs outline-none focus:border-ai transition-colors"
-                        />
-                      </label>
-
-                      <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                          type="button"
-                          disabled={decideMutation.isPending}
-                          onClick={() => {
-                            if (!decisionNote.trim()) {
-                              toast.error("Alasan penolakan wajib diisi.");
-                              return;
-                            }
-                            decideMutation.mutate({
-                              id: detailData.internship.id,
-                              decision: "REJECT",
-                              note: decisionNote,
-                            });
-                          }}
-                          className="flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50"
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                          Tolak Pengajuan
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={decideMutation.isPending}
-                          onClick={() => {
-                            decideMutation.mutate({
-                              id: detailData.internship.id,
-                              decision: "APPROVE",
-                              note: decisionNote,
-                            });
-                          }}
-                          className="flex items-center gap-1.5 rounded-xl bg-good text-white hover:opacity-90 px-4 py-2 text-xs font-bold transition-opacity shadow-xs disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Setujui & Potong Kuota
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+            <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Batch No *</label>
+                  <input
+                    type="text"
+                    required
+                    value={batchNo}
+                    onChange={(e) => setBatchNo(e.target.value)}
+                    placeholder="Contoh: Intra 3 / Intra 4 / 47"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Data pengajuan tidak ditemukan.</p>
-              )}
-            </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">
+                    Training Center (Sekolah) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={trainingCenter}
+                    onChange={(e) => setTrainingCenter(e.target.value)}
+                    placeholder="Contoh: SMK Negeri 1 Gorontalo"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Nama Peserta *</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    placeholder="Nama lengkap peserta magang"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Pendamping</label>
+                  <input
+                    type="text"
+                    value={mentor}
+                    onChange={(e) => setMentor(e.target.value)}
+                    placeholder="Contoh: Aldi / Richie"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">
+                    Kabupaten / Domisili
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Contoh: Kota Gorontalo"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">
+                    Kemampuan Mengemudi
+                  </label>
+                  <input
+                    type="text"
+                    value={drivingSkill}
+                    onChange={(e) => setDrivingSkill(e.target.value)}
+                    placeholder="Siswa Aktif / Bisa R4 / SIM C"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Status Siswa</label>
+                  <select
+                    value={studentStatus}
+                    onChange={(e) => setStudentStatus(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  >
+                    <option value="Siswa Aktif">Siswa Aktif</option>
+                    <option value="Kelas XI">Kelas XI</option>
+                    <option value="Kelas XII">Kelas XII</option>
+                    <option value="Alumni">Alumni</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Target PKT *</label>
+                  <input
+                    type="text"
+                    required
+                    value={targetPkt}
+                    onChange={(e) => setTargetPkt(e.target.value)}
+                    placeholder="Contoh: SSI - Palu / AND - Bali"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Jobdesk</label>
+                  <input
+                    type="text"
+                    value={jobdesk}
+                    onChange={(e) => setJobdesk(e.target.value)}
+                    placeholder="Contoh: CPC / ATM / FLM"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Bulan Penempatan</label>
+                  <input
+                    type="text"
+                    value={placementMonth}
+                    onChange={(e) => setPlacementMonth(e.target.value)}
+                    placeholder="Contoh: 02 Januari 2025"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Email</label>
+                  <input
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.replace(/ı/g, "i").replace(/İ/g, "I"))}
+                    placeholder="peserta@email.com"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Nomor WA</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0813..."
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Status Magang</label>
+                  <select
+                    value={internshipStatus}
+                    onChange={(e) => setInternshipStatus(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  >
+                    <option value="Peserta Baru">Peserta Baru</option>
+                    <option value="Peserta Pengganti">Peserta Pengganti</option>
+                    <option value="Aktif Magang">Aktif Magang</option>
+                    <option value="Selesai">Selesai</option>
+                    <option value="Mundur">Mundur</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-xl border border-border px-4 py-2 text-xs font-semibold hover:bg-softgray transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={saveMutation.isPending}
+                  className="rounded-xl bg-primary text-primary-foreground px-5 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {saveMutation.isPending ? "Menyimpan..." : "Simpan Peserta Magang"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
+
+      {/* Import Modal */}
+      <InternshipExcelImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
+          queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+        }}
+        bulkImportMutation={bulkImportMutation}
+      />
     </AppShell>
   );
 }
