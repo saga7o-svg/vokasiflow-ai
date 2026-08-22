@@ -991,16 +991,25 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
       );
     }
     const { supabase, userId } = context;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isAdmin = roles?.some((r) => r.role === "ADMIN");
+
+    const updatePayload: Record<string, any> = {
+      name: data.name,
+      position: data.position,
+      phone: data.phone,
+      ...(data.email ? { email: data.email } : {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only administrators can reassign a user's school_id
+    if (isAdmin && data.schoolId) {
+      updatePayload["school_id"] = data.schoolId;
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({
-        name: data.name,
-        school_id: data.schoolId,
-        position: data.position,
-        phone: data.phone,
-        ...(data.email ? { email: data.email } : {}),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", userId);
 
     if (error) throw new Error(error.message || "Gagal memperbarui profil guru.");
