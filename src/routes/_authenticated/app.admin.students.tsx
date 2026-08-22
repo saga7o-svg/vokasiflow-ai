@@ -9,6 +9,8 @@ import {
   saveStudent,
   importStudentsBulk,
   deleteStudent,
+  bulkUpdateStudentsStatus,
+  bulkDeleteStudents,
 } from "@/lib/api.functions";
 import {
   Search,
@@ -26,6 +28,10 @@ import {
   Award,
   Car,
   Trash2,
+  CheckSquare,
+  Square,
+  Sparkles,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -77,6 +83,8 @@ function AdminStudentsPage() {
   const saveStudentFn = useServerFn(saveStudent);
   const importStudentsBulkFn = useServerFn(importStudentsBulk);
   const deleteStudentFn = useServerFn(deleteStudent);
+  const bulkUpdateStudentsFn = useServerFn(bulkUpdateStudentsStatus);
+  const bulkDeleteStudentsFn = useServerFn(bulkDeleteStudents);
 
   const [search, setSearch] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<string>("ALL");
@@ -86,6 +94,9 @@ function AdminStudentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentItem | null>(null);
+
+  // Multi-select bulk state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Form states
   const [studentNumber, setStudentNumber] = useState("");
@@ -165,6 +176,36 @@ function AdminStudentsPage() {
     },
   });
 
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async (params: { ids: string[]; status?: string; competency?: string }) => {
+      return bulkUpdateStudentsFn({ data: params });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Berhasil memperbarui ${variables.ids.length} data siswa secara bersamaan.`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal memperbarui data siswa secara massal.");
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return bulkDeleteStudentsFn({ data: { ids } });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Berhasil menghapus ${variables.length} data siswa.`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal menghapus data siswa.");
+    },
+  });
+
   function handleDeleteStudent(id: string, studentName: string) {
     const confirmed = window.confirm(
       `Apakah Anda yakin ingin menghapus data siswa "${studentName}"? Tindakan ini tidak dapat dibatalkan.`,
@@ -199,7 +240,7 @@ function AdminStudentsPage() {
     setEmail(student.email ?? "");
 
     // Normalisasi kelas (Kelas XI, Kelas XII, Alumni)
-    const rawComp = (student.competency || "").trim();
+    const rawComp = String(student.competency || "").trim();
     if (rawComp.toLowerCase().includes("xi") && !rawComp.toLowerCase().includes("xii")) {
       setCompetency("Kelas XI");
     } else if (
@@ -212,7 +253,7 @@ function AdminStudentsPage() {
     }
 
     // Normalisasi status peserta (Aktif Akademi, Talent Pool, Vokasi, Mundur)
-    const rawSt = (student.program_status || student.status || "Aktif Akademi").trim();
+    const rawSt = String(student.program_status || student.status || "Aktif Akademi").trim();
     if (rawSt.toLowerCase().includes("akademi")) {
       setStatus("Aktif Akademi");
     } else if (rawSt.toLowerCase().includes("talent")) {
@@ -274,30 +315,65 @@ function AdminStudentsPage() {
     const q = (search || "").toLowerCase().trim();
     const matchesSearch =
       !q ||
-      (s.name ?? "").toLowerCase().includes(q) ||
-      (s.student_number ?? "").toLowerCase().includes(q) ||
-      (s.schools?.name ?? "").toLowerCase().includes(q) ||
-      (s.city ?? "").toLowerCase().includes(q) ||
-      (s.mentor ?? "").toLowerCase().includes(q) ||
-      (s.batch_id ?? "").toLowerCase().includes(q);
+      String(s.name || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(s.student_number || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(s.schools?.name || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(s.city || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(s.mentor || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(s.batch_id || "")
+        .toLowerCase()
+        .includes(q);
 
     const matchesSchool = selectedSchool === "ALL" || s.school_id === selectedSchool;
     const matchesBatch = selectedBatch === "ALL" || s.batch_id === selectedBatch;
+
+    const sComp = String(s.competency || "").toLowerCase();
     const matchesCompetency =
       selectedCompetency === "ALL" ||
-      s.competency?.toLowerCase() === selectedCompetency.toLowerCase() ||
-      (selectedCompetency === "Kelas XI" &&
-        s.competency?.toLowerCase().includes("xi") &&
-        !s.competency?.toLowerCase().includes("xii")) ||
-      (selectedCompetency === "Kelas XII" && s.competency?.toLowerCase().includes("xii")) ||
-      (selectedCompetency === "Alumni" && s.competency?.toLowerCase().includes("alumni"));
+      sComp === selectedCompetency.toLowerCase() ||
+      (selectedCompetency === "Kelas XI" && sComp.includes("xi") && !sComp.includes("xii")) ||
+      (selectedCompetency === "Kelas XII" && sComp.includes("xii")) ||
+      (selectedCompetency === "Alumni" && sComp.includes("alumni"));
 
-    const sStatus = (s.program_status || s.status || "").toLowerCase();
+    const sStatus = String(s.program_status || s.status || "").toLowerCase();
     const matchesStatus =
       selectedStatus === "ALL" || sStatus.includes(selectedStatus.toLowerCase());
 
     return matchesSearch && matchesSchool && matchesBatch && matchesCompetency && matchesStatus;
   });
+
+  const allFilteredSelected =
+    filteredStudents.length > 0 && filteredStudents.every((s: any) => selectedIds.has(s.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      const next = new Set(selectedIds);
+      filteredStudents.forEach((s: any) => next.add(s.id));
+      setSelectedIds(next);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  }
 
   async function handleExportExcel() {
     if (filteredStudents.length === 0) {
@@ -323,30 +399,30 @@ function AdminStudentsPage() {
         sim_c: s.sim_c || "Tidak Memiliki",
         birth_date: s.birth_date || "-",
         gender: s.gender || "L",
-        theory_score: s.theory_score || null,
-        interview_score: s.interview_score || null,
-        graduation_status: s.graduation_status || (s.status === "ACTIVE" ? "Lulus" : "Tidak Lulus"),
+        theory_score: s.theory_score ? String(s.theory_score) : "-",
+        interview_score: s.interview_score ? String(s.interview_score) : "-",
+        graduation_status: s.graduation_status || "Lulus",
         status: s.status,
       }));
 
       await exportStudentsToExcel(exportData, `data_siswa_vokasiflow_${Date.now()}.xlsx`);
-      toast.success(`Berhasil mengekspor ${filteredStudents.length} data siswa.`, { id: toastId });
-    } catch (err) {
-      console.error("Export error:", err);
-      toast.error("Gagal mengekspor data siswa.", { id: toastId });
+      toast.dismiss(toastId);
+      toast.success(`Berhasil mengekspor ${filteredStudents.length} data siswa.`);
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(`Gagal mengekspor data: ${err?.message || "Kesalahan tidak terduga"}`);
     }
   }
 
   return (
     <AppShell
-      title="Direktori Data Siswa"
+      title="Data Siswa"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleExportExcel}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:bg-softgray hover:text-foreground transition-all shadow-xs"
-            title="Ekspor data siswa ke file Excel"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-softgray transition-colors shadow-2xs text-foreground"
           >
             <Download className="h-4 w-4 text-primary" />
             Export Excel
@@ -354,10 +430,9 @@ function AdminStudentsPage() {
           <button
             type="button"
             onClick={() => setImportModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:bg-softgray hover:text-foreground transition-all shadow-xs"
-            title="Impor data siswa dari spreadsheet Excel"
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-semibold hover:bg-emerald-500/20 transition-colors shadow-2xs"
           >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <FileSpreadsheet className="h-4 w-4" />
             Import Excel
           </button>
           <button
@@ -371,7 +446,83 @@ function AdminStudentsPage() {
       }
     >
       <div className="space-y-4">
-        {/* Filter Controls */}
+        {/* KPI Metric Cards */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Siswa Terdata</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">
+                {students?.length ?? 0}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Lintas sekolah mitra</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Aktif Akademi</p>
+              <h3 className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                {
+                  (students ?? []).filter(
+                    (s: any) =>
+                      String(s.program_status || s.status || "").toLowerCase() ===
+                        "aktif akademi" ||
+                      String(s.program_status || s.status || "").toLowerCase() === "aktif",
+                  ).length
+                }
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Sedang menempuh pelatihan</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Award className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Talent Pool</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {
+                  (students ?? []).filter((s: any) =>
+                    String(s.program_status || s.status || "")
+                      .toLowerCase()
+                      .includes("talent"),
+                  ).length
+                }
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Siap disalurkan magang/kerja
+              </p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Car className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Vokasi / Lulusan</p>
+              <h3 className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-0.5">
+                {
+                  (students ?? []).filter((s: any) =>
+                    String(s.program_status || s.status || "")
+                      .toLowerCase()
+                      .includes("vokasi"),
+                  ).length
+                }
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Terserap industri vokasi</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <School className="h-5 w-5" />
+            </div>
+          </Card>
+        </div>
+
+        {/* Filter Controls (5 columns) */}
         <div className="grid gap-3 sm:grid-cols-5">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -379,9 +530,24 @@ function AdminStudentsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama, NIS, batch, domisili..."
+              placeholder="Cari siswa, NIS, sekolah..."
               className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2 text-xs outline-none focus:border-ai transition-colors"
             />
+          </div>
+
+          <div>
+            <select
+              value={selectedSchool}
+              onChange={(e) => setSelectedSchool(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Sekolah</option>
+              {(schools ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -401,29 +567,14 @@ function AdminStudentsPage() {
 
           <div>
             <select
-              value={selectedSchool}
-              onChange={(e) => setSelectedSchool(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
-            >
-              <option value="ALL">Semua Sekolah Mitra</option>
-              {(schools ?? []).map((sch) => (
-                <option key={sch.id} value={sch.id}>
-                  {sch.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <select
               value={selectedCompetency}
               onChange={(e) => setSelectedCompetency(e.target.value)}
               className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
             >
-              <option value="ALL">Semua Pendidikan / Kelas</option>
-              {competenciesList.map((comp: any) => (
-                <option key={String(comp)} value={String(comp)}>
-                  {String(comp)}
+              <option value="ALL">Semua Tingkat/Kelas</option>
+              {competenciesList.map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </select>
@@ -445,12 +596,107 @@ function AdminStudentsPage() {
           </div>
         </div>
 
+        {/* Floating Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 shadow-sm text-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground shadow-xs">
+                {selectedIds.size}
+              </span>
+              <span className="font-semibold text-foreground">Siswa Dipilih (Multiple Choice)</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">Ubah Status:</span>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      bulkUpdateMutation.mutate({
+                        ids: Array.from(selectedIds),
+                        status: e.target.value,
+                      });
+                      e.target.value = "";
+                    }
+                  }}
+                  defaultValue=""
+                  disabled={bulkUpdateMutation.isPending}
+                  className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground outline-none focus:border-ai shadow-2xs"
+                >
+                  <option value="" disabled>
+                    Pilih Status...
+                  </option>
+                  {statusList.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">Ubah Kelas:</span>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      bulkUpdateMutation.mutate({
+                        ids: Array.from(selectedIds),
+                        competency: e.target.value,
+                      });
+                      e.target.value = "";
+                    }
+                  }}
+                  defaultValue=""
+                  disabled={bulkUpdateMutation.isPending}
+                  className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground outline-none focus:border-ai shadow-2xs"
+                >
+                  <option value="" disabled>
+                    Pilih Kelas...
+                  </option>
+                  {competenciesList.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Hapus ${selectedIds.size} data siswa yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+                    )
+                  ) {
+                    bulkDeleteMutation.mutate(Array.from(selectedIds));
+                  }
+                }}
+                disabled={bulkDeleteMutation.isPending}
+                className="flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Hapus Terpilih
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-softgray transition-colors shadow-2xs"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Counter Info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
           <span>
             Menampilkan <strong className="text-foreground">{filteredStudents.length}</strong> dari{" "}
             <strong className="text-foreground">{students?.length ?? 0}</strong> siswa
           </span>
+          {selectedIds.size > 0 && (
+            <span className="text-primary font-semibold">{selectedIds.size} siswa terpilih</span>
+          )}
         </div>
 
         {/* Content Table */}
@@ -469,6 +715,15 @@ function AdminStudentsPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-softgray/60 border-b border-border">
                     <tr className="text-muted-foreground whitespace-nowrap">
+                      <th className="px-3.5 py-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                          title="Pilih Semua"
+                        />
+                      </th>
                       <th className="px-3.5 py-3 font-semibold">Batch</th>
                       <th className="px-3.5 py-3 font-semibold">Nama Peserta (ID)</th>
                       <th className="px-3.5 py-3 font-semibold">Asal Sekolah & Kode</th>
@@ -483,173 +738,164 @@ function AdminStudentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredStudents.map((s: any) => (
-                      <tr key={s.id} className="hover:bg-softgray/30 transition-colors">
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[10px] font-semibold text-foreground">
-                            {s.batch_id || "-"}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 min-w-[180px]">
-                          <span className="font-bold text-foreground block text-xs">{s.name}</span>
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5">
-                            <span className="text-primary font-semibold">{s.student_number}</span>
-                            {s.gender && (
-                              <span className="text-[10px] rounded bg-softgray px-1 font-sans">
-                                {s.gender === "P" ? "P" : "L"}
+                    {filteredStudents.map((s: any) => {
+                      const isSelected = selectedIds.has(s.id);
+                      const rawStatus = String(s.program_status || s.status || "Aktif").trim();
+                      let statusBadgeClass =
+                        "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+                      if (rawStatus.toLowerCase().includes("talent")) {
+                        statusBadgeClass =
+                          "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+                      } else if (rawStatus.toLowerCase().includes("vokasi")) {
+                        statusBadgeClass =
+                          "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
+                      } else if (rawStatus.toLowerCase().includes("mundur")) {
+                        statusBadgeClass =
+                          "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+                      }
+
+                      const drivingStr = String(s.driving_r4 || "");
+                      const simAStr = String(s.sim_a || "");
+                      const simCStr = String(s.sim_c || "");
+                      const gradStr = String(s.graduation_status || "");
+
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`hover:bg-softgray/30 transition-colors ${
+                            isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
+                          }`}
+                        >
+                          <td className="px-3.5 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(s.id)}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                            />
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="rounded-md bg-softgray px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                              {s.batch_id || "-"}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 min-w-[180px]">
+                            <span className="font-bold text-foreground block text-xs">
+                              {s.name}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <span className="text-primary font-semibold">{s.student_number}</span>
+                              {s.gender && (
+                                <span className="text-[10px] rounded bg-softgray px-1 font-sans">
+                                  {s.gender === "P" ? "P" : "L"}
+                                </span>
+                              )}
+                            </div>
+                            {s.phone && (
+                              <span className="text-[10px] text-muted-foreground block font-mono">
+                                {s.phone}
                               </span>
                             )}
-                          </div>
-                          {s.phone && (
-                            <span className="text-[10px] text-muted-foreground block font-mono">
-                              {s.phone}
+                          </td>
+                          <td className="px-3.5 py-3 min-w-[170px]">
+                            <span className="font-semibold text-foreground block">
+                              {s.schools?.name || "-"}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-3 min-w-[170px]">
-                          <span className="font-semibold text-foreground block">
-                            {s.schools?.name || "-"}
-                          </span>
-                          {s.schools?.school_code && (
-                            <span className="inline-block mt-0.5 rounded bg-softgray font-mono text-[10px] px-1.5 py-0.2 text-muted-foreground">
-                              Kode: {s.schools.school_code}
+                            {s.schools?.school_code && (
+                              <span className="inline-block mt-0.5 rounded bg-softgray font-mono text-[10px] px-1.5 py-0.2 text-muted-foreground">
+                                Kode: {s.schools.school_code}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            {s.city ? (
+                              <span className="text-muted-foreground">{s.city}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">-</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="rounded-md bg-softgray px-2 py-0.5 text-[10px] font-medium text-foreground">
+                              {s.competency || "Kelas XII"}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          {s.mentor ? (
-                            <span className="rounded bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-medium">
-                              {s.mentor}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusBadgeClass}`}
+                            >
+                              {rawStatus}
                             </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-3 text-muted-foreground whitespace-nowrap">
-                          {s.city || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-semibold text-foreground">
-                            {s.competency || "Kelas XII"}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          {(() => {
-                            const rawStatus = (
-                              s.program_status ||
-                              s.status ||
-                              "Aktif Akademi"
-                            ).trim();
-                            let label = rawStatus;
-                            let badgeClass =
-                              "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
-
-                            if (rawStatus.toLowerCase().includes("talent")) {
-                              label = "Talent Pool";
-                              badgeClass =
-                                "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
-                            } else if (rawStatus.toLowerCase().includes("vokasi")) {
-                              label = "Vokasi";
-                              badgeClass =
-                                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
-                            } else if (
-                              rawStatus.toLowerCase().includes("mundur") ||
-                              rawStatus.toLowerCase().includes("inactive")
-                            ) {
-                              label = "Mundur";
-                              badgeClass =
-                                "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
-                            } else if (
-                              rawStatus.toLowerCase().includes("akademi") ||
-                              rawStatus.toLowerCase().includes("active")
-                            ) {
-                              label = "Aktif Akademi";
-                              badgeClass =
-                                "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
-                            }
-
-                            return (
-                              <div>
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}`}
-                                >
-                                  {label}
-                                </span>
-                                {s.talent_pool_year && label === "Talent Pool" && (
-                                  <span className="text-[10px] text-muted-foreground block mt-0.5 font-mono">
-                                    Thn {s.talent_pool_year}
-                                  </span>
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap text-[11px] text-muted-foreground">
+                            {drivingStr && drivingStr.toLowerCase().includes("bisa") && (
+                              <span className="block text-[10px]">R4: {drivingStr}</span>
+                            )}
+                            {(simAStr || simCStr) && (
+                              <span className="text-[9px] text-muted-foreground/80 block">
+                                {[simAStr && `SIM A: ${simAStr}`, simCStr && `SIM C: ${simCStr}`]
+                                  .filter(Boolean)
+                                  .join(" • ")}
+                              </span>
+                            )}
+                            {!drivingStr && !simAStr && !simCStr && "-"}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap text-[11px]">
+                            {s.theory_score || s.interview_score ? (
+                              <div className="space-y-0.5 text-[10px]">
+                                {s.theory_score && (
+                                  <div>
+                                    <span className="text-muted-foreground">Teori: </span>
+                                    <strong className="font-semibold text-foreground">
+                                      {s.theory_score}
+                                    </strong>
+                                  </div>
+                                )}
+                                {s.interview_score && (
+                                  <div>
+                                    <span className="text-muted-foreground">Wwncr: </span>
+                                    <strong className="font-semibold text-foreground">
+                                      {s.interview_score}
+                                    </strong>
+                                  </div>
                                 )}
                               </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap text-[11px] text-muted-foreground">
-                          {s.driving_r4 && s.driving_r4.toLowerCase().includes("bisa") ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                              <Car className="h-3 w-3" /> R4: Bisa
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">R4: -</span>
-                          )}
-                          <div className="text-[10px] text-muted-foreground">
-                            SIM: {s.sim_a?.toLowerCase().includes("memiliki") ? "A " : ""}
-                            {s.sim_c?.toLowerCase().includes("memiliki") ? "C" : ""}
-                            {!s.sim_a?.toLowerCase().includes("memiliki") &&
-                              !s.sim_c?.toLowerCase().includes("memiliki") &&
-                              "-"}
-                          </div>
-                        </td>
-                        <td className="px-3.5 py-3 font-mono text-[11px] whitespace-nowrap">
-                          {s.theory_score || s.interview_score ? (
-                            <div>
-                              <span className="text-foreground font-semibold">
-                                T: {s.theory_score ? `${s.theory_score}%` : "-"}
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            {gradStr ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                {gradStr}
                               </span>
-                              <span className="text-muted-foreground block text-[10px]">
-                                I: {s.interview_score ? `${s.interview_score}%` : "-"}
-                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(s)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray hover:text-foreground transition-colors shadow-2xs"
+                                title="Edit Data Siswa"
+                              >
+                                <Edit2 className="h-3 w-3" /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStudent(s.id, s.name)}
+                                disabled={deleteStudentMutation.isPending}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+                                title="Hapus Siswa"
+                              >
+                                <Trash2 className="h-3 w-3" /> Hapus
+                              </button>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              (s.graduation_status || "").toLowerCase().includes("lulus") &&
-                              !(s.graduation_status || "").toLowerCase().includes("tidak")
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                : "bg-zinc-500/10 text-zinc-500"
-                            }`}
-                          >
-                            {s.graduation_status ||
-                              (s.status === "ACTIVE" ? "Lulus" : "Tidak Lulus")}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(s)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray hover:text-foreground transition-colors shadow-2xs"
-                              title="Edit Data Siswa"
-                            >
-                              <Edit2 className="h-3 w-3" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteStudent(s.id, s.name)}
-                              disabled={deleteStudentMutation.isPending}
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
-                              title="Hapus Data Siswa"
-                            >
-                              <Trash2 className="h-3 w-3" /> Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

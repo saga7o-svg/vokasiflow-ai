@@ -23,6 +23,7 @@ import { Route as AuthenticatedAppAdminRecommendationsRouteImport } from './rout
 import { Route as AuthenticatedAppAdminSchoolsRouteImport } from './routes/_authenticated/app.admin.schools'
 import { Route as AuthenticatedAppAdminStudentsRouteImport } from './routes/_authenticated/app.admin.students'
 import { Route as AuthenticatedAppAdminUsersRouteImport } from './routes/_authenticated/app.admin.users'
+import { Route as AuthenticatedAppGuruCompaniesRouteImport } from './routes/_authenticated/app.guru.companies'
 import { Route as AuthenticatedAppGuruDashboardRouteImport } from './routes/_authenticated/app.guru.dashboard'
 import { Route as AuthenticatedAppGuruEvaluationsRouteImport } from './routes/_authenticated/app.guru.evaluations'
 import { Route as AuthenticatedAppGuruInternshipsRouteImport } from './routes/_authenticated/app.guru.internships'
@@ -108,6 +109,12 @@ const AuthenticatedAppAdminUsersRoute =
     path: '/app/admin/users',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAppGuruCompaniesRoute =
+  AuthenticatedAppGuruCompaniesRouteImport.update({
+    id: '/app/guru/companies',
+    path: '/app/guru/companies',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppGuruDashboardRoute =
   AuthenticatedAppGuruDashboardRouteImport.update({
     id: '/app/guru/dashboard',
@@ -153,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/app/guru/companies': typeof AuthenticatedAppGuruCompaniesRoute
   '/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
   '/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
   '/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/app/guru/companies': typeof AuthenticatedAppGuruCompaniesRoute
   '/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
   '/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
   '/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
@@ -195,6 +204,7 @@ export interface FileRoutesById {
   '/_authenticated/app/admin/schools': typeof AuthenticatedAppAdminSchoolsRoute
   '/_authenticated/app/admin/students': typeof AuthenticatedAppAdminStudentsRoute
   '/_authenticated/app/admin/users': typeof AuthenticatedAppAdminUsersRoute
+  '/_authenticated/app/guru/companies': typeof AuthenticatedAppGuruCompaniesRoute
   '/_authenticated/app/guru/dashboard': typeof AuthenticatedAppGuruDashboardRoute
   '/_authenticated/app/guru/evaluations': typeof AuthenticatedAppGuruEvaluationsRoute
   '/_authenticated/app/guru/internships': typeof AuthenticatedAppGuruInternshipsRoute
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/app/admin/schools'
     | '/app/admin/students'
     | '/app/admin/users'
+    | '/app/guru/companies'
     | '/app/guru/dashboard'
     | '/app/guru/evaluations'
     | '/app/guru/internships'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/app/admin/schools'
     | '/app/admin/students'
     | '/app/admin/users'
+    | '/app/guru/companies'
     | '/app/guru/dashboard'
     | '/app/guru/evaluations'
     | '/app/guru/internships'
@@ -258,6 +270,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/admin/schools'
     | '/_authenticated/app/admin/students'
     | '/_authenticated/app/admin/users'
+    | '/_authenticated/app/guru/companies'
     | '/_authenticated/app/guru/dashboard'
     | '/_authenticated/app/guru/evaluations'
     | '/_authenticated/app/guru/internships'
@@ -371,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAdminUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/guru/companies': {
+      id: '/_authenticated/app/guru/companies'
+      path: '/app/guru/companies'
+      fullPath: '/app/guru/companies'
+      preLoaderRoute: typeof AuthenticatedAppGuruCompaniesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/guru/dashboard': {
       id: '/_authenticated/app/guru/dashboard'
       path: '/app/guru/dashboard'
@@ -421,6 +441,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppAdminSchoolsRoute: typeof AuthenticatedAppAdminSchoolsRoute
   AuthenticatedAppAdminStudentsRoute: typeof AuthenticatedAppAdminStudentsRoute
   AuthenticatedAppAdminUsersRoute: typeof AuthenticatedAppAdminUsersRoute
+  AuthenticatedAppGuruCompaniesRoute: typeof AuthenticatedAppGuruCompaniesRoute
   AuthenticatedAppGuruDashboardRoute: typeof AuthenticatedAppGuruDashboardRoute
   AuthenticatedAppGuruEvaluationsRoute: typeof AuthenticatedAppGuruEvaluationsRoute
   AuthenticatedAppGuruInternshipsRoute: typeof AuthenticatedAppGuruInternshipsRoute
@@ -441,6 +462,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppAdminSchoolsRoute: AuthenticatedAppAdminSchoolsRoute,
   AuthenticatedAppAdminStudentsRoute: AuthenticatedAppAdminStudentsRoute,
   AuthenticatedAppAdminUsersRoute: AuthenticatedAppAdminUsersRoute,
+  AuthenticatedAppGuruCompaniesRoute: AuthenticatedAppGuruCompaniesRoute,
   AuthenticatedAppGuruDashboardRoute: AuthenticatedAppGuruDashboardRoute,
   AuthenticatedAppGuruEvaluationsRoute: AuthenticatedAppGuruEvaluationsRoute,
   AuthenticatedAppGuruInternshipsRoute: AuthenticatedAppGuruInternshipsRoute,

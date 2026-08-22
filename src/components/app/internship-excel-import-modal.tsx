@@ -336,8 +336,8 @@ export function InternshipExcelImportModal({
       internship_status: r.internship_status,
     }));
 
+    const toastId = toast.loading(`Mengimpor ${payload.length} data peserta magang...`);
     try {
-      const toastId = toast.loading(`Mengimpor ${payload.length} data peserta magang...`);
       await bulkImportMutation.mutateAsync({
         items: payload,
         upsert,
@@ -348,6 +348,7 @@ export function InternshipExcelImportModal({
       handleReset();
       onClose();
     } catch (err: any) {
+      toast.dismiss(toastId);
       toast.error(err?.message || "Gagal mengimpor data peserta magang ke database.");
     }
   }

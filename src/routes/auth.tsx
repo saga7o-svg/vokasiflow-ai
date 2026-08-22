@@ -85,58 +85,72 @@ function AuthPage() {
     }
 
     setLoading(true);
-
-    // 1. Attempt standard signInWithPassword
-    let { error: signInError } = await supabase.auth.signInWithPassword({
-      email: emailVal,
-      password: passVal,
-    });
-
-    // 2. Fallback auto-signup if user doesn't exist in Supabase Auth yet
-    if (signInError) {
-      const displayName =
-        emailVal === "saga7o@example.com"
-          ? "saga7o (Super Admin)"
-          : emailVal === "admin@example.com"
-            ? "Admin Pusat"
-            : "Guru Pembimbing";
-
-      await supabase.auth.signUp({
-        email: emailVal,
-        password: passVal,
-        options: {
-          data: { name: displayName },
-        },
-      });
-
-      const retry = await supabase.auth.signInWithPassword({
+    try {
+      // 1. Attempt standard signInWithPassword
+      let { error: signInError } = await supabase.auth.signInWithPassword({
         email: emailVal,
         password: passVal,
       });
-      signInError = retry.error;
-    }
 
-    if (!signInError) {
+      // 2. Fallback auto-signup if user doesn't exist in Supabase Auth yet (e.g. initial super admin / demo account)
+      if (
+        signInError &&
+        (signInError.message?.toLowerCase().includes("invalid login credentials") ||
+          signInError.message?.toLowerCase().includes("user not found"))
+      ) {
+        const displayName =
+          emailVal === "saga7o@example.com"
+            ? "saga7o (Super Admin)"
+            : emailVal === "admin@example.com"
+              ? "Admin Pusat"
+              : "Guru Pembimbing";
+
+        try {
+          await supabase.auth.signUp({
+            email: emailVal,
+            password: passVal,
+            options: {
+              data: { name: displayName },
+            },
+          });
+
+          const retry = await supabase.auth.signInWithPassword({
+            email: emailVal,
+            password: passVal,
+          });
+          if (!retry.error) {
+            signInError = null;
+          }
+        } catch {
+          // ignore signup fallback error, use original signInError
+        }
+      }
+
+      if (signInError) {
+        setError(signInError.message || "Email atau password salah.");
+        return;
+      }
+
+      // 3. Setup admin / demo role in database (non-blocking)
       try {
         if (emailVal === "saga7o@example.com") {
           await supabase.rpc("setup_saga7o_admin" as never);
-        } else {
+        } else if (emailVal === "admin@example.com" || emailVal === "guru@example.com") {
           await supabase.rpc("setup_demo_user" as never, { target_email: emailVal } as never);
         }
       } catch (e) {
         console.warn("setup user warning:", e);
       }
+
+      toast.success("Berhasil masuk ke portal!");
+      // Hard refresh navigation to ensure auth session cookies/storage are immediately available
+      window.location.href = "/app";
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err?.message || "Terjadi kesalahan saat masuk. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-
-    if (signInError) {
-      setError(signInError.message || "Email atau password salah.");
-      return;
-    }
-
-    toast.success("Berhasil masuk ke portal!");
-    navigate({ to: "/app", replace: true });
   }
 
   async function handleRegister(e: React.FormEvent) {
@@ -157,45 +171,48 @@ function AuthPage() {
     }
 
     setLoading(true);
-
-    // Register account via Supabase Auth with metadata (Auto-role GURU in trigger)
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: regPassword,
-      options: {
-        data: {
-          name: regName.trim(),
-          phone: regPhone.trim(),
-          position: regPosition.trim() || "Guru Pembimbing Magang",
-          school_id: selectedSchool,
+    try {
+      // Register account via Supabase Auth with metadata (Auto-role GURU in trigger)
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: regPassword,
+        options: {
+          data: {
+            name: regName.trim(),
+            phone: regPhone.trim(),
+            position: regPosition.trim() || "Guru Pembimbing Magang",
+            school_id: selectedSchool,
+          },
         },
-      },
-    });
+      });
 
-    if (signUpError) {
+      if (signUpError) {
+        setError(signUpError.message || "Gagal melakukan pendaftaran akun guru.");
+        return;
+      }
+
+      // Immediately sign in after successful registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: regPassword,
+      });
+
+      if (signInError) {
+        toast.success("Akun guru berhasil dibuat! Silakan masuk.");
+        setAuthMode("login");
+        setEmail(cleanEmail);
+        setPassword(regPassword);
+        return;
+      }
+
+      toast.success("Pendaftaran guru berhasil! Selamat datang di VokasiFlow AI.");
+      window.location.href = "/app";
+    } catch (err: any) {
+      console.error("Register error:", err);
+      setError(err?.message || "Terjadi kesalahan saat mendaftar.");
+    } finally {
       setLoading(false);
-      setError(signUpError.message || "Gagal melakukan pendaftaran akun guru.");
-      return;
     }
-
-    // Immediately sign in after successful registration
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: regPassword,
-    });
-
-    setLoading(false);
-
-    if (signInError) {
-      toast.success("Akun guru berhasil dibuat! Silakan masuk.");
-      setAuthMode("login");
-      setEmail(cleanEmail);
-      setPassword(regPassword);
-      return;
-    }
-
-    toast.success("Pendaftaran guru berhasil! Selamat datang di VokasiFlow AI.");
-    navigate({ to: "/app", replace: true });
   }
 
   async function handleGoogleSignIn() {

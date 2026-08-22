@@ -175,9 +175,9 @@ function AdminDashboard() {
                 </p>
               </div>
               <div className="h-64 w-full">
-                {data.trendChart.length > 0 ? (
+                {(data.trendChart?.length ?? 0) > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.trendChart}>
+                    <AreaChart data={data.trendChart || []}>
                       <defs>
                         <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
@@ -223,10 +223,10 @@ function AdminDashboard() {
                 </p>
               </div>
               <div className="h-64 w-full">
-                {data.competencyChart.length > 0 ? (
+                {(data.competencyChart?.length ?? 0) > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={data.competencyChart}
+                      data={data.competencyChart || []}
                       layout="vertical"
                       margin={{ top: 5, right: 20, left: 40, bottom: 5 }}
                     >

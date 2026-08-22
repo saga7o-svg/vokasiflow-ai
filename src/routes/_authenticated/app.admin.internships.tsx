@@ -7,6 +7,8 @@ import {
   listInternships,
   saveInternshipParticipant,
   deleteInternshipParticipant,
+  bulkUpdateInternshipsStatus,
+  bulkDeleteInternships,
   importInternshipsBulk,
   listSchools,
   listCompanies,
@@ -79,6 +81,8 @@ function AdminInternshipsPage() {
   const fetchInternships = useServerFn(listInternships);
   const saveParticipantFn = useServerFn(saveInternshipParticipant);
   const deleteParticipantFn = useServerFn(deleteInternshipParticipant);
+  const bulkUpdateInternshipsFn = useServerFn(bulkUpdateInternshipsStatus);
+  const bulkDeleteInternshipsFn = useServerFn(bulkDeleteInternships);
   const importBulkFn = useServerFn(importInternshipsBulk);
   const fetchSchools = useServerFn(listSchools);
   const fetchCompanies = useServerFn(listCompanies);
@@ -88,6 +92,9 @@ function AdminInternshipsPage() {
   const [selectedTargetPkt, setSelectedTargetPkt] = useState("ALL");
   const [selectedJobdesk, setSelectedJobdesk] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -164,6 +171,38 @@ function AdminInternshipsPage() {
     },
     onSuccess: () => {
       toast.success("Peserta magang berhasil dihapus.");
+      queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal menghapus data peserta magang.");
+    },
+  });
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async (params: { ids: string[]; status: string }) => {
+      return bulkUpdateInternshipsFn({ data: params });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(
+        `Berhasil memperbarui ${variables.ids.length} data peserta magang ke status ${variables.status}.`,
+      );
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal memperbarui status peserta magang massal.");
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return bulkDeleteInternshipsFn({ data: { ids } });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Berhasil menghapus ${variables.length} data peserta magang.`);
+      setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["admin-internships"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
     },
@@ -287,6 +326,29 @@ function AdminInternshipsPage() {
 
     return matchesSearch && matchesBatch && matchesPkt && matchesJobdesk && matchesStatus;
   });
+
+  const allFilteredSelected =
+    filteredItems.length > 0 && filteredItems.every((item) => selectedIds.has(item.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      const next = new Set(selectedIds);
+      filteredItems.forEach((item) => next.add(item.id));
+      setSelectedIds(next);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  }
 
   // KPI Calculations
   const totalPeserta = allItems.length;
@@ -502,12 +564,82 @@ function AdminInternshipsPage() {
           </div>
         </div>
 
+        {/* Floating Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 shadow-sm text-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground shadow-xs">
+                {selectedIds.size}
+              </span>
+              <span className="font-semibold text-foreground">
+                Peserta Magang Dipilih (Multiple Choice)
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">Ubah Status Magang:</span>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      bulkUpdateMutation.mutate({
+                        ids: Array.from(selectedIds),
+                        status: e.target.value,
+                      });
+                      e.target.value = "";
+                    }
+                  }}
+                  defaultValue=""
+                  disabled={bulkUpdateMutation.isPending}
+                  className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground outline-none focus:border-ai shadow-2xs"
+                >
+                  <option value="" disabled>
+                    Pilih Status...
+                  </option>
+                  {statusList.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Hapus ${selectedIds.size} data peserta magang yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+                    )
+                  ) {
+                    bulkDeleteMutation.mutate(Array.from(selectedIds));
+                  }
+                }}
+                disabled={bulkDeleteMutation.isPending}
+                className="flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Hapus Terpilih
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-softgray transition-colors shadow-2xs"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Counter Info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
           <span>
             Menampilkan <strong className="text-foreground">{filteredItems.length}</strong> dari{" "}
             <strong className="text-foreground">{allItems.length}</strong> peserta magang
           </span>
+          {selectedIds.size > 0 && (
+            <span className="text-primary font-semibold">{selectedIds.size} peserta dipilih</span>
+          )}
         </div>
 
         {/* Table View */}
@@ -526,6 +658,15 @@ function AdminInternshipsPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-softgray/60 border-b border-border">
                     <tr className="text-muted-foreground whitespace-nowrap">
+                      <th className="px-3.5 py-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                          title="Pilih Semua"
+                        />
+                      </th>
                       <th className="px-3.5 py-3 font-semibold">Batch No</th>
                       <th className="px-3.5 py-3 font-semibold">Training Center</th>
                       <th className="px-3.5 py-3 font-semibold">Nama Peserta</th>
@@ -543,110 +684,126 @@ function AdminInternshipsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-softgray/30 transition-colors">
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-semibold text-foreground">
-                            {item.batch_no || "-"}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 min-w-[170px]">
-                          <span className="font-semibold text-foreground block">
-                            {item.training_center}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 min-w-[170px]">
-                          <span className="font-bold text-foreground block text-xs">
-                            {item.student_name}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          {item.mentor ? (
-                            <span className="rounded bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-medium">
-                              {item.mentor}
+                    {filteredItems.map((item) => {
+                      const isSelected = selectedIds.has(item.id);
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`hover:bg-softgray/30 transition-colors ${
+                            isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
+                          }`}
+                        >
+                          <td className="px-3.5 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(item.id)}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                            />
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                              {item.batch_no || "-"}
                             </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-3 text-muted-foreground whitespace-nowrap">
-                          {item.city || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
-                          {item.driving_skill || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-medium text-foreground">
-                            {item.student_status || "Kelas XII"}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 min-w-[150px]">
-                          <span className="font-semibold text-foreground block">
-                            {item.target_pkt}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap font-bold text-primary">
-                          {item.jobdesk || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
-                          {item.placement_month || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground min-w-[160px]">
-                          {item.email || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                          {item.phone || "-"}
-                        </td>
-                        <td className="px-3.5 py-3 whitespace-nowrap">
-                          {(() => {
-                            const st = (item.internship_status || "Peserta Baru").trim();
-                            let badgeClass =
-                              "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
-                            if (st.toLowerCase().includes("pengganti")) {
-                              badgeClass =
-                                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
-                            } else if (st.toLowerCase().includes("selesai")) {
-                              badgeClass =
-                                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
-                            } else if (
-                              st.toLowerCase().includes("mundur") ||
-                              st.toLowerCase().includes("keluar")
-                            ) {
-                              badgeClass =
-                                "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
-                            }
-                            return (
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}`}
-                              >
-                                {st}
+                          </td>
+                          <td className="px-3.5 py-3 min-w-[170px]">
+                            <span className="font-semibold text-foreground block">
+                              {item.training_center}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 min-w-[170px]">
+                            <span className="font-bold text-foreground block text-xs">
+                              {item.student_name}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            {item.mentor ? (
+                              <span className="rounded bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-medium">
+                                {item.mentor}
                               </span>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-3.5 py-3 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(item)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray hover:text-foreground transition-colors shadow-2xs"
-                              title="Edit Data Peserta Magang"
-                            >
-                              <Edit2 className="h-3 w-3" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteParticipant(item.id, item.student_name)}
-                              disabled={deleteMutation.isPending}
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
-                              title="Hapus Data Peserta Magang"
-                            >
-                              <Trash2 className="h-3 w-3" /> Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 text-muted-foreground whitespace-nowrap">
+                            {item.city || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
+                            {item.driving_skill || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="rounded-md bg-softgray px-2 py-0.5 text-[11px] font-medium text-foreground">
+                              {item.student_status || "Kelas XII"}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 min-w-[150px]">
+                            <span className="font-semibold text-foreground block">
+                              {item.target_pkt}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap font-bold text-primary">
+                            {item.jobdesk || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap text-muted-foreground">
+                            {item.placement_month || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground min-w-[160px]">
+                            {item.email || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                            {item.phone || "-"}
+                          </td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            {(() => {
+                              const st = (item.internship_status || "Peserta Baru").trim();
+                              let badgeClass =
+                                "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+                              if (st.toLowerCase().includes("pengganti")) {
+                                badgeClass =
+                                  "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+                              } else if (st.toLowerCase().includes("selesai")) {
+                                badgeClass =
+                                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+                              } else if (
+                                st.toLowerCase().includes("mundur") ||
+                                st.toLowerCase().includes("keluar")
+                              ) {
+                                badgeClass =
+                                  "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+                              }
+                              return (
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeClass}`}
+                                >
+                                  {st}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(item)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray hover:text-foreground transition-colors shadow-2xs"
+                                title="Edit Data Peserta Magang"
+                              >
+                                <Edit2 className="h-3 w-3" /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteParticipant(item.id, item.student_name)}
+                                disabled={deleteMutation.isPending}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+                                title="Hapus Data Peserta Magang"
+                              >
+                                <Trash2 className="h-3 w-3" /> Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

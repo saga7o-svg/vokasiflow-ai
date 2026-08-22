@@ -39,12 +39,11 @@ export function useMe() {
 
 export const adminNav = [
   { to: "/app/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/admin/curriculum", label: "Analisis Kurikulum AI", icon: BookOpen },
   { to: "/app/admin/recommendations", label: "Smart Matching AI", icon: Compass },
   { to: "/app/admin/internships", label: "Data Peserta Magang", icon: Briefcase },
   { to: "/app/admin/students", label: "Data Siswa", icon: Users },
   { to: "/app/admin/schools", label: "Data Sekolah", icon: School },
-  { to: "/app/admin/companies", label: "Perusahaan Mitra", icon: Building2 },
+  { to: "/app/admin/companies", label: "Data Perusahaan Tempat Magang", icon: Building2 },
   { to: "/app/admin/performance", label: "Performa AI", icon: Award },
   { to: "/app/admin/forecasting", label: "Forecasting AI", icon: TrendingUp },
   { to: "/app/admin/users", label: "Manajemen User", icon: UserCog },
@@ -54,6 +53,7 @@ export const guruNav = [
   { to: "/app/guru/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/guru/students", label: "Data Siswa", icon: Users },
   { to: "/app/guru/internships", label: "Pengajuan Magang", icon: FileText },
+  { to: "/app/guru/companies", label: "Data Perusahaan Magang", icon: Building2 },
   { to: "/app/guru/monitoring", label: "Monitoring & Log", icon: CalendarCheck },
   { to: "/app/guru/evaluations", label: "Penilaian Magang", icon: Award },
 ];

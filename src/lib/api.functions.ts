@@ -8,10 +8,23 @@ import {
   matchSpecialSkillsStudentsWithGemini,
 } from "@/lib/gemini";
 
-function isDemoEmail(email?: string | null): boolean {
+import {
+  DUMMY_SCHOOLS,
+  DUMMY_COMPANIES,
+  DUMMY_STUDENTS,
+  DUMMY_INTERNSHIPS,
+  DUMMY_DASHBOARD_STATS,
+  DUMMY_USERS,
+} from "./demo-data";
+
+export function isDemoEmail(email?: string | null): boolean {
   if (!email) return false;
   const lower = email.toLowerCase().trim();
-  return lower === "admin@example.com" || lower === "guru@example.com";
+  return (
+    lower === "admin@example.com" ||
+    lower === "guru@example.com" ||
+    (lower.endsWith("@example.com") && lower !== "saga7o@example.com")
+  );
 }
 
 function assertNotDemo(context: { claims?: { email?: string } }) {
@@ -101,6 +114,9 @@ export const getMe = createServerFn({ method: "GET" })
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (isDemoEmail(context.claims?.email)) {
+      return DUMMY_DASHBOARD_STATS;
+    }
     const { supabase } = context;
     const [schools, students, companies, internships, evaluations] = await Promise.all([
       supabase.from("schools").select("id,status"),
@@ -169,6 +185,9 @@ export const getDashboard = createServerFn({ method: "GET" })
 export const listSchools = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (isDemoEmail(context.claims?.email)) {
+      return DUMMY_SCHOOLS;
+    }
     const { data, error } = await context.supabase.from("schools").select("*").order("name");
     if (error) throw new Error("Gagal memuat data sekolah.");
 
@@ -433,6 +452,9 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
 export const listStudents = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (isDemoEmail(context.claims?.email)) {
+      return DUMMY_STUDENTS;
+    }
     const { data, error } = await context.supabase
       .from("students")
       .select("*, schools(name, school_code, city, province)")
@@ -816,6 +838,102 @@ export const clearAllStudents = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const bulkUpdateStudentsStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 siswa"),
+        status: z.string().trim().optional(),
+        competency: z.string().trim().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    const { supabase, userId } = context;
+    await assertAdminRole(supabase, userId);
+
+    const { ids, status, competency } = data;
+
+    const { data: existingList } = await supabase
+      .from("students")
+      .select("id, email, phone, competency, status")
+      .in("id", ids);
+
+    for (let i = 0; i < (existingList ?? []).length; i += 25) {
+      const chunk = (existingList ?? []).slice(i, i + 25);
+      await Promise.all(
+        chunk.map(async (st) => {
+          const sourceStr = `${st.email || ""} ${st.phone || ""}`;
+          const match = sourceStr.match(/<!--meta:(.*?)-->/);
+          let meta: Record<string, any> = {};
+          if (match && match[1]) {
+            try {
+              meta = JSON.parse(match[1]);
+            } catch {}
+          }
+          if (status) meta.program_status = status;
+          const metaTag = `<!--meta:${JSON.stringify(meta)}-->`;
+          let cleanEmail = st.email ? st.email.replace(/<!--meta:.*?-->/, "").trim() : "";
+          const newEmail = cleanEmail ? `${cleanEmail} ${metaTag}` : metaTag;
+
+          const updatePayload: Record<string, any> = {
+            email: newEmail,
+          };
+          if (status) updatePayload.status = status;
+          if (competency) updatePayload.competency = competency;
+
+          return supabase.from("students").update(updatePayload).eq("id", st.id);
+        }),
+      );
+    }
+
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: userId,
+        action: "BULK_UPDATE",
+        entity: "student",
+        entity_id: null,
+        detail: `Bulk update ${ids.length} siswa status=${status || "-"} kelas=${competency || "-"}`,
+      });
+    } catch {}
+
+    return { success: true, count: ids.length };
+  });
+
+export const bulkDeleteStudents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 siswa"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    const { supabase, userId } = context;
+    await assertAdminRole(supabase, userId);
+
+    for (let i = 0; i < data.ids.length; i += 100) {
+      const chunk = data.ids.slice(i, i + 100);
+      await supabase.from("students").delete().in("id", chunk);
+    }
+
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: userId,
+        action: "BULK_DELETE",
+        entity: "student",
+        entity_id: null,
+        detail: `Menghapus massal ${data.ids.length} data siswa`,
+      });
+    } catch {}
+
+    return { success: true, count: data.ids.length };
+  });
+
 export const saveStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
@@ -903,12 +1021,128 @@ export const saveStudent = createServerFn({ method: "POST" })
 export const listCompanies = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [companies, quotas] = await Promise.all([
+    if (isDemoEmail(context.claims?.email)) {
+      return {
+        companies: DUMMY_COMPANIES.map((c) => {
+          const branches = (c.branches || []).map((b) => {
+            const count = DUMMY_INTERNSHIPS.filter(
+              (i) =>
+                String(i.target_pkt || "")
+                  .toLowerCase()
+                  .trim() === b.branch_name.toLowerCase().trim() ||
+                String(i.target_pkt || "")
+                  .toLowerCase()
+                  .trim()
+                  .includes(b.branch_name.toLowerCase().trim()),
+            ).length;
+            return { ...b, internCount: count };
+          });
+          const totalInterns = branches.reduce((acc, b) => acc + (b.internCount || 0), 0);
+          return {
+            ...c,
+            branches,
+            totalInterns,
+          };
+        }),
+        quotas: [],
+      };
+    }
+
+    const [companiesRes, quotasRes, internshipsRes] = await Promise.all([
       context.supabase.from("companies").select("*").order("name"),
       context.supabase.from("company_quotas").select("*").order("competency"),
+      context.supabase.from("internships").select("id, approval_note, competency, status"),
     ]);
-    if (companies.error || quotas.error) throw new Error("Gagal memuat data perusahaan.");
-    return { companies: companies.data ?? [], quotas: quotas.data ?? [] };
+
+    const rawCompanies = companiesRes.data ?? [];
+
+    const rawInternships = internshipsRes.data || [];
+    const targetPktCounts = new Map<string, number>();
+
+    for (const intern of rawInternships) {
+      const note = intern.approval_note || "";
+      let targetPkt = "";
+      if (note.includes("<!--meta:")) {
+        try {
+          const match = note.match(/<!--meta:(.*?)-->/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (meta.target_pkt) targetPkt = String(meta.target_pkt).trim().toLowerCase();
+          }
+        } catch {}
+      }
+      if (targetPkt) {
+        targetPktCounts.set(targetPkt, (targetPktCounts.get(targetPkt) || 0) + 1);
+      }
+    }
+
+    const enrichedCompanies = rawCompanies.map((comp: Record<string, unknown>) => {
+      let cleanAddress = (comp.address as string | null) ?? "";
+      let branches: Array<{
+        id: string;
+        branch_name: string;
+        address: string;
+        city?: string | null;
+        province?: string | null;
+        contact_person?: string | null;
+        phone?: string | null;
+        internCount?: number;
+      }> = [];
+
+      if (cleanAddress && cleanAddress.includes("<!--meta:")) {
+        try {
+          const match = cleanAddress.match(/<!--meta:(.*?)-->/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (Array.isArray(meta.branches)) {
+              branches = meta.branches;
+            }
+          }
+        } catch {}
+        cleanAddress = cleanAddress.replace(/<!--meta:.*?-->/, "").trim();
+      }
+
+      // If no branches defined, create a default branch from company's own address
+      if (branches.length === 0 && cleanAddress) {
+        branches = [
+          {
+            id: `b-${comp.id}-main`,
+            branch_name: `${comp.company_code || comp.name} - Pusat`,
+            address: cleanAddress,
+            city: (comp.city as string) || null,
+            province: (comp.province as string) || null,
+          },
+        ];
+      }
+
+      // Calculate intern count for each branch
+      const branchesWithCounts = branches.map((b) => {
+        const bLower = b.branch_name.toLowerCase().trim();
+        let count = targetPktCounts.get(bLower) || 0;
+        if (count === 0) {
+          for (const [key, val] of targetPktCounts.entries()) {
+            if (key.includes(bLower) || bLower.includes(key)) {
+              count += val;
+            }
+          }
+        }
+        return {
+          ...b,
+          internCount: count,
+        };
+      });
+
+      const totalInterns = branchesWithCounts.reduce((acc, b) => acc + (b.internCount || 0), 0);
+
+      return {
+        ...comp,
+        address: cleanAddress,
+        branches: branchesWithCounts,
+        totalInterns,
+      };
+    });
+
+    return { companies: enrichedCompanies, quotas: quotasRes.data ?? [] };
   });
 
 export const saveCompany = createServerFn({ method: "POST" })
@@ -917,28 +1151,51 @@ export const saveCompany = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid().optional(),
-        name: z.string().trim().min(2).max(120),
-        company_code: z.string().trim().min(2).max(30),
-        industry: z.string().trim().max(80).nullable().default(null),
-        address: z.string().trim().max(200).nullable().default(null),
+        name: z.string().trim().min(2).max(150),
+        company_code: z.string().trim().min(1).max(50),
+        industry: z.string().trim().max(120).nullable().default(null),
+        address: z.string().trim().max(1000).nullable().default(null),
         city: z.string().trim().max(80).nullable().default(null),
         province: z.string().trim().max(80).nullable().default(null),
         contact_name: z.string().trim().max(80).nullable().default(null),
         contact_email: z.string().trim().max(160).nullable().default(null),
         contact_phone: z.string().trim().max(30).nullable().default(null),
         status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+        branches: z
+          .array(
+            z.object({
+              id: z.string(),
+              branch_name: z.string().trim().min(1),
+              address: z.string().trim().min(1),
+              city: z.string().trim().nullable().optional().default(null),
+              province: z.string().trim().nullable().optional().default(null),
+            }),
+          )
+          .optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     assertNotDemo(context);
     await assertAdminRole(context.supabase, context.userId);
-    const { id, ...values } = data;
+    const { id, branches, ...values } = data;
+
+    let finalAddress = values.address || "";
+    if (branches && branches.length > 0) {
+      finalAddress = `${finalAddress} <!--meta:${JSON.stringify({ branches })}-->`.trim();
+    }
+
+    const payload = {
+      ...values,
+      address: finalAddress,
+    };
+
     const query = id
-      ? context.supabase.from("companies").update(values).eq("id", id)
-      : context.supabase.from("companies").insert(values);
+      ? context.supabase.from("companies").update(payload).eq("id", id)
+      : context.supabase.from("companies").insert(payload);
     const { error } = await query;
-    if (error) throw new Error("Data perusahaan gagal disimpan. Pastikan kode perusahaan unik.");
+    if (error) throw new Error(`Data perusahaan gagal disimpan: ${error.message}`);
+
     await context.supabase.from("audit_logs").insert({
       user_id: context.userId,
       action: id ? "UPDATE" : "CREATE",
@@ -947,6 +1204,482 @@ export const saveCompany = createServerFn({ method: "POST" })
       detail: values.name,
     });
     return { ok: true };
+  });
+
+export const deleteCompany = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    // 1. Delete dependent company_quotas
+    try {
+      await context.supabase.from("company_quotas").delete().eq("company_id", data.id);
+    } catch {}
+
+    // 2. Delete dependent competency_demand
+    try {
+      await context.supabase.from("competency_demand").delete().eq("company_id", data.id);
+    } catch {}
+
+    // 3. Handle internships referencing this company
+    try {
+      const { error: nullErr } = await context.supabase
+        .from("internships")
+        .update({ company_id: null as any })
+        .eq("company_id", data.id);
+
+      if (nullErr) {
+        // Find another company to re-assign if NOT NULL constraint
+        const { data: otherComp } = await context.supabase
+          .from("companies")
+          .select("id")
+          .neq("id", data.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (otherComp) {
+          await context.supabase
+            .from("internships")
+            .update({ company_id: otherComp.id })
+            .eq("company_id", data.id);
+        } else {
+          // Cascade delete orphan internship tracking rows
+          const { data: linkedInterns } = await context.supabase
+            .from("internships")
+            .select("id")
+            .eq("company_id", data.id);
+
+          const internIds = (linkedInterns || []).map((i) => i.id);
+          if (internIds.length > 0) {
+            await context.supabase.from("attendance").delete().in("internship_id", internIds);
+            await context.supabase.from("evaluations").delete().in("internship_id", internIds);
+            await context.supabase
+              .from("internship_reports")
+              .delete()
+              .in("internship_id", internIds);
+            await context.supabase.from("internships").delete().in("id", internIds);
+          }
+        }
+      }
+    } catch {}
+
+    // 4. Delete the company
+    const { error } = await context.supabase.from("companies").delete().eq("id", data.id);
+    if (error) throw new Error(`Gagal menghapus data perusahaan: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "DELETE",
+        entity: "company",
+        entity_id: data.id,
+        detail: "Menghapus data perusahaan dan cabangnya",
+      });
+    } catch {}
+
+    return { ok: true };
+  });
+
+export const clearAllCompanies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    // 1. Delete company_quotas
+    try {
+      await context.supabase
+        .from("company_quotas")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+    } catch {}
+
+    // 2. Delete competency_demand
+    try {
+      await context.supabase
+        .from("competency_demand")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+    } catch {}
+
+    // 3. Unlink or clean up internships referencing companies
+    try {
+      const { error: nullErr } = await context.supabase
+        .from("internships")
+        .update({ company_id: null as any })
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (nullErr) {
+        // If company_id has a strict NOT NULL constraint, clean up internship dependencies
+        await context.supabase
+          .from("attendance")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        await context.supabase
+          .from("evaluations")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        await context.supabase
+          .from("internship_reports")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        await context.supabase
+          .from("internships")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+      }
+    } catch {}
+
+    // 4. Delete all companies
+    const { error } = await context.supabase
+      .from("companies")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) throw new Error(`Gagal mengosongkan database perusahaan: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "DELETE_ALL",
+        entity: "companies",
+        entity_id: null,
+        detail: "Mengosongkan seluruh data perusahaan tempat magang untuk upload ulang",
+      });
+    } catch {}
+
+    return { ok: true };
+  });
+
+export const saveCompanyBranch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        companyId: z.string().uuid(),
+        branch: z.object({
+          id: z.string().optional(),
+          branch_name: z.string().trim().min(1, "Nama Cabang PKT wajib diisi"),
+          address: z.string().trim().min(1, "Alamat cabang wajib diisi"),
+          city: z.string().trim().nullable().optional().default(null),
+          province: z.string().trim().nullable().optional().default(null),
+        }),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    const { data: comp } = await context.supabase
+      .from("companies")
+      .select("address")
+      .eq("id", data.companyId)
+      .maybeSingle();
+
+    if (!comp) throw new Error("Perusahaan tidak ditemukan.");
+
+    let rawAddress = comp.address || "";
+    let branches: any[] = [];
+    if (rawAddress.includes("<!--meta:")) {
+      try {
+        const match = rawAddress.match(/<!--meta:(.*?)-->/);
+        if (match && match[1]) {
+          const meta = JSON.parse(match[1]);
+          if (Array.isArray(meta.branches)) branches = meta.branches;
+        }
+      } catch {}
+      rawAddress = rawAddress.replace(/<!--meta:.*?-->/, "").trim();
+    }
+
+    const branchId = data.branch.id || `branch-${Date.now()}`;
+    const branchItem = {
+      id: branchId,
+      branch_name: data.branch.branch_name,
+      address: data.branch.address,
+      city: data.branch.city || null,
+      province: data.branch.province || null,
+    };
+
+    const existingIdx = branches.findIndex((b) => b.id === branchId);
+    if (existingIdx >= 0) {
+      branches[existingIdx] = branchItem;
+    } else {
+      branches.push(branchItem);
+    }
+
+    const newAddress = `${rawAddress} <!--meta:${JSON.stringify({ branches })}-->`.trim();
+    const { error } = await context.supabase
+      .from("companies")
+      .update({ address: newAddress })
+      .eq("id", data.companyId);
+
+    if (error) throw new Error(`Gagal menyimpan cabang: ${error.message}`);
+    return { ok: true };
+  });
+
+export const deleteCompanyBranch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        companyId: z.string().uuid(),
+        branchId: z.string(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    const { data: comp } = await context.supabase
+      .from("companies")
+      .select("address")
+      .eq("id", data.companyId)
+      .maybeSingle();
+
+    if (!comp) throw new Error("Perusahaan tidak ditemukan.");
+
+    let rawAddress = comp.address || "";
+    let branches: any[] = [];
+    if (rawAddress.includes("<!--meta:")) {
+      try {
+        const match = rawAddress.match(/<!--meta:(.*?)-->/);
+        if (match && match[1]) {
+          const meta = JSON.parse(match[1]);
+          if (Array.isArray(meta.branches)) branches = meta.branches;
+        }
+      } catch {}
+      rawAddress = rawAddress.replace(/<!--meta:.*?-->/, "").trim();
+    }
+
+    branches = branches.filter((b) => b.id !== data.branchId);
+
+    const newAddress =
+      branches.length > 0
+        ? `${rawAddress} <!--meta:${JSON.stringify({ branches })}-->`.trim()
+        : rawAddress;
+
+    const { error } = await context.supabase
+      .from("companies")
+      .update({ address: newAddress })
+      .eq("id", data.companyId);
+
+    if (error) throw new Error(`Gagal menghapus cabang: ${error.message}`);
+    return { ok: true };
+  });
+
+export const importCompanyBranchesBulk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        items: z.array(
+          z.object({
+            company_name: z.string().trim().min(1),
+            branch_name: z.string().trim().min(1),
+            address: z.string().trim().min(1),
+          }),
+        ),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    const { items } = data;
+    if (items.length === 0) return { success: true, count: 0 };
+
+    // Group branches by company_name
+    const grouped = new Map<string, Array<{ branch_name: string; address: string }>>();
+    for (const item of items) {
+      const cName = item.company_name.trim();
+      if (!grouped.has(cName)) grouped.set(cName, []);
+      grouped.get(cName)!.push({
+        branch_name: item.branch_name.trim(),
+        address: item.address.trim(),
+      });
+    }
+
+    const { data: existingCompanies } = await context.supabase
+      .from("companies")
+      .select("id, name, company_code, address");
+
+    const existingMap = new Map<string, any>();
+    (existingCompanies || []).forEach((c) => {
+      existingMap.set(c.name.toLowerCase().trim(), c);
+    });
+
+    let processedCount = 0;
+
+    for (const [companyName, branchList] of grouped.entries()) {
+      const cLower = companyName.toLowerCase().trim();
+      let companyId: string;
+      let rawAddress = "";
+      let existingBranches: any[] = [];
+
+      if (existingMap.has(cLower)) {
+        const existing = existingMap.get(cLower);
+        companyId = existing.id;
+        rawAddress = existing.address || "";
+        if (rawAddress.includes("<!--meta:")) {
+          try {
+            const match = rawAddress.match(/<!--meta:(.*?)-->/);
+            if (match && match[1]) {
+              const meta = JSON.parse(match[1]);
+              if (Array.isArray(meta.branches)) existingBranches = meta.branches;
+            }
+          } catch {}
+          rawAddress = rawAddress.replace(/<!--meta:.*?-->/, "").trim();
+        }
+      } else {
+        // Create new company
+        const code = companyName
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 10);
+        const { data: inserted, error: insErr } = await context.supabase
+          .from("companies")
+          .insert({
+            name: companyName,
+            company_code: code,
+            address: branchList[0]?.address || "-",
+            status: "ACTIVE",
+          })
+          .select("id")
+          .single();
+
+        if (insErr || !inserted) continue;
+        companyId = inserted.id;
+        rawAddress = branchList[0]?.address || "-";
+      }
+
+      // Merge branches
+      const branchMap = new Map<string, any>();
+      existingBranches.forEach((b) => branchMap.set(b.branch_name.toLowerCase().trim(), b));
+
+      branchList.forEach((b, idx) => {
+        const bLower = b.branch_name.toLowerCase().trim();
+        branchMap.set(bLower, {
+          id: branchMap.get(bLower)?.id || `branch-${Date.now()}-${idx}`,
+          branch_name: b.branch_name,
+          address: b.address,
+        });
+      });
+
+      const mergedBranches = Array.from(branchMap.values());
+      const newAddress =
+        `${rawAddress} <!--meta:${JSON.stringify({ branches: mergedBranches })}-->`.trim();
+
+      await context.supabase.from("companies").update({ address: newAddress }).eq("id", companyId);
+
+      // Re-link existing internships that match any branch in this company
+      try {
+        const { data: allInterns } = await context.supabase
+          .from("internships")
+          .select("id, approval_note");
+
+        for (const intern of allInterns || []) {
+          const note = intern.approval_note || "";
+          let targetPkt = "";
+          if (note.includes("<!--meta:")) {
+            try {
+              const match = note.match(/<!--meta:(.*?)-->/);
+              if (match && match[1]) {
+                const meta = JSON.parse(match[1]);
+                if (meta.target_pkt) targetPkt = String(meta.target_pkt).trim().toLowerCase();
+              }
+            } catch {}
+          }
+          if (targetPkt) {
+            const matchesThisComp = mergedBranches.some((b: any) => {
+              const bName = (b.branch_name || "").toLowerCase().trim();
+              return (
+                bName === targetPkt ||
+                bName.includes(targetPkt) ||
+                targetPkt.includes(bName) ||
+                companyName.toLowerCase().includes(targetPkt)
+              );
+            });
+            if (matchesThisComp) {
+              await context.supabase
+                .from("internships")
+                .update({ company_id: companyId })
+                .eq("id", intern.id);
+            }
+          }
+        }
+      } catch {}
+
+      processedCount += branchList.length;
+    }
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "IMPORT_EXCEL",
+        entity: "company_branches",
+        entity_id: null,
+        detail: `Import bulk ${processedCount} data cabang PKT perusahaan`,
+      });
+    } catch {}
+
+    return { success: true, count: processedCount };
+  });
+
+export const seedDefaultCompaniesAndBranches = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    const kja = DUMMY_COMPANIES.find((c) => c.company_code === "KJA");
+    const acs = DUMMY_COMPANIES.find((c) => c.company_code === "ACS");
+
+    const toSeed = [kja, acs].filter(Boolean);
+
+    for (const comp of toSeed) {
+      if (!comp) continue;
+      const { data: existing } = await context.supabase
+        .from("companies")
+        .select("id, address")
+        .ilike("name", comp.name)
+        .maybeSingle();
+
+      const metaTag = `<!--meta:${JSON.stringify({ branches: comp.branches })}-->`;
+      const finalAddress = `${comp.address} ${metaTag}`.trim();
+
+      if (existing) {
+        await context.supabase
+          .from("companies")
+          .update({
+            company_code: comp.company_code,
+            industry: comp.industry,
+            address: finalAddress,
+            city: comp.city,
+            province: comp.province,
+            status: "ACTIVE",
+          })
+          .eq("id", existing.id);
+      } else {
+        await context.supabase.from("companies").insert({
+          name: comp.name,
+          company_code: comp.company_code,
+          industry: comp.industry,
+          address: finalAddress,
+          city: comp.city,
+          province: comp.province,
+          status: "ACTIVE",
+        });
+      }
+    }
+
+    return { success: true };
   });
 
 export const saveQuota = createServerFn({ method: "POST" })
@@ -983,6 +1716,9 @@ export const saveQuota = createServerFn({ method: "POST" })
 export const listInternships = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (isDemoEmail(context.claims?.email)) {
+      return DUMMY_INTERNSHIPS;
+    }
     const { data, error } = await context.supabase
       .from("internships")
       .select(
@@ -1095,10 +1831,12 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdminRole(supabase, userId);
 
-    const [schoolsRes, companiesRes, studentsRes] = await Promise.all([
+    const { items, upsert } = data;
+
+    // 1. Bulk Fetch Existing Schools & Companies
+    const [schoolsRes, companiesRes] = await Promise.all([
       supabase.from("schools").select("id, name, school_code"),
       supabase.from("companies").select("id, name, company_code"),
-      supabase.from("students").select("id, name, school_id, student_number"),
     ]);
 
     const schoolMap = new Map<string, string>();
@@ -1111,87 +1849,144 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
       companyMap.set(c.name.toLowerCase().trim(), c.id);
     });
 
+    // 2. Bulk Identify & Create Missing Schools
+    const missingSchools = new Map<string, { name: string; city?: string | null }>();
+    items.forEach((item) => {
+      const key = item.training_center.toLowerCase().trim();
+      if (!schoolMap.has(key) && !missingSchools.has(key)) {
+        missingSchools.set(key, { name: item.training_center.trim(), city: item.city });
+      }
+    });
+
+    if (missingSchools.size > 0) {
+      let codeIdx = schoolMap.size + 1;
+      const newSchoolsPayload = Array.from(missingSchools.values()).map((sch) => ({
+        name: sch.name,
+        school_code: `TC-${String(codeIdx++).padStart(3, "0")}`,
+        city: sch.city || "Indonesia",
+        status: "ACTIVE",
+      }));
+
+      const { data: createdSchools } = await supabase
+        .from("schools")
+        .insert(newSchoolsPayload)
+        .select("id, name");
+
+      (createdSchools ?? []).forEach((sch) => {
+        schoolMap.set(sch.name.toLowerCase().trim(), sch.id);
+      });
+    }
+
+    // 3. Bulk Identify & Create Missing Companies (Target PKT)
+    const missingCompanies = new Map<string, { name: string; city?: string | null }>();
+    items.forEach((item) => {
+      const key = item.target_pkt.toLowerCase().trim();
+      if (!companyMap.has(key) && !missingCompanies.has(key)) {
+        missingCompanies.set(key, { name: item.target_pkt.trim(), city: item.city });
+      }
+    });
+
+    if (missingCompanies.size > 0) {
+      let compIdx = companyMap.size + 1;
+      const newCompaniesPayload = Array.from(missingCompanies.values()).map((comp) => ({
+        name: comp.name,
+        company_code: `PKT-${String(compIdx++).padStart(3, "0")}`,
+        city: comp.city || "Indonesia",
+        industry: "Perbankan / Pengelolaan Kas",
+      }));
+
+      const { data: createdCompanies } = await supabase
+        .from("companies")
+        .insert(newCompaniesPayload)
+        .select("id, name");
+
+      (createdCompanies ?? []).forEach((c) => {
+        companyMap.set(c.name.toLowerCase().trim(), c.id);
+      });
+    }
+
+    // 4. Bulk Fetch & Create Students
+    const { data: existingStudents } = await supabase
+      .from("students")
+      .select("id, name, school_id, student_number");
+
     const studentMap = new Map<string, string>();
-    (studentsRes.data ?? []).forEach((st) => {
+    (existingStudents ?? []).forEach((st) => {
       studentMap.set(`${st.school_id}_${st.name.toLowerCase().trim()}`, st.id);
     });
 
-    let importedCount = 0;
+    const missingStudents = new Map<string, any>();
+    items.forEach((item) => {
+      const schoolId = schoolMap.get(item.training_center.toLowerCase().trim());
+      if (!schoolId) return;
 
-    for (const item of data.items) {
-      const schoolKey = item.training_center.toLowerCase().trim();
-      let schoolId = schoolMap.get(schoolKey);
-
-      if (!schoolId) {
-        const code = `TC-${String(schoolMap.size + 1).padStart(3, "0")}`;
-        const { data: newSchool, error: schoolErr } = await supabase
-          .from("schools")
-          .insert({
-            name: item.training_center,
-            school_code: code,
-            city: item.city || "Indonesia",
-            status: "ACTIVE",
-          })
-          .select("id")
-          .single();
-        if (!schoolErr && newSchool) {
-          schoolId = newSchool.id;
-          schoolMap.set(schoolKey, schoolId);
-        }
-      }
-
-      if (!schoolId) continue;
-
-      const companyKey = item.target_pkt.toLowerCase().trim();
-      let companyId = companyMap.get(companyKey);
-      if (!companyId) {
-        const compCode = `PKT-${String(companyMap.size + 1).padStart(3, "0")}`;
-        const { data: newComp, error: compErr } = await supabase
-          .from("companies")
-          .insert({
-            name: item.target_pkt,
-            company_code: compCode,
-            city: item.city || "Indonesia",
-            industry: "Perbankan / Pengelolaan Kas",
-          })
-          .select("id")
-          .single();
-        if (!compErr && newComp) {
-          companyId = newComp.id;
-          companyMap.set(companyKey, companyId);
-        }
-      }
-
-      if (!companyId) continue;
-
-      const studentKey = `${schoolId}_${item.student_name.toLowerCase().trim()}`;
-      let studentId = studentMap.get(studentKey);
-      if (!studentId) {
+      const stKey = `${schoolId}_${item.student_name.toLowerCase().trim()}`;
+      if (!studentMap.has(stKey) && !missingStudents.has(stKey)) {
         const nameSlug = item.student_name
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "")
           .slice(0, 20);
-        const stuNumber = `${nameSlug}-${String(studentMap.size + 1).padStart(3, "0")}`;
-        const { data: newStudent, error: stuErr } = await supabase
-          .from("students")
-          .insert({
-            school_id: schoolId,
-            student_number: stuNumber,
-            name: item.student_name,
-            competency: item.student_status || "Kelas XII",
-            status: "Aktif Akademi",
-            phone: item.phone || null,
-            email: item.email || null,
-          })
-          .select("id")
-          .single();
-        if (!stuErr && newStudent) {
-          studentId = newStudent.id;
-          studentMap.set(studentKey, studentId);
-        }
+        const stuNumber = `${nameSlug}-${String(studentMap.size + missingStudents.size + 1).padStart(3, "0")}`;
+
+        missingStudents.set(stKey, {
+          school_id: schoolId,
+          student_number: stuNumber,
+          name: item.student_name.trim(),
+          competency: item.student_status || "Kelas XII",
+          status: "Aktif Akademi",
+          phone: item.phone || null,
+          email: item.email || null,
+        });
+      }
+    });
+
+    if (missingStudents.size > 0) {
+      const studentChunks: any[][] = [];
+      const allNewStudents = Array.from(missingStudents.values());
+      for (let i = 0; i < allNewStudents.length; i += 100) {
+        studentChunks.push(allNewStudents.slice(i, i + 100));
       }
 
-      if (!studentId) continue;
+      for (const chunk of studentChunks) {
+        const { data: createdStudents } = await supabase
+          .from("students")
+          .insert(chunk)
+          .select("id, name, school_id");
+
+        (createdStudents ?? []).forEach((st) => {
+          studentMap.set(`${st.school_id}_${st.name.toLowerCase().trim()}`, st.id);
+        });
+      }
+    }
+
+    // 5. Bulk Fetch Existing Internships
+    const allStudentIds = Array.from(studentMap.values());
+    const existingInternshipMap = new Map<string, string>();
+
+    // Fetch in chunks of 200 student IDs
+    for (let i = 0; i < allStudentIds.length; i += 200) {
+      const idChunk = allStudentIds.slice(i, i + 200);
+      const { data: intList } = await supabase
+        .from("internships")
+        .select("id, student_id")
+        .in("student_id", idChunk);
+
+      (intList ?? []).forEach((intItem) => {
+        existingInternshipMap.set(intItem.student_id, intItem.id);
+      });
+    }
+
+    // 6. Prepare Batch Inserts and Updates for Internships
+    const toInsertInternships: any[] = [];
+    const toUpdateInternships: { id: string; payload: any }[] = [];
+
+    items.forEach((item) => {
+      const schoolId = schoolMap.get(item.training_center.toLowerCase().trim());
+      const companyId = companyMap.get(item.target_pkt.toLowerCase().trim());
+      if (!schoolId || !companyId) return;
+
+      const studentId = studentMap.get(`${schoolId}_${item.student_name.toLowerCase().trim()}`);
+      if (!studentId) return;
 
       const metaObj = {
         batch_no: item.batch_no,
@@ -1210,27 +2005,25 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
       };
       const metaTag = `<!--meta:${JSON.stringify(metaObj)}-->`;
 
-      const { data: existingInternship } = await supabase
-        .from("internships")
-        .select("id")
-        .eq("student_id", studentId)
-        .maybeSingle();
+      const existingId = existingInternshipMap.get(studentId);
 
-      if (existingInternship && data.upsert) {
-        await supabase
-          .from("internships")
-          .update({
-            company_id: companyId,
-            school_id: schoolId,
-            competency: item.jobdesk || "CPC",
-            period: item.batch_no || "2025-S1",
-            status: "ACTIVE",
-            approval_note: metaTag,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingInternship.id);
-      } else if (!existingInternship) {
-        await supabase.from("internships").insert({
+      if (existingId) {
+        if (upsert) {
+          toUpdateInternships.push({
+            id: existingId,
+            payload: {
+              company_id: companyId,
+              school_id: schoolId,
+              competency: item.jobdesk || "CPC",
+              period: item.batch_no || "2025-S1",
+              status: "ACTIVE",
+              approval_note: metaTag,
+              updated_at: new Date().toISOString(),
+            },
+          });
+        }
+      } else {
+        toInsertInternships.push({
           student_id: studentId,
           company_id: companyId,
           school_id: schoolId,
@@ -1242,8 +2035,23 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
           approval_note: metaTag,
         });
       }
-      importedCount++;
+    });
+
+    // Execute Inserts in chunks of 100
+    for (let i = 0; i < toInsertInternships.length; i += 100) {
+      const chunk = toInsertInternships.slice(i, i + 100);
+      await supabase.from("internships").insert(chunk);
     }
+
+    // Execute Updates in parallel batches of 25
+    for (let i = 0; i < toUpdateInternships.length; i += 25) {
+      const updateBatch = toUpdateInternships.slice(i, i + 25);
+      await Promise.all(
+        updateBatch.map((u) => supabase.from("internships").update(u.payload).eq("id", u.id)),
+      );
+    }
+
+    const totalProcessed = toInsertInternships.length + toUpdateInternships.length;
 
     try {
       await supabase.from("audit_logs").insert({
@@ -1251,11 +2059,11 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
         action: "IMPORT",
         entity: "internship",
         entity_id: null,
-        detail: `Impor massal ${importedCount} data peserta magang dari Excel`,
+        detail: `Impor massal ${totalProcessed} data peserta magang dari Excel`,
       });
     } catch {}
 
-    return { success: true, count: importedCount };
+    return { success: true, count: totalProcessed };
   });
 
 export const saveInternshipParticipant = createServerFn({ method: "POST" })
@@ -1431,6 +2239,100 @@ export const deleteInternshipParticipant = createServerFn({ method: "POST" })
     } catch {}
 
     return { success: true };
+  });
+
+export const bulkUpdateInternshipsStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 peserta magang"),
+        status: z.string().trim().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    const { supabase, userId } = context;
+    await assertAdminRole(supabase, userId);
+
+    const { ids, status } = data;
+
+    const { data: existingList } = await supabase
+      .from("internships")
+      .select("id, approval_note, status")
+      .in("id", ids);
+
+    for (let i = 0; i < (existingList ?? []).length; i += 25) {
+      const chunk = (existingList ?? []).slice(i, i + 25);
+      await Promise.all(
+        chunk.map(async (intItem) => {
+          const note = intItem.approval_note || "";
+          const match = note.match(/<!--meta:(.*?)-->/);
+          let meta: Record<string, any> = {};
+          if (match && match[1]) {
+            try {
+              meta = JSON.parse(match[1]);
+            } catch {}
+          }
+          meta.internship_status = status;
+          const metaTag = `<!--meta:${JSON.stringify(meta)}-->`;
+
+          return supabase
+            .from("internships")
+            .update({
+              approval_note: metaTag,
+              status: status === "Selesai" ? "COMPLETED" : "ACTIVE",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", intItem.id);
+        }),
+      );
+    }
+
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: userId,
+        action: "BULK_UPDATE",
+        entity: "internship",
+        entity_id: null,
+        detail: `Bulk update ${ids.length} peserta magang ke status ${status}`,
+      });
+    } catch {}
+
+    return { success: true, count: ids.length };
+  });
+
+export const bulkDeleteInternships = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 peserta"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    const { supabase, userId } = context;
+    await assertAdminRole(supabase, userId);
+
+    for (let i = 0; i < data.ids.length; i += 100) {
+      const chunk = data.ids.slice(i, i + 100);
+      await supabase.from("internships").delete().in("id", chunk);
+    }
+
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: userId,
+        action: "BULK_DELETE",
+        entity: "internship",
+        entity_id: null,
+        detail: `Menghapus massal ${data.ids.length} data peserta magang`,
+      });
+    } catch {}
+
+    return { success: true, count: data.ids.length };
   });
 
 export const getInternship = createServerFn({ method: "GET" })
@@ -1761,6 +2663,12 @@ export const getForecast = createServerFn({ method: "GET" })
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (isDemoEmail(context.claims?.email)) {
+      return DUMMY_USERS.map((u) => ({
+        ...u,
+        schoolName: u.schools?.name ?? null,
+      }));
+    }
     const [profiles, roles, schools] = await Promise.all([
       context.supabase.from("profiles").select("*").order("name"),
       context.supabase.from("user_roles").select("user_id,role"),
@@ -1872,6 +2780,18 @@ export const globalSearch = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const cleanQ = data.q.replace(/[%_\\]/g, "").trim();
     if (cleanQ.length < 2) return { students: [], schools: [], companies: [] };
+    if (isDemoEmail(context.claims?.email)) {
+      const qLower = cleanQ.toLowerCase();
+      return {
+        students: DUMMY_STUDENTS.filter(
+          (s) =>
+            s.name.toLowerCase().includes(qLower) ||
+            s.student_number.toLowerCase().includes(qLower),
+        ).slice(0, 5),
+        schools: DUMMY_SCHOOLS.filter((s) => s.name.toLowerCase().includes(qLower)).slice(0, 5),
+        companies: DUMMY_COMPANIES.filter((c) => c.name.toLowerCase().includes(qLower)).slice(0, 5),
+      };
+    }
     const term = `%${cleanQ}%`;
     const [students, schools, companies] = await Promise.all([
       context.supabase

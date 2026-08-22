@@ -1,9 +1,18 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell, Card, StatusBadge, Loading, EmptyState } from "@/components/app/shell";
-import { listCompanies, saveCompany, saveQuota } from "@/lib/api.functions";
+import {
+  listCompanies,
+  saveCompany,
+  deleteCompany,
+  saveCompanyBranch,
+  deleteCompanyBranch,
+  importCompanyBranchesBulk,
+  seedDefaultCompaniesAndBranches,
+  clearAllCompanies,
+} from "@/lib/api.functions";
 import {
   Search,
   Plus,
@@ -15,19 +24,44 @@ import {
   Mail,
   Phone,
   CheckCircle2,
+  FileSpreadsheet,
+  Download,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Users,
+  Briefcase,
+  Sparkles,
+  MapPinned,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CompanyBranchImportModal } from "@/components/app/company-branch-import-modal";
 
 export const Route = createFileRoute("/_authenticated/app/admin/companies")({
   head: () => ({
     meta: [
-      { title: "Perusahaan Mitra & Kuota — VokasiFlow AI" },
-      { name: "description", content: "Manajemen industri mitra dan alokasi kuota magang." },
+      { title: "Data Perusahaan Tempat Magang — VokasiFlow AI" },
+      {
+        name: "description",
+        content: "Manajemen industri mitra, cabang PKT, dan alamat penempatan magang.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: AdminCompaniesPage,
 });
+
+interface BranchItem {
+  id: string;
+  branch_name: string;
+  address: string;
+  city?: string | null;
+  province?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  internCount?: number;
+}
 
 interface CompanyItem {
   id: string;
@@ -41,25 +75,27 @@ interface CompanyItem {
   contact_email: string | null;
   contact_phone: string | null;
   status: string;
-}
-
-interface QuotaItem {
-  id: string;
-  company_id: string;
-  competency: string;
-  quota: number;
-  used_quota: number;
-  period: string;
+  branches?: BranchItem[];
+  totalInterns?: number;
 }
 
 function AdminCompaniesPage() {
   const queryClient = useQueryClient();
   const fetchCompanies = useServerFn(listCompanies);
   const saveCompanyFn = useServerFn(saveCompany);
-  const saveQuotaFn = useServerFn(saveQuota);
+  const deleteCompanyFn = useServerFn(deleteCompany);
+  const saveBranchFn = useServerFn(saveCompanyBranch);
+  const deleteBranchFn = useServerFn(deleteCompanyBranch);
+  const importBranchesFn = useServerFn(importCompanyBranchesBulk);
+  const seedDefaultFn = useServerFn(seedDefaultCompaniesAndBranches);
+  const clearAllFn = useServerFn(clearAllCompanies);
 
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"COMPANIES" | "QUOTAS">("COMPANIES");
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
+  const [expandedCompanyIds, setExpandedCompanyIds] = useState<Set<string>>(
+    new Set(["demo-comp-kja", "demo-comp-acs"]),
+  );
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Company Modal State
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
@@ -75,43 +111,44 @@ function AdminCompaniesPage() {
   const [contactPhone, setContactPhone] = useState("");
   const [companyStatus, setCompanyStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
 
-  // Quota Modal State
-  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
-  const [editingQuota, setEditingQuota] = useState<QuotaItem | null>(null);
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const [quotaCompetency, setQuotaCompetency] = useState("Software Development");
-  const [quotaPeriod, setQuotaPeriod] = useState("2026-S1");
-  const [quotaAmount, setQuotaAmount] = useState(5);
+  // Branch Modal State
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [targetCompanyForBranch, setTargetCompanyForBranch] = useState<CompanyItem | null>(null);
+  const [editingBranch, setEditingBranch] = useState<BranchItem | null>(null);
+  const [branchName, setBranchName] = useState("");
+  const [branchAddress, setBranchAddress] = useState("");
+  const [branchCity, setBranchCity] = useState("");
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["companies-list"],
     queryFn: () => fetchCompanies(),
   });
 
+  const companies: CompanyItem[] = (data?.companies as CompanyItem[]) || [];
+
+  // Toggle company expansion
+  function toggleExpand(id: string) {
+    const next = new Set(expandedCompanyIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setExpandedCompanyIds(next);
+  }
+
+  // Expand all by default once companies load if not set
   const saveCompanyMutation = useMutation({
-    mutationFn: async (payload: {
-      id?: string | undefined;
-      name: string;
-      company_code: string;
-      industry: string | null;
-      address: string | null;
-      city: string | null;
-      province: string | null;
-      contact_name: string | null;
-      contact_email: string | null;
-      contact_phone: string | null;
-      status: "ACTIVE" | "INACTIVE";
-    }) => {
+    mutationFn: async (payload: any) => {
       return saveCompanyFn({ data: payload });
     },
     onSuccess: () => {
       toast.success(
         editingCompany
           ? "Data perusahaan berhasil diperbarui."
-          : "Perusahaan mitra berhasil ditambahkan.",
+          : "Perusahaan baru berhasil ditambahkan.",
       );
       queryClient.invalidateQueries({ queryKey: ["companies-list"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
       closeCompanyModal();
     },
     onError: (err: Error) => {
@@ -119,28 +156,75 @@ function AdminCompaniesPage() {
     },
   });
 
-  const saveQuotaMutation = useMutation({
-    mutationFn: async (payload: {
-      id?: string | undefined;
-      company_id: string;
-      competency: string;
-      period: string;
-      quota: number;
-    }) => {
-      return saveQuotaFn({ data: payload });
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return deleteCompanyFn({ data: { id } });
     },
     onSuccess: () => {
-      toast.success("Alokasi kuota magang berhasil disimpan.");
+      toast.success("Perusahaan berhasil dihapus.");
       queryClient.invalidateQueries({ queryKey: ["companies-list"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
-      closeQuotaModal();
     },
     onError: (err: Error) => {
-      toast.error(err?.message || "Gagal menyimpan kuota.");
+      toast.error(err?.message || "Gagal menghapus data perusahaan.");
     },
   });
 
-  function openCreateCompany() {
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      return clearAllFn();
+    },
+    onSuccess: () => {
+      toast.success(
+        "Seluruh data perusahaan berhasil dikosongkan. Silakan upload ulang file Excel Anda.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal mengosongkan data perusahaan.");
+    },
+  });
+
+  const saveBranchMutation = useMutation({
+    mutationFn: async (payload: { companyId: string; branch: any }) => {
+      return saveBranchFn({ data: payload });
+    },
+    onSuccess: () => {
+      toast.success("Data cabang PKT berhasil disimpan.");
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+      closeBranchModal();
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal menyimpan data cabang.");
+    },
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: async (payload: { companyId: string; branchId: string }) => {
+      return deleteBranchFn({ data: payload });
+    },
+    onSuccess: () => {
+      toast.success("Cabang PKT berhasil dihapus.");
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal menghapus cabang.");
+    },
+  });
+
+  const seedDefaultMutation = useMutation({
+    mutationFn: async () => {
+      return seedDefaultFn();
+    },
+    onSuccess: () => {
+      toast.success("Berhasil memuat data bawaan PT Kelola Jasa Artha & PT Abacus Cash Solution.");
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal memuat data bawaan.");
+    },
+  });
+
+  function openCreateCompanyModal() {
     setEditingCompany(null);
     setCompanyName("");
     setCompanyCode("");
@@ -155,18 +239,18 @@ function AdminCompaniesPage() {
     setCompanyModalOpen(true);
   }
 
-  function openEditCompany(c: CompanyItem) {
-    setEditingCompany(c);
-    setCompanyName(c.name);
-    setCompanyCode(c.company_code);
-    setIndustry(c.industry ?? "");
-    setAddress(c.address ?? "");
-    setCity(c.city ?? "");
-    setProvince(c.province ?? "");
-    setContactName(c.contact_name ?? "");
-    setContactEmail(c.contact_email ?? "");
-    setContactPhone(c.contact_phone ?? "");
-    setCompanyStatus(c.status as "ACTIVE" | "INACTIVE");
+  function openEditCompanyModal(comp: CompanyItem) {
+    setEditingCompany(comp);
+    setCompanyName(comp.name);
+    setCompanyCode(comp.company_code);
+    setIndustry(comp.industry ?? "");
+    setAddress(comp.address ?? "");
+    setCity(comp.city ?? "");
+    setProvince(comp.province ?? "");
+    setContactName(comp.contact_name ?? "");
+    setContactEmail(comp.contact_email ?? "");
+    setContactPhone(comp.contact_phone ?? "");
+    setCompanyStatus(comp.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
     setCompanyModalOpen(true);
   }
 
@@ -178,7 +262,7 @@ function AdminCompaniesPage() {
   function handleCompanySubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!companyName.trim() || !companyCode.trim()) {
-      toast.error("Nama dan kode perusahaan wajib diisi.");
+      toast.error("Nama dan Kode Perusahaan wajib diisi.");
       return;
     }
     saveCompanyMutation.mutate({
@@ -196,312 +280,491 @@ function AdminCompaniesPage() {
     });
   }
 
-  function openCreateQuota(companyId?: string) {
-    setEditingQuota(null);
-    setSelectedCompanyId(companyId || data?.companies[0]?.id || "");
-    setQuotaCompetency("Software Development");
-    setQuotaPeriod("2026-S1");
-    setQuotaAmount(5);
-    setQuotaModalOpen(true);
+  function openCreateBranchModal(comp: CompanyItem) {
+    setTargetCompanyForBranch(comp);
+    setEditingBranch(null);
+    setBranchName(`${comp.company_code} - `);
+    setBranchAddress("");
+    setBranchCity("");
+    setBranchModalOpen(true);
   }
 
-  function openEditQuota(q: QuotaItem) {
-    setEditingQuota(q);
-    setSelectedCompanyId(q.company_id);
-    setQuotaCompetency(q.competency);
-    setQuotaPeriod(q.period);
-    setQuotaAmount(q.quota);
-    setQuotaModalOpen(true);
+  function openEditBranchModal(comp: CompanyItem, branch: BranchItem) {
+    setTargetCompanyForBranch(comp);
+    setEditingBranch(branch);
+    setBranchName(branch.branch_name);
+    setBranchAddress(branch.address);
+    setBranchCity(branch.city ?? "");
+    setBranchModalOpen(true);
   }
 
-  function closeQuotaModal() {
-    setQuotaModalOpen(false);
-    setEditingQuota(null);
+  function closeBranchModal() {
+    setBranchModalOpen(false);
+    setTargetCompanyForBranch(null);
+    setEditingBranch(null);
   }
 
-  function handleQuotaSubmit(e: React.FormEvent) {
+  function handleBranchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedCompanyId || !quotaCompetency.trim() || !quotaPeriod.trim()) {
-      toast.error("Semua kolom kuota wajib diisi.");
+    if (!targetCompanyForBranch) return;
+    if (!branchName.trim() || !branchAddress.trim()) {
+      toast.error("Nama Cabang PKT dan Alamat wajib diisi.");
       return;
     }
-    saveQuotaMutation.mutate({
-      id: editingQuota?.id,
-      company_id: selectedCompanyId,
-      competency: quotaCompetency.trim(),
-      period: quotaPeriod.trim(),
-      quota: Number(quotaAmount),
+    saveBranchMutation.mutate({
+      companyId: targetCompanyForBranch.id,
+      branch: {
+        id: editingBranch?.id,
+        branch_name: branchName.trim(),
+        address: branchAddress.trim(),
+        city: branchCity.trim() || null,
+      },
     });
   }
 
-  const companiesList = data?.companies ?? [];
-  const quotasList = data?.quotas ?? [];
+  // Filter companies and branches
+  const q = search.toLowerCase().trim();
+  const filteredCompanies = companies
+    .filter((c) => selectedCompanyFilter === "ALL" || c.id === selectedCompanyFilter)
+    .map((c) => {
+      const matchComp =
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.company_code.toLowerCase().includes(q) ||
+        (c.city || "").toLowerCase().includes(q);
 
-  const filteredCompanies = companiesList.filter((c) => {
-    return (
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company_code.toLowerCase().includes(search.toLowerCase()) ||
-      (c.industry ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (c.city ?? "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+      const matchingBranches = (c.branches || []).filter(
+        (b) =>
+          !q ||
+          matchComp ||
+          b.branch_name.toLowerCase().includes(q) ||
+          b.address.toLowerCase().includes(q) ||
+          (b.city || "").toLowerCase().includes(q),
+      );
 
-  const filteredQuotas = quotasList.filter((q) => {
-    const comp = companiesList.find((c) => c.id === q.company_id);
-    return (
-      q.competency.toLowerCase().includes(search.toLowerCase()) ||
-      q.period.toLowerCase().includes(search.toLowerCase()) ||
-      (comp?.name ?? "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+      return {
+        ...c,
+        matchingBranches,
+        hasMatch: matchComp || matchingBranches.length > 0,
+      };
+    })
+    .filter((c) => c.hasMatch);
+
+  // Calculate totals
+  const totalBranchesCount = companies.reduce((acc, c) => acc + (c.branches?.length || 0), 0);
+  const totalInternsPlaced = companies.reduce((acc, c) => acc + (c.totalInterns || 0), 0);
+
+  // Export Excel Handler
+  async function handleExportExcel() {
+    const XLSX = await import("xlsx");
+    const exportRows: any[][] = [];
+
+    companies.forEach((c) => {
+      exportRows.push(["Nama Perusahaan", c.name]);
+      exportRows.push(["Cabang PKT", "Alamat", "Kota/Kab", "Peserta Magang"]);
+      (c.branches || []).forEach((b) => {
+        exportRows.push([b.branch_name, b.address, b.city || "-", b.internCount || 0]);
+      });
+      exportRows.push([]); // blank row separator
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(exportRows);
+    ws["!cols"] = [{ wch: 25 }, { wch: 75 }, { wch: 20 }, { wch: 15 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Perusahaan Magang");
+    XLSX.writeFile(wb, `data_perusahaan_cabang_pkt_${Date.now()}.xlsx`);
+    toast.success("Berhasil mengekspor data perusahaan dan cabang PKT.");
+  }
 
   return (
     <AppShell
-      title="Manajemen Industri Mitra & Kuota"
+      title="Data Perusahaan Tempat Magang"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {companies.length === 0 && (
+            <button
+              type="button"
+              onClick={() => seedDefaultMutation.mutate()}
+              disabled={seedDefaultMutation.isPending}
+              className="flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 text-primary px-3 py-2 text-xs font-semibold hover:bg-primary/20 transition-colors shadow-2xs"
+              title="Muat data bawaan PT Kelola Jasa Artha & PT Abacus Cash Solution"
+            >
+              <Sparkles className="h-4 w-4" />
+              {seedDefaultMutation.isPending ? "Memuat..." : "Muat Data Bawaan (KJA & ACS)"}
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={openCreateCompany}
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-softgray transition-colors shadow-2xs text-foreground"
+          >
+            <Download className="h-4 w-4 text-primary" />
+            Export Excel
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-semibold hover:bg-emerald-500/20 transition-colors shadow-2xs"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Import Excel Cabang
+          </button>
+
+          <button
+            type="button"
+            onClick={openCreateCompanyModal}
             className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
           >
-            <Plus className="h-4 w-4" /> Tambah Mitra
-          </button>
-          <button
-            type="button"
-            onClick={() => openCreateQuota()}
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold hover:bg-softgray transition-colors"
-          >
-            <Layers className="h-4 w-4" /> Buka Kuota
+            <Plus className="h-4 w-4" /> Tambah Perusahaan
           </button>
         </div>
       }
     >
       <div className="space-y-4">
-        {/* Navigation Tabs & Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 border-b border-border sm:border-0 pb-2 sm:pb-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab("COMPANIES")}
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                activeTab === "COMPANIES"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-background border border-border text-muted-foreground hover:bg-softgray"
-              }`}
-            >
-              Daftar Perusahaan ({companiesList.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("QUOTAS")}
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                activeTab === "QUOTAS"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-background border border-border text-muted-foreground hover:bg-softgray"
-              }`}
-            >
-              Alokasi Kuota Magang ({quotasList.length})
-            </button>
-          </div>
+        {/* KPI Stats */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Perusahaan</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{companies.length}</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Mitra industri terdaftar</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" />
+            </div>
+          </Card>
 
-          <div className="relative max-w-xs">
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Total Cabang PKT</p>
+              <h3 className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                {totalBranchesCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Titik lokasi penempatan</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <MapPinned className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Peserta Terhubung</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {totalInternsPlaced}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Ditempatkan di Cabang PKT</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Users className="h-5 w-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Status Kemitraan</p>
+              <h3 className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-0.5">
+                {companies.filter((c) => c.status === "ACTIVE").length} Aktif
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Siap menerima peserta</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+          </Card>
+        </div>
+
+        {/* Filter Controls */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="relative sm:col-span-2">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari perusahaan atau kuota..."
+              placeholder="Cari nama perusahaan, cabang PKT (cth: KJA - JAKARTA, ACS - BANDUNG), alamat..."
               className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2 text-xs outline-none focus:border-ai transition-colors"
             />
           </div>
+
+          <div>
+            <select
+              value={selectedCompanyFilter}
+              onChange={(e) => setSelectedCompanyFilter(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+            >
+              <option value="ALL">Semua Perusahaan</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.branches?.length || 0} Cabang)
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Content Body */}
-        {isPending ? <Loading count={4} /> : null}
+        {/* Content Section */}
+        {isPending ? <Loading count={3} /> : null}
 
         {isError ? (
           <Card className="border-destructive/20 bg-destructive/5 text-destructive p-4">
-            <p className="text-xs font-medium">Gagal memuat data perusahaan dan kuota.</p>
+            <p className="text-xs font-medium">Gagal memuat data perusahaan tempat magang.</p>
           </Card>
         ) : null}
 
-        {!isPending && !isError && activeTab === "COMPANIES" ? (
+        {!isPending && !isError ? (
           filteredCompanies.length > 0 ? (
-            <Card className="overflow-hidden p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-softgray/50 border-b border-border">
-                    <tr className="text-muted-foreground">
-                      <th className="px-4 py-3 font-semibold">Nama Perusahaan</th>
-                      <th className="px-4 py-3 font-semibold">Bidang Industri</th>
-                      <th className="px-4 py-3 font-semibold">Lokasi</th>
-                      <th className="px-4 py-3 font-semibold">Kontak PIC</th>
-                      <th className="px-4 py-3 font-semibold">Total Kuota Aktif</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredCompanies.map((c) => {
-                      const cQuotas = quotasList.filter((q) => q.company_id === c.id);
-                      const totalQuota = cQuotas.reduce((acc, q) => acc + q.quota, 0);
-                      const usedQuota = cQuotas.reduce((acc, q) => acc + q.used_quota, 0);
+            <div className="space-y-4">
+              {filteredCompanies.map((comp) => {
+                const isExpanded = expandedCompanyIds.has(comp.id) || search.length > 0;
+                const branches = comp.matchingBranches || comp.branches || [];
 
-                      return (
-                        <tr key={c.id} className="hover:bg-softgray/30 transition-colors">
-                          <td className="px-4 py-3.5">
-                            <span className="font-bold text-foreground block text-sm">
-                              {c.name}
+                return (
+                  <Card
+                    key={comp.id}
+                    className="overflow-hidden p-0 transition-all border-border shadow-2xs"
+                  >
+                    {/* Company Header (Click to expand/collapse) */}
+                    <div
+                      onClick={() => toggleExpand(comp.id)}
+                      className="flex flex-wrap items-center justify-between gap-3 p-4 bg-softgray/40 hover:bg-softgray/70 cursor-pointer transition-colors border-b border-border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
+                          {isExpanded ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5" />
+                          )}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-foreground hover:text-primary transition-colors">
+                              {comp.name}
+                            </h3>
+                            <span className="rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold px-2 py-0.5">
+                              {comp.company_code}
                             </span>
-                            <span className="text-[11px] font-mono text-muted-foreground">
-                              Kode: {c.company_code}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 font-medium text-foreground">
-                            {c.industry || "Umum"}
-                          </td>
-                          <td className="px-4 py-3.5 text-muted-foreground">
-                            {c.city ? `${c.city}, ${c.province || ""}` : "-"}
-                          </td>
-                          <td className="px-4 py-3.5 text-[11px]">
-                            <span className="font-medium text-foreground block">
-                              {c.contact_name || "-"}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {c.contact_email || c.contact_phone || ""}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-semibold">
-                                {usedQuota} / {totalQuota}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                ({totalQuota - usedQuota} sisa)
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <StatusBadge status={c.status} />
-                          </td>
-                          <td className="px-4 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => openCreateQuota(c.id)}
-                                title="Buka Kuota Tambahan"
-                                className="rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-softgray transition-colors"
-                              >
-                                + Kuota
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openEditCompany(c)}
-                                className="rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-semibold hover:bg-softgray transition-colors"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                            <StatusBadge status={comp.status} />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {comp.industry || "Industri Mitra"} • {branches.length} Cabang PKT •{" "}
+                            {comp.totalInterns || 0} Peserta Terhubung
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => openCreateBranchModal(comp)}
+                          className="flex items-center gap-1 rounded-xl border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/20 transition-colors shadow-2xs"
+                          title="Tambah Cabang PKT untuk perusahaan ini"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Tambah Cabang PKT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditCompanyModal(comp)}
+                          className="flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold hover:bg-softgray transition-colors shadow-2xs"
+                          title="Edit Info Perusahaan"
+                        >
+                          <Edit2 className="h-3 w-3" /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Hapus perusahaan "${comp.name}" beserta semua cabangnya?`,
+                              )
+                            ) {
+                              deleteCompanyMutation.mutate(comp.id);
+                            }
+                          }}
+                          disabled={deleteCompanyMutation.isPending}
+                          className="flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1.5 text-xs font-semibold hover:bg-rose-500/20 transition-colors shadow-2xs disabled:opacity-50"
+                          title="Hapus Perusahaan"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expandable Branches Table */}
+                    {isExpanded && (
+                      <div className="p-0 animate-in fade-in duration-150">
+                        {branches.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-muted/30 border-b border-border text-muted-foreground">
+                                <tr>
+                                  <th className="px-4 py-2.5 font-semibold w-12 text-center">No</th>
+                                  <th className="px-4 py-2.5 font-semibold min-w-[200px]">
+                                    Cabang PKT
+                                  </th>
+                                  <th className="px-4 py-2.5 font-semibold min-w-[400px]">
+                                    Alamat Perusahaan
+                                  </th>
+                                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap text-center">
+                                    Peserta Magang
+                                  </th>
+                                  <th className="px-4 py-2.5 font-semibold text-right w-24">
+                                    Aksi
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {branches.map((b, idx) => {
+                                  const isMaps =
+                                    b.address.includes("http") || b.address.includes("maps");
+                                  const mapsUrl = isMaps
+                                    ? b.address.match(/(https?:\/\/[^\s\)]+)/)?.[0]
+                                    : null;
+                                  const cleanText = mapsUrl
+                                    ? b.address.replace(mapsUrl, "").trim()
+                                    : b.address;
+
+                                  return (
+                                    <tr
+                                      key={b.id || idx}
+                                      className="hover:bg-softgray/30 transition-colors"
+                                    >
+                                      <td className="px-4 py-3 text-center text-muted-foreground font-mono">
+                                        {idx + 1}
+                                      </td>
+                                      <td className="px-4 py-3 font-bold text-foreground">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-mono text-primary">
+                                            {b.branch_name}
+                                          </span>
+                                          {b.city && (
+                                            <span className="text-[10px] font-normal text-muted-foreground rounded bg-softgray px-1.5 py-0.2">
+                                              {b.city}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-muted-foreground leading-relaxed">
+                                        <span>{cleanText || b.address}</span>
+                                        {mapsUrl && (
+                                          <a
+                                            href={mapsUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline ml-2"
+                                          >
+                                            <MapPin className="h-3 w-3" /> Buka Maps{" "}
+                                            <ExternalLink className="h-2.5 w-2.5" />
+                                          </a>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                                        {b.internCount && b.internCount > 0 ? (
+                                          <Link
+                                            to="/app/admin/internships"
+                                            className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-bold hover:bg-emerald-500/20 transition-colors"
+                                            title="Lihat peserta magang di cabang ini"
+                                          >
+                                            <Users className="h-3 w-3" /> {b.internCount} Peserta
+                                          </Link>
+                                        ) : (
+                                          <span className="text-muted-foreground/60 text-[11px]">
+                                            0 Peserta
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditBranchModal(comp, b)}
+                                            className="p-1.5 rounded-lg hover:bg-softgray text-muted-foreground hover:text-foreground transition-colors"
+                                            title="Edit Cabang"
+                                          >
+                                            <Edit2 className="h-3 w-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (
+                                                window.confirm(`Hapus cabang "${b.branch_name}"?`)
+                                              ) {
+                                                deleteBranchMutation.mutate({
+                                                  companyId: comp.id,
+                                                  branchId: b.id,
+                                                });
+                                              }
+                                            }}
+                                            className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                                            title="Hapus Cabang"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="p-6 text-center text-xs text-muted-foreground">
+                            Belum ada cabang PKT yang ditambahkan untuk perusahaan ini. Klik tombol{" "}
+                            <strong>Tambah Cabang PKT</strong> di atas.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
           ) : (
             <EmptyState
-              title="Tidak ada perusahaan mitra"
-              description="Belum ada perusahaan yang cocok dengan pencarian Anda."
-            />
-          )
-        ) : null}
-
-        {!isPending && !isError && activeTab === "QUOTAS" ? (
-          filteredQuotas.length > 0 ? (
-            <Card className="overflow-hidden p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-softgray/50 border-b border-border">
-                    <tr className="text-muted-foreground">
-                      <th className="px-4 py-3 font-semibold">Perusahaan Mitra</th>
-                      <th className="px-4 py-3 font-semibold">Kompetensi</th>
-                      <th className="px-4 py-3 font-semibold">Periode</th>
-                      <th className="px-4 py-3 font-semibold">Alokasi Kuota</th>
-                      <th className="px-4 py-3 font-semibold">Kapasitas Tersedia</th>
-                      <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredQuotas.map((q) => {
-                      const company = companiesList.find((c) => c.id === q.company_id);
-                      const available = q.quota - q.used_quota;
-                      const isFull = available <= 0;
-
-                      return (
-                        <tr key={q.id} className="hover:bg-softgray/30 transition-colors">
-                          <td className="px-4 py-3.5">
-                            <span className="font-bold text-foreground block">
-                              {company?.name ?? "-"}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">
-                              {company?.city ?? ""}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <span className="rounded-md bg-softgray px-2 py-0.5 font-mono text-[11px]">
-                              {q.competency}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 font-mono font-semibold">{q.period}</td>
-                          <td className="px-4 py-3.5 font-mono">
-                            {q.used_quota} dari {q.quota} siswa
-                          </td>
-                          <td className="px-4 py-3.5">
-                            {isFull ? (
-                              <span className="rounded-full bg-destructive/10 text-destructive px-2.5 py-0.5 text-[11px] font-bold">
-                                Kuota Penuh (0)
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-good/15 text-good px-2.5 py-0.5 text-[11px] font-bold">
-                                Sisa {available} Kursi
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 text-right">
-                            <button
-                              type="button"
-                              onClick={() => openEditQuota(q)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:bg-softgray transition-colors"
-                            >
-                              <Edit2 className="h-3 w-3" /> Edit Kuota
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          ) : (
-            <EmptyState
-              title="Tidak ada alokasi kuota"
-              description="Belum ada kuota magang yang dibuka untuk periode ini."
+              title="Database Perusahaan Kosong"
+              description="Database data perusahaan tempat magang saat ini kosong. Anda dapat mengimpor file Excel baru, menambah perusahaan secara manual, atau memuat data percontohan."
+              action={
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setImportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 text-white px-4 py-2 text-xs font-bold shadow-xs hover:bg-emerald-700 transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" /> Import File Excel Cabang
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openCreateCompanyModal}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-bold hover:bg-softgray transition-colors"
+                  >
+                    <Plus className="h-4 w-4" /> Tambah Perusahaan Manual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => seedDefaultMutation.mutate()}
+                    disabled={seedDefaultMutation.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 text-primary px-3.5 py-2 text-xs font-semibold hover:bg-primary/20 transition-colors"
+                  >
+                    <Sparkles className="h-4 w-4" /> Muat Data Bawaan (KJA & ACS)
+                  </button>
+                </div>
+              }
             />
           )
         ) : null}
       </div>
 
-      {/* Add / Edit Company Modal */}
+      {/* Company Modal (Create / Edit) */}
       {companyModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-background shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="text-base font-bold tracking-tight">
-                {editingCompany ? "Edit Data Perusahaan" : "Tambah Mitra Industri"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-background p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h2 className="text-base font-bold text-foreground">
+                {editingCompany ? "Edit Perusahaan Mitra" : "Tambah Perusahaan Mitra Baru"}
               </h2>
               <button
                 type="button"
@@ -512,121 +775,81 @@ function AdminCompaniesPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={handleCompanySubmit}
-              className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
-            >
+            <form onSubmit={handleCompanySubmit} noValidate className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="grid gap-1.5 text-xs font-semibold">
-                    Nama Perusahaan / Industri
-                    <input
-                      type="text"
-                      required
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="PT Nusantara Digital"
-                      className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                    />
-                  </label>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Nama Perusahaan *</label>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Contoh: PT Kelola Jasa Artha"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                  />
                 </div>
-                <div>
-                  <label className="grid gap-1.5 text-xs font-semibold">
-                    Kode Mitra
-                    <input
-                      type="text"
-                      required
-                      value={companyCode}
-                      onChange={(e) => setCompanyCode(e.target.value)}
-                      placeholder="NUSDIG"
-                      className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-mono outline-none focus:border-ai uppercase"
-                    />
-                  </label>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Kode Singkat *</label>
+                  <input
+                    type="text"
+                    required
+                    value={companyCode}
+                    onChange={(e) => setCompanyCode(e.target.value)}
+                    placeholder="Contoh: KJA"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors uppercase"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Bidang Industri / Sektor
-                  <input
-                    type="text"
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    placeholder="Teknologi Informasi"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Bidang / Sektor Industri
                 </label>
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Kota Operasional
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Jakarta"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
-                </label>
+                <input
+                  type="text"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  placeholder="Contoh: Jasa Pengelolaan Kas & Logistik Nilai Tinggi"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                />
               </div>
 
-              <label className="grid gap-1.5 text-xs font-semibold">
-                Alamat Kantor / Pabrik
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Alamat Kantor Pusat</label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Jl. Jenderal Sudirman No. 21"
-                  className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
+                  placeholder="Alamat kantor pusat..."
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                 />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Nama PIC HR / Pembimbing
-                  <input
-                    type="text"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Sari Puspita"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
-                </label>
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Email PIC
-                  <input
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="hr@nusantara.id"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
-                </label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  No. Telepon / WA PIC
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Kota / Domisili</label>
                   <input
-                    type="tel"
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="0218001001"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Contoh: Jakarta Pusat"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                   />
-                </label>
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Status Kemitraan
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Status</label>
                   <select
                     value={companyStatus}
                     onChange={(e) => setCompanyStatus(e.target.value as "ACTIVE" | "INACTIVE")}
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                   >
-                    <option value="ACTIVE">Aktif (ACTIVE)</option>
-                    <option value="INACTIVE">Non-Aktif (INACTIVE)</option>
+                    <option value="ACTIVE">Aktif (Menerima Magang)</option>
+                    <option value="INACTIVE">Nonaktif</option>
                   </select>
-                </label>
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={closeCompanyModal}
@@ -637,7 +860,7 @@ function AdminCompaniesPage() {
                 <button
                   type="submit"
                   disabled={saveCompanyMutation.isPending}
-                  className="rounded-xl bg-primary text-primary-foreground px-5 py-2 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
                   {saveCompanyMutation.isPending ? "Menyimpan..." : "Simpan Perusahaan"}
                 </button>
@@ -647,99 +870,97 @@ function AdminCompaniesPage() {
         </div>
       ) : null}
 
-      {/* Add / Edit Quota Modal */}
-      {quotaModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl border border-border bg-background shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="text-base font-bold tracking-tight">
-                {editingQuota ? "Ubah Alokasi Kuota" : "Buka Kuota Magang Baru"}
-              </h2>
+      {/* Branch Modal (Create / Edit Branch) */}
+      {branchModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-background p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h2 className="text-base font-bold text-foreground">
+                  {editingBranch ? "Edit Cabang PKT" : "Tambah Cabang PKT Baru"}
+                </h2>
+                <p className="text-xs text-muted-foreground">{targetCompanyForBranch?.name}</p>
+              </div>
               <button
                 type="button"
-                onClick={closeQuotaModal}
+                onClick={closeBranchModal}
                 className="grid h-8 w-8 place-items-center rounded-lg hover:bg-softgray text-muted-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleQuotaSubmit} className="p-6 space-y-4">
-              <label className="grid gap-1.5 text-xs font-semibold">
-                Pilih Perusahaan Mitra
-                <select
-                  required
-                  value={selectedCompanyId}
-                  onChange={(e) => setSelectedCompanyId(e.target.value)}
-                  className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                >
-                  <option value="">Pilih Perusahaan...</option>
-                  {companiesList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.city})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-1.5 text-xs font-semibold">
-                Kompetensi Keahlian
+            <form onSubmit={handleBranchSubmit} noValidate className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Nama Cabang PKT *</label>
                 <input
                   type="text"
                   required
-                  value={quotaCompetency}
-                  onChange={(e) => setQuotaCompetency(e.target.value)}
-                  placeholder="Software Development"
-                  className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
+                  value={branchName}
+                  onChange={(e) => setBranchName(e.target.value)}
+                  placeholder="Contoh: KJA - JAKARTA / ACS - BANDUNG"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors font-mono font-semibold"
                 />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Periode Semester
-                  <input
-                    type="text"
-                    required
-                    value={quotaPeriod}
-                    onChange={(e) => setQuotaPeriod(e.target.value)}
-                    placeholder="2026-S1"
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-mono outline-none focus:border-ai"
-                  />
-                </label>
-                <label className="grid gap-1.5 text-xs font-semibold">
-                  Jumlah Kuota Siswa
-                  <input
-                    type="number"
-                    min={1}
-                    max={200}
-                    required
-                    value={quotaAmount}
-                    onChange={(e) => setQuotaAmount(Number(e.target.value))}
-                    className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs outline-none focus:border-ai"
-                  />
-                </label>
+                <p className="text-[10px] text-muted-foreground">
+                  Format ini terhubung otomatis dengan kolom Target PKT pada Data Peserta Magang.
+                </p>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Alamat Lengkap Cabang *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={branchAddress}
+                  onChange={(e) => setBranchAddress(e.target.value)}
+                  placeholder="JL.Cideng Raya No.139, Kec, Kedawung, Kab, Cirebon..."
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors resize-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Kota / Kabupaten</label>
+                <input
+                  type="text"
+                  value={branchCity}
+                  onChange={(e) => setBranchCity(e.target.value)}
+                  placeholder="Contoh: Kota Bandung / Jakarta Pusat"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
-                  onClick={closeQuotaModal}
+                  onClick={closeBranchModal}
                   className="rounded-xl border border-border px-4 py-2 text-xs font-semibold hover:bg-softgray transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  disabled={saveQuotaMutation.isPending}
-                  className="rounded-xl bg-primary text-primary-foreground px-5 py-2 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  disabled={saveBranchMutation.isPending}
+                  className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
-                  {saveQuotaMutation.isPending ? "Menyimpan..." : "Simpan Kuota"}
+                  {saveBranchMutation.isPending ? "Menyimpan..." : "Simpan Cabang"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       ) : null}
+
+      {/* Excel Branch Import Modal */}
+      <CompanyBranchImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={async (items) => {
+          return importBranchesFn({ data: { items } });
+        }}
+        isImporting={false}
+      />
     </AppShell>
   );
 }
