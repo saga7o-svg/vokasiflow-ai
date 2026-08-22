@@ -3,9 +3,21 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell, Card, StatusBadge, Loading, EmptyState } from "@/components/app/shell";
-import { listSchools, saveSchool } from "@/lib/api.functions";
-import { Search, Plus, Edit2, X, School, MapPin, Phone, User } from "lucide-react";
+import { listSchools, saveSchool, importSchoolsBulk } from "@/lib/api.functions";
+import {
+  Search,
+  Plus,
+  Edit2,
+  X,
+  School,
+  MapPin,
+  Phone,
+  User,
+  FileSpreadsheet,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
+import { SchoolExcelImportModal } from "@/components/app/school-excel-import-modal";
 
 export const Route = createFileRoute("/_authenticated/app/admin/schools")({
   head: () => ({
@@ -34,9 +46,11 @@ function AdminSchoolsPage() {
   const queryClient = useQueryClient();
   const fetchSchools = useServerFn(listSchools);
   const saveSchoolFn = useServerFn(saveSchool);
+  const importSchoolsBulkFn = useServerFn(importSchoolsBulk);
 
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null);
 
   // Form states
@@ -84,6 +98,33 @@ function AdminSchoolsPage() {
     },
     onError: (err: Error) => {
       toast.error(err?.message || "Gagal menyimpan data sekolah.");
+    },
+  });
+
+  const bulkImportMutation = useMutation({
+    mutationFn: async (params: {
+      schools: Array<{
+        name: string;
+        school_code: string;
+        address: string | null;
+        city: string | null;
+        province: string | null;
+        contact_name: string | null;
+        contact_phone: string | null;
+        status: "ACTIVE" | "INACTIVE";
+      }>;
+      upsert: boolean;
+    }) => {
+      return importSchoolsBulkFn({ data: params });
+    },
+    onSuccess: (res) => {
+      toast.success(`Berhasil mengimpor ${res.count} data sekolah.`);
+      queryClient.invalidateQueries({ queryKey: ["schools-list"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+      setImportModalOpen(false);
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal mengimpor data sekolah dari Excel.");
     },
   });
 
@@ -150,13 +191,23 @@ function AdminSchoolsPage() {
     <AppShell
       title="Master Data Sekolah Mitra"
       actions={
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Tambah Sekolah
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold hover:bg-softgray hover:text-foreground transition-all shadow-xs"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Import Excel
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
+          >
+            <Plus className="h-4 w-4" /> Tambah Sekolah
+          </button>
+        </div>
       }
     >
       <div className="space-y-4">
@@ -384,6 +435,19 @@ function AdminSchoolsPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Excel Import Modal */}
+      <SchoolExcelImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={async (importedSchools, upsert) => {
+          await bulkImportMutation.mutateAsync({
+            schools: importedSchools,
+            upsert,
+          });
+        }}
+        isImporting={bulkImportMutation.isPending}
+      />
     </AppShell>
   );
 }

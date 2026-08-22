@@ -210,6 +210,77 @@ export const saveSchool = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const importSchoolsBulk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        schools: z
+          .array(
+            z.object({
+              name: z.string().trim().min(1).max(150),
+              school_code: z.string().trim().min(1).max(50),
+              address: z.string().trim().max(300).nullable().optional().default(null),
+              city: z.string().trim().max(100).nullable().optional().default(null),
+              province: z.string().trim().max(100).nullable().optional().default(null),
+              contact_name: z.string().trim().max(100).nullable().optional().default(null),
+              contact_phone: z.string().trim().max(50).nullable().optional().default(null),
+              status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+            }),
+          )
+          .min(1, "Minimal 1 data sekolah untuk diimpor.")
+          .max(500, "Maksimal 500 baris dalam satu kali impor."),
+        upsert: z.boolean().default(true),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+
+    const { schools, upsert } = data;
+    const chunkSize = 50;
+    let processedCount = 0;
+
+    for (let i = 0; i < schools.length; i += chunkSize) {
+      const chunk = schools.slice(i, i + chunkSize).map((item) => ({
+        name: item.name,
+        school_code: item.school_code.toUpperCase(),
+        address: item.address || null,
+        city: item.city || null,
+        province: item.province || null,
+        contact_name: item.contact_name || null,
+        contact_phone: item.contact_phone || null,
+        status: item.status,
+      }));
+
+      if (upsert) {
+        const { error } = await context.supabase
+          .from("schools")
+          .upsert(chunk, { onConflict: "school_code" });
+        if (error) {
+          throw new Error(`Gagal mengimpor batch ${i / chunkSize + 1}: ${error.message}`);
+        }
+      } else {
+        const { error } = await context.supabase.from("schools").insert(chunk);
+        if (error) {
+          throw new Error(`Gagal mengimpor batch ${i / chunkSize + 1}: ${error.message}`);
+        }
+      }
+      processedCount += chunk.length;
+    }
+
+    await context.supabase.from("audit_logs").insert({
+      user_id: context.userId,
+      action: "IMPORT_EXCEL",
+      entity: "school",
+      entity_id: null,
+      detail: `Import bulk ${processedCount} data sekolah via Excel`,
+    });
+
+    return { success: true, count: processedCount };
+  });
+
 export const listStudents = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -994,7 +1065,7 @@ export const updateTeacherProfileFn = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = roles?.some((r) => r.role === "ADMIN");
 
-    const updatePayload: Record<string, any> = {
+    const updatePayload: Record<string, unknown> = {
       name: data.name,
       position: data.position,
       phone: data.phone,
