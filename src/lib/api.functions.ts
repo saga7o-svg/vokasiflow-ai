@@ -16,12 +16,7 @@ import {
   DUMMY_DASHBOARD_STATS,
   DUMMY_USERS,
 } from "./demo-data";
-import {
-  extractMetadata,
-  embedMetadata,
-  stripMetadata,
-  mergeMetadata,
-} from "./meta-serializer";
+import { extractMetadata, embedMetadata, stripMetadata, mergeMetadata } from "./meta-serializer";
 
 export function isDemoEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -445,6 +440,181 @@ export const importSchoolsBulk = createServerFn({ method: "POST" })
     return { success: true, count: processedCount };
   });
 
+export const deleteSchool = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+    const { id } = data;
+
+    // 1. Unlink profiles
+    try {
+      await context.supabase.from("profiles").update({ school_id: null }).eq("school_id", id);
+    } catch {}
+
+    // 2. Handle dependent students & internships
+    try {
+      const { data: studentRows } = await context.supabase
+        .from("students")
+        .select("id")
+        .eq("school_id", id);
+      const studentIds = (studentRows || []).map((s) => s.id);
+
+      if (studentIds.length > 0) {
+        const { data: internRows } = await context.supabase
+          .from("internships")
+          .select("id")
+          .in("student_id", studentIds);
+        const internIds = (internRows || []).map((i) => i.id);
+
+        if (internIds.length > 0) {
+          await context.supabase.from("attendance").delete().in("internship_id", internIds);
+          await context.supabase.from("evaluations").delete().in("internship_id", internIds);
+          await context.supabase.from("internship_reports").delete().in("internship_id", internIds);
+          await context.supabase.from("internships").delete().in("id", internIds);
+        }
+        await context.supabase.from("students").delete().in("id", studentIds);
+      }
+
+      // Also clean up any direct internships referencing school_id
+      const { data: directInternRows } = await context.supabase
+        .from("internships")
+        .select("id")
+        .eq("school_id", id);
+      const directInternIds = (directInternRows || []).map((i) => i.id);
+      if (directInternIds.length > 0) {
+        await context.supabase.from("attendance").delete().in("internship_id", directInternIds);
+        await context.supabase.from("evaluations").delete().in("internship_id", directInternIds);
+        await context.supabase
+          .from("internship_reports")
+          .delete()
+          .in("internship_id", directInternIds);
+        await context.supabase.from("internships").delete().in("id", directInternIds);
+      }
+    } catch {}
+
+    // 3. Delete school
+    const { error } = await context.supabase.from("schools").delete().eq("id", id);
+    if (error) throw new Error(`Gagal menghapus data sekolah: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "DELETE",
+        entity: "school",
+        entity_id: id,
+        detail: `Menghapus data sekolah`,
+      });
+    } catch {}
+
+    return { ok: true };
+  });
+
+export const bulkDeleteSchools = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 sekolah") }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+    const { ids } = data;
+
+    // 1. Unlink profiles
+    try {
+      await context.supabase.from("profiles").update({ school_id: null }).in("school_id", ids);
+    } catch {}
+
+    // 2. Handle dependent students & internships
+    try {
+      const { data: studentRows } = await context.supabase
+        .from("students")
+        .select("id")
+        .in("school_id", ids);
+      const studentIds = (studentRows || []).map((s) => s.id);
+
+      if (studentIds.length > 0) {
+        const { data: internRows } = await context.supabase
+          .from("internships")
+          .select("id")
+          .in("student_id", studentIds);
+        const internIds = (internRows || []).map((i) => i.id);
+
+        if (internIds.length > 0) {
+          await context.supabase.from("attendance").delete().in("internship_id", internIds);
+          await context.supabase.from("evaluations").delete().in("internship_id", internIds);
+          await context.supabase.from("internship_reports").delete().in("internship_id", internIds);
+          await context.supabase.from("internships").delete().in("id", internIds);
+        }
+        await context.supabase.from("students").delete().in("id", studentIds);
+      }
+
+      const { data: directInternRows } = await context.supabase
+        .from("internships")
+        .select("id")
+        .in("school_id", ids);
+      const directInternIds = (directInternRows || []).map((i) => i.id);
+      if (directInternIds.length > 0) {
+        await context.supabase.from("attendance").delete().in("internship_id", directInternIds);
+        await context.supabase.from("evaluations").delete().in("internship_id", directInternIds);
+        await context.supabase
+          .from("internship_reports")
+          .delete()
+          .in("internship_id", directInternIds);
+        await context.supabase.from("internships").delete().in("id", directInternIds);
+      }
+    } catch {}
+
+    // 3. Delete schools
+    const { error } = await context.supabase.from("schools").delete().in("id", ids);
+    if (error) throw new Error(`Gagal menghapus sekolah terpilih: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "BULK_DELETE",
+        entity: "school",
+        entity_id: null,
+        detail: `Hapus massal ${ids.length} sekolah`,
+      });
+    } catch {}
+
+    return { success: true, count: ids.length };
+  });
+
+export const bulkUpdateSchoolsStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1, "Pilih minimal 1 sekolah"),
+        status: z.enum(["ACTIVE", "INACTIVE"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+    const { ids, status } = data;
+
+    const { error } = await context.supabase.from("schools").update({ status }).in("id", ids);
+
+    if (error) throw new Error(`Gagal mengubah status sekolah terpilih: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "BULK_UPDATE_STATUS",
+        entity: "school",
+        entity_id: null,
+        detail: `Ubah status ${ids.length} sekolah menjadi ${status}`,
+      });
+    } catch {}
+
+    return { success: true, count: ids.length };
+  });
+
 export const listStudents = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -457,19 +627,19 @@ export const listStudents = createServerFn({ method: "GET" })
       .order("name");
     if (error) throw new Error("Gagal memuat data siswa.");
 
-interface StudentMeta {
-  batch_id?: string | null;
-  mentor?: string | null;
-  city?: string | null;
-  program_status?: string | null;
-  talent_pool_year?: string | null;
-  driving_r4?: string | null;
-  sim_a?: string | null;
-  sim_c?: string | null;
-  theory_score?: string | null;
-  interview_score?: string | null;
-  graduation_status?: string | null;
-}
+    interface StudentMeta {
+      batch_id?: string | null;
+      mentor?: string | null;
+      city?: string | null;
+      program_status?: string | null;
+      talent_pool_year?: string | null;
+      driving_r4?: string | null;
+      sim_a?: string | null;
+      sim_c?: string | null;
+      theory_score?: string | null;
+      interview_score?: string | null;
+      graduation_status?: string | null;
+    }
 
     // Enrich rows with parsed vocational metadata if embedded
     const enriched = (data || []).map((s: Record<string, unknown>) => {
