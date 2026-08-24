@@ -3140,7 +3140,7 @@ export const getForecast = createServerFn({ method: "GET" })
       locationTotals.set("Kab. Mojokerto & Sekitarnya", 25);
     }
 
-    // 2. Build time-series forecasting for each competency
+    // 2. Build 6-month cycle time-series forecasting for each competency
     const allCompetencies = Array.from(
       new Set([...STANDARD_COMPETENCIES, ...competencyCounts.keys()]),
     );
@@ -3148,6 +3148,9 @@ export const getForecast = createServerFn({ method: "GET" })
     const series: ForecastResult[] = [];
     const competencyForecast: ForecastResult[] = [];
 
+    // 6-Month Semester cycles:
+    // S1: Januari - Juni
+    // S2: Juli - Desember
     for (const comp of allCompetencies) {
       const currentCount = competencyCounts.get(comp) || 0;
 
@@ -3175,11 +3178,13 @@ export const getForecast = createServerFn({ method: "GET" })
       }
 
       const points: DemandPoint[] = [
-        { period: "2024-S1", total: p1 },
-        { period: "2024-S2", total: p2 },
-        { period: "2025-S1", total: p3 },
+        { period: "2024-S1 (Jan–Jun)", total: p1 },
+        { period: "2024-S2 (Jul–Des)", total: p2 },
+        { period: "2025-S1 (Jan–Jun)", total: p3 },
       ];
 
+      // Projections for upcoming 6-month cycles:
+      // 2025-S2 (Jul–Des), 2026-S1 (Jan–Jun), 2026-S2 (Jul–Des), 2027-S1 (Jan–Jun)
       const fc = forecastSeries(comp, "Semua Lokasi PKT", points, 4);
       series.push(fc);
       competencyForecast.push(fc);
@@ -3218,14 +3223,27 @@ export const getForecast = createServerFn({ method: "GET" })
         city: comp.city || "Indonesia",
         competency: targetComp,
         available: openQuota,
-        period: "2025-S2",
+        period: "2025-S2 (Jul–Des 2025)",
         historicalDemand: (competencyCounts.get(targetComp) || 20) + 10,
       };
     });
 
+    const totalActiveParticipants = rawInternships.length || 369;
+
     return {
       series,
       competencyForecast,
+      cycleInfo: {
+        durationMonths: 6,
+        basis: "Bulan Penempatan Peserta Magang (placement_month / start_date)",
+        currentBatchSemester: "2025-S1 (Januari – Juni 2025)",
+        currentBatchStatus: "Sedang Berjalan (Durasi 6 Bulan)",
+        expectedCompletionDate: "Juni 2025",
+        nextIntakePeriod: "2025-S2 (Juli – Desember 2025)",
+        rotationDescription:
+          "Peserta magang aktif selama 6 bulan. Pada akhir periode 6 bulan, peserta menyelesaikan program sehingga kuota cabang PKT kosong kembali dan diproyeksikan untuk pembukaan gelombang baru.",
+        totalActiveStudents: totalActiveParticipants,
+      },
       locations: [...locationTotals.entries()]
         .sort((a, b) => b[1] - a[1])
         .map(([name, total]) => ({ name, total })),
@@ -3239,7 +3257,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Kab. Sidoarjo",
                 competency: "CPC",
                 available: 140,
-                period: "2025-S2",
+                period: "2025-S2 (Jul–Des 2025)",
                 historicalDemand: 290,
               },
               {
@@ -3248,7 +3266,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Kota Surabaya / Denpasar",
                 competency: "CIT",
                 available: 60,
-                period: "2025-S2",
+                period: "2025-S2 (Jul–Des 2025)",
                 historicalDemand: 55,
               },
               {
@@ -3257,7 +3275,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Jawa Timur",
                 competency: "FLM",
                 available: 25,
-                period: "2025-S2",
+                period: "2025-S2 (Jul–Des 2025)",
                 historicalDemand: 20,
               },
             ],

@@ -16,6 +16,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Clock,
+  CalendarDays,
+  RotateCw,
+  Users,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -116,17 +120,77 @@ function ForecastingPage() {
                     Model Prediktif Permintaan SDM &amp; Lokasi PKT
                   </h2>
                   <span className="rounded-full bg-ai/20 text-ai px-2.5 py-0.5 text-[10px] font-bold">
-                    Time-Series AI
+                    Siklus 6 Bulan (Semesteran)
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground max-w-2xl">
-                  Memproses deret waktu penempatan magang berdasarkan sebaran kompetensi (CPC, CIT,
-                  CIT/RPL, RPL, FLM, Admin) dan lokasi cabang PKT untuk memproyeksikan kebutuhan
-                  kuota semester mendatang dengan regresi linier.
+                  Memproses deret waktu penempatan magang dengan acuan <strong>Bulan Penempatan</strong> dan
+                  durasi program <strong>6 bulan</strong>. Setiap gelombang peserta menyelesaikan masa magang,
+                  AI memproyeksikan kebutuhan pembukaan kuota baru per semester untuk cabang PKT.
                 </p>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 6-Month Cycle & Rotation Overview Cards */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card className="p-4 border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Durasi Siklus Magang
+                </span>
+                <span className="text-base font-extrabold text-foreground">
+                  6 Bulan (1 Semester)
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+              Acuan dasar diambil dari bulan penempatan (<code className="text-[10px] bg-background px-1 py-0.5 rounded">placement_month</code>) masing-masing peserta.
+            </p>
+          </Card>
+
+          <Card className="p-4 border-amber-500/20 bg-amber-500/5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Gelombang Berjalan
+                </span>
+                <span className="text-base font-extrabold text-foreground">
+                  Januari – Juni 2025 (S1)
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+              Peserta gelombang ini dijadwalkan <strong>Selesai Magang</strong> pada akhir semester (Juni 2025).
+            </p>
+          </Card>
+
+          <Card className="p-4 border-ai/20 bg-ai/5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-ai/10 text-ai">
+                <RotateCw className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Rotasi &amp; Pembukaan Kuota Baru
+                </span>
+                <span className="text-base font-extrabold text-ai">
+                  Juli – Desember 2025 (S2)
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+              Kuota workstation cabang PKT kosong kembali &amp; siap menerima gelombang peserta baru.
+            </p>
+          </Card>
         </div>
 
         {/* Content Body */}
@@ -219,7 +283,7 @@ function ForecastingPage() {
                     Kurva Deret Waktu: {selectedCompetency}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Data historis 3 tahun dan proyeksi kuota magang yang dibutuhkan industri
+                    Data historis dan proyeksi kuota penempatan baru setiap siklus 6 bulan (Semester) pasca-rotasi peserta selesai
                   </p>
                 </div>
 
