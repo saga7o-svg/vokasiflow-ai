@@ -3140,7 +3140,57 @@ export const getForecast = createServerFn({ method: "GET" })
       locationTotals.set("Kab. Mojokerto & Sekitarnya", 25);
     }
 
-    // 2. Build 6-month cycle time-series forecasting for each competency
+    // 2. Extract real-time year and semester from internships data (defaults to 2026)
+    let detectedYear = 2026;
+    let detectedSem = 1; // 1 = Jan–Jun, 2 = Jul–Des
+
+    for (const intern of rawInternships) {
+      let rawDate = intern.start_date || "";
+      const note = intern.approval_note || "";
+      if (note.includes("<!--meta:")) {
+        try {
+          const match = note.match(/<!--meta:(.*?)-->/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (meta.placement_month) rawDate = meta.placement_month;
+          }
+        } catch {}
+      }
+
+      if (rawDate) {
+        const yMatch = rawDate.match(/\b(202\d)\b/);
+        if (yMatch) {
+          const y = parseInt(yMatch[1], 10);
+          if (y >= detectedYear) detectedYear = y;
+        }
+        const lower = rawDate.toLowerCase();
+        if (
+          lower.includes("jul") || lower.includes("agu") || lower.includes("sep") ||
+          lower.includes("okt") || lower.includes("nov") || lower.includes("des") ||
+          lower.includes("-07-") || lower.includes("-08-") || lower.includes("-09-") ||
+          lower.includes("-10-") || lower.includes("-11-") || lower.includes("-12-")
+        ) {
+          detectedSem = 2;
+        }
+      }
+    }
+
+    const currentYear = detectedYear;
+    const currentSem = detectedSem;
+    const isSem1 = currentSem === 1;
+
+    const currentSemLabel = isSem1
+      ? `Januari – Juni ${currentYear} (S1)`
+      : `Juli – Desember ${currentYear} (S2)`;
+    const completionMonth = isSem1 ? `Juni ${currentYear}` : `Desember ${currentYear}`;
+    
+    const nextSem = isSem1 ? 2 : 1;
+    const nextYear = isSem1 ? currentYear : currentYear + 1;
+    const nextIntakeLabel = isSem1
+      ? `Juli – Desember ${currentYear} (S2)`
+      : `Januari – Juni ${nextYear} (S1)`;
+
+    // 3. Build 6-month cycle time-series forecasting for each competency
     const allCompetencies = Array.from(
       new Set([...STANDARD_COMPETENCIES, ...competencyCounts.keys()]),
     );
@@ -3148,9 +3198,10 @@ export const getForecast = createServerFn({ method: "GET" })
     const series: ForecastResult[] = [];
     const competencyForecast: ForecastResult[] = [];
 
-    // 6-Month Semester cycles:
-    // S1: Januari - Juni
-    // S2: Juli - Desember
+    const histPeriod1 = isSem1 ? `${currentYear - 1}-S1 (Jan–Jun)` : `${currentYear - 1}-S2 (Jul–Des)`;
+    const histPeriod2 = isSem1 ? `${currentYear - 1}-S2 (Jul–Des)` : `${currentYear}-S1 (Jan–Jun)`;
+    const histPeriod3 = isSem1 ? `${currentYear}-S1 (Jan–Jun)` : `${currentYear}-S2 (Jul–Des)`;
+
     for (const comp of allCompetencies) {
       const currentCount = competencyCounts.get(comp) || 0;
 
@@ -3178,13 +3229,12 @@ export const getForecast = createServerFn({ method: "GET" })
       }
 
       const points: DemandPoint[] = [
-        { period: "2024-S1 (Jan–Jun)", total: p1 },
-        { period: "2024-S2 (Jul–Des)", total: p2 },
-        { period: "2025-S1 (Jan–Jun)", total: p3 },
+        { period: histPeriod1, total: p1 },
+        { period: histPeriod2, total: p2 },
+        { period: histPeriod3, total: p3 },
       ];
 
-      // Projections for upcoming 6-month cycles:
-      // 2025-S2 (Jul–Des), 2026-S1 (Jan–Jun), 2026-S2 (Jul–Des), 2027-S1 (Jan–Jun)
+      // Projections for upcoming 6-month cycles (4 semester ke depan)
       const fc = forecastSeries(comp, "Semua Lokasi PKT", points, 4);
       series.push(fc);
       competencyForecast.push(fc);
@@ -3197,7 +3247,7 @@ export const getForecast = createServerFn({ method: "GET" })
       return lastB - lastA;
     });
 
-    // 3. Recommended Companies / PKT based on competencies
+    // 4. Recommended Companies / PKT based on competencies
     const recommendedCompanies = rawCompanies.map((comp) => {
       const isACS = comp.name.toLowerCase().includes("advantage") || (comp.company_code || "").includes("ACS");
       const isKJA = comp.name.toLowerCase().includes("kelola") || (comp.company_code || "").includes("KJA");
@@ -3223,7 +3273,7 @@ export const getForecast = createServerFn({ method: "GET" })
         city: comp.city || "Indonesia",
         competency: targetComp,
         available: openQuota,
-        period: "2025-S2 (Jul–Des 2025)",
+        period: nextIntakeLabel,
         historicalDemand: (competencyCounts.get(targetComp) || 20) + 10,
       };
     });
@@ -3236,10 +3286,11 @@ export const getForecast = createServerFn({ method: "GET" })
       cycleInfo: {
         durationMonths: 6,
         basis: "Bulan Penempatan Peserta Magang (placement_month / start_date)",
-        currentBatchSemester: "2025-S1 (Januari – Juni 2025)",
+        currentYear,
+        currentBatchSemester: currentSemLabel,
         currentBatchStatus: "Sedang Berjalan (Durasi 6 Bulan)",
-        expectedCompletionDate: "Juni 2025",
-        nextIntakePeriod: "2025-S2 (Juli – Desember 2025)",
+        expectedCompletionDate: completionMonth,
+        nextIntakePeriod: nextIntakeLabel,
         rotationDescription:
           "Peserta magang aktif selama 6 bulan. Pada akhir periode 6 bulan, peserta menyelesaikan program sehingga kuota cabang PKT kosong kembali dan diproyeksikan untuk pembukaan gelombang baru.",
         totalActiveStudents: totalActiveParticipants,
@@ -3257,7 +3308,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Kab. Sidoarjo",
                 competency: "CPC",
                 available: 140,
-                period: "2025-S2 (Jul–Des 2025)",
+                period: nextIntakeLabel,
                 historicalDemand: 290,
               },
               {
@@ -3266,7 +3317,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Kota Surabaya / Denpasar",
                 competency: "CIT",
                 available: 60,
-                period: "2025-S2 (Jul–Des 2025)",
+                period: nextIntakeLabel,
                 historicalDemand: 55,
               },
               {
@@ -3275,7 +3326,7 @@ export const getForecast = createServerFn({ method: "GET" })
                 city: "Jawa Timur",
                 competency: "FLM",
                 available: 25,
-                period: "2025-S2 (Jul–Des 2025)",
+                period: nextIntakeLabel,
                 historicalDemand: 20,
               },
             ],

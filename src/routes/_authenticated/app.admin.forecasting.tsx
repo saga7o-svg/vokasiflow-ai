@@ -145,12 +145,13 @@ function ForecastingPage() {
                   Durasi Siklus Magang
                 </span>
                 <span className="text-base font-extrabold text-foreground">
-                  6 Bulan (1 Semester)
+                  {data?.cycleInfo?.durationMonths ?? 6} Bulan (1 Semester)
                 </span>
               </div>
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-              Acuan dasar diambil dari bulan penempatan (<code className="text-[10px] bg-background px-1 py-0.5 rounded">placement_month</code>) masing-masing peserta.
+              Acuan data bulan penempatan (<code className="text-[10px] bg-background px-1 py-0.5 rounded">placement_month</code>){" "}
+              {data?.cycleInfo?.totalActiveStudents ? `dari ${data.cycleInfo.totalActiveStudents} peserta aktif` : "peserta magang"}.
             </p>
           </Card>
 
@@ -164,12 +165,13 @@ function ForecastingPage() {
                   Gelombang Berjalan
                 </span>
                 <span className="text-base font-extrabold text-foreground">
-                  Januari – Juni 2025 (S1)
+                  {data?.cycleInfo?.currentBatchSemester ?? "Januari – Juni 2026 (S1)"}
                 </span>
               </div>
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-              Peserta gelombang ini dijadwalkan <strong>Selesai Magang</strong> pada akhir semester (Juni 2025).
+              Peserta gelombang ini dijadwalkan <strong>Selesai Magang</strong> pada akhir semester (
+              {data?.cycleInfo?.expectedCompletionDate ?? "Juni 2026"}).
             </p>
           </Card>
 
@@ -183,7 +185,7 @@ function ForecastingPage() {
                   Rotasi &amp; Pembukaan Kuota Baru
                 </span>
                 <span className="text-base font-extrabold text-ai">
-                  Juli – Desember 2025 (S2)
+                  {data?.cycleInfo?.nextIntakePeriod ?? "Juli – Desember 2026 (S2)"}
                 </span>
               </div>
             </div>
