@@ -63,15 +63,17 @@ function ForecastingPage() {
   }, [me, navigate]);
 
   const fetchForecast = useServerFn(getForecast);
-  const [selectedCompetency, setSelectedCompetency] = useState<string>("Software Development");
+  const [selectedCompetency, setSelectedCompetency] = useState<string>("CPC");
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["admin-forecasting"],
     queryFn: () => fetchForecast(),
   });
 
+  // Ensure selected competency defaults properly when data arrives
   const activeSeries =
-    (data?.series ?? []).find((s) => s.competency === selectedCompetency) ?? data?.series?.[0];
+    (data?.series ?? []).find((s) => s.competency === selectedCompetency) ??
+    (data?.series ?? [])[0];
 
   // Combine historical and projected data points for Recharts
   const chartData: Array<{ period: string; Aktual: number | null; ProyeksiAI: number | null }> = (
@@ -111,16 +113,16 @@ function ForecastingPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-display text-lg font-bold tracking-tight">
-                    Model Prediktif Permintaan SDM & Lokasi Industri
+                    Model Prediktif Permintaan SDM &amp; Lokasi PKT
                   </h2>
                   <span className="rounded-full bg-ai/20 text-ai px-2.5 py-0.5 text-[10px] font-bold">
                     Time-Series AI
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground max-w-2xl">
-                  Memproses deret waktu kebutuhan industri dalam 3 tahun terakhir untuk
-                  memproyeksikan kebutuhan kuota 4–8 semester ke depan dengan perhitungan slope
-                  regresi linier.
+                  Memproses deret waktu penempatan magang berdasarkan sebaran kompetensi (CPC, CIT,
+                  CIT/RPL, RPL, FLM, Admin) dan lokasi cabang PKT untuk memproyeksikan kebutuhan
+                  kuota semester mendatang dengan regresi linier.
                 </p>
               </div>
             </div>
@@ -311,7 +313,7 @@ function ForecastingPage() {
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-ai" />
                   <h3 className="text-sm font-bold tracking-tight">
-                    Distribusi Permintaan Wilayah Prioritas
+                    Distribusi Permintaan per Wilayah / Cabang PKT
                   </h3>
                 </div>
 
@@ -328,7 +330,7 @@ function ForecastingPage() {
                         <span className="font-bold text-foreground">{loc.name}</span>
                       </div>
                       <span className="rounded-md bg-softgray px-2.5 py-1 font-mono font-semibold">
-                        {loc.total} Permintaan Kuota
+                        {loc.total} Penempatan / Kuota
                       </span>
                     </div>
                   ))}
@@ -340,7 +342,7 @@ function ForecastingPage() {
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-good" />
                   <h3 className="text-sm font-bold tracking-tight">
-                    Rekomendasi Mitra Industri Berdasarkan Kuota
+                    Rekomendasi Penempatan PKT Berdasarkan Kuota
                   </h3>
                 </div>
 
