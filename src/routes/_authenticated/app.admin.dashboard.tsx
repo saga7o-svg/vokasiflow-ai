@@ -188,11 +188,22 @@ function AdminDashboard() {
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#1e293b",
+                          backgroundColor: "#0f172a",
                           borderColor: "#334155",
                           borderRadius: "0.75rem",
-                          color: "#fff",
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.4)",
+                          padding: "8px 12px",
+                        }}
+                        labelStyle={{
+                          color: "#ffffff",
+                          fontWeight: "700",
                           fontSize: "12px",
+                          marginBottom: "2px",
+                        }}
+                        itemStyle={{
+                          color: "#93c5fd",
+                          fontSize: "12px",
+                          fontWeight: "600",
                         }}
                       />
                       <Area
@@ -234,14 +245,25 @@ function AdminDashboard() {
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#1e293b",
+                          backgroundColor: "#0f172a",
                           borderColor: "#334155",
                           borderRadius: "0.75rem",
-                          color: "#fff",
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.4)",
+                          padding: "8px 12px",
+                        }}
+                        labelStyle={{
+                          color: "#ffffff",
+                          fontWeight: "700",
+                          fontSize: "13px",
+                          marginBottom: "4px",
+                        }}
+                        itemStyle={{
+                          color: "#60a5fa",
                           fontSize: "12px",
+                          fontWeight: "600",
                         }}
                       />
-                      <Bar dataKey="value" name="Siswa" fill="#18181b" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="value" name="Siswa" fill="#2563eb" radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
