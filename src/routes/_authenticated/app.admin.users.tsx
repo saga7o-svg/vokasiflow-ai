@@ -227,9 +227,9 @@ function AdminUsersPage() {
               Akses Khusus Super Administrator
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Sebagai <strong>Admin</strong>, Anda memiliki hak akses penuh ke data sekolah,
-              peserta magang, perusahaan, perizinan, dan rekomendasi AI. Pengelolaan akun pengguna
-              hanya dapat dilakukan oleh <strong>Super Admin</strong>.
+              Sebagai <strong>Admin</strong>, Anda memiliki hak akses penuh ke data sekolah, peserta
+              magang, perusahaan, perizinan, dan rekomendasi AI. Pengelolaan akun pengguna hanya
+              dapat dilakukan oleh <strong>Super Admin</strong>.
             </p>
           </div>
           <div className="pt-2">
@@ -359,7 +359,9 @@ function AdminUsersPage() {
                       return (
                         <tr key={u.id} className="hover:bg-softgray/30 transition-colors">
                           <td className="px-4 py-3.5">
-                            <span className="font-bold text-foreground block text-sm">{u.name}</span>
+                            <span className="font-bold text-foreground block text-sm">
+                              {u.name}
+                            </span>
                             <span className="text-[11px] text-muted-foreground">{u.email}</span>
                           </td>
                           <td className="px-4 py-3.5">
@@ -390,11 +392,21 @@ function AdminUsersPage() {
                                 Semua Fitur Admin (Non-User)
                               </span>
                             ) : (
-                              u.schoolName || <span className="text-muted-foreground">Belum Ditugaskan</span>
+                              u.schoolName || (
+                                <span className="text-muted-foreground">Belum Ditugaskan</span>
+                              )
                             )}
                           </td>
                           <td className="px-4 py-3.5">
-                            <StatusBadge status={u.status ?? "ACTIVE"} />
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                (u.status ?? "ACTIVE") === "ACTIVE"
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                  : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20"
+                              }`}
+                            >
+                              {(u.status ?? "ACTIVE") === "ACTIVE" ? "Aktif" : "Non-Aktif"}
+                            </span>
                           </td>
                           <td className="px-4 py-3.5 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -483,7 +495,9 @@ function AdminUsersPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Password Awal * (Min 6 Karakter)</label>
+                <label className="text-xs font-semibold text-foreground">
+                  Password Awal * (Min 6 Karakter)
+                </label>
                 <input
                   type="password"
                   required
@@ -508,7 +522,9 @@ function AdminUsersPage() {
 
               {role === "GURU" ? (
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">Sekolah Penugasan *</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Sekolah Penugasan *
+                  </label>
                   <select
                     value={schoolId}
                     onChange={(e) => setSchoolId(e.target.value)}

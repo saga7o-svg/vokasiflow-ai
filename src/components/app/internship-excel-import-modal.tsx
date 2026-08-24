@@ -108,14 +108,19 @@ export function InternshipExcelImportModal({
     row: Record<string, any>,
     possibleKeys: string[],
     positionIdx?: number,
+    excludeKeys?: string[],
   ): any {
     const rowKeys = Object.keys(row);
 
+    // 1. Exact match pass (highest priority)
     for (const key of rowKeys) {
       const cleaned = cleanHeaderKey(key);
+      if (excludeKeys && excludeKeys.some((ex) => cleaned.includes(cleanHeaderKey(ex)))) {
+        continue;
+      }
       for (const candidate of possibleKeys) {
         const cleanedCandidate = cleanHeaderKey(candidate);
-        if (cleaned === cleanedCandidate || cleaned.includes(cleanedCandidate)) {
+        if (cleaned === cleanedCandidate) {
           if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
             return row[key];
           }
@@ -123,6 +128,23 @@ export function InternshipExcelImportModal({
       }
     }
 
+    // 2. Partial / substring match pass
+    for (const key of rowKeys) {
+      const cleaned = cleanHeaderKey(key);
+      if (excludeKeys && excludeKeys.some((ex) => cleaned.includes(cleanHeaderKey(ex)))) {
+        continue;
+      }
+      for (const candidate of possibleKeys) {
+        const cleanedCandidate = cleanHeaderKey(candidate);
+        if (cleaned.includes(cleanedCandidate)) {
+          if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
+            return row[key];
+          }
+        }
+      }
+    }
+
+    // 3. Positional column fallback
     if (positionIdx !== undefined && positionIdx < rowKeys.length) {
       const colKey = rowKeys[positionIdx];
       if (colKey !== undefined) {
@@ -142,6 +164,50 @@ export function InternshipExcelImportModal({
     if (s.startsWith("62")) s = "0" + s.slice(2);
     if (!s.startsWith("0") && s.length >= 9) s = "0" + s;
     return s || null;
+  }
+
+  function normalizeInternshipStatus(raw: any, fallback: string = "Peserta Baru"): string {
+    if (!raw) return fallback;
+    const str = String(raw).trim();
+    const lower = str.toLowerCase();
+
+    if (
+      lower.includes("pengganti") ||
+      lower.includes("ganti") ||
+      lower.includes("substitusi") ||
+      lower.includes("replacement") ||
+      lower === "pp"
+    ) {
+      return "Peserta Pengganti";
+    }
+    if (
+      lower.includes("baru") ||
+      lower.includes("new") ||
+      lower.includes("reguler") ||
+      lower === "pb"
+    ) {
+      return "Peserta Baru";
+    }
+    if (lower.includes("selesai") || lower.includes("lulus") || lower.includes("completed")) {
+      return "Selesai";
+    }
+    if (
+      lower.includes("mundur") ||
+      lower.includes("keluar") ||
+      lower.includes("batal") ||
+      lower.includes("drop") ||
+      lower === "do"
+    ) {
+      return "Mundur";
+    }
+    if (lower.includes("aktif") || lower.includes("sedang")) {
+      return "Aktif Magang";
+    }
+    // If accidentally matched "Kelas XI" / "Kelas XII" / "Alumni", fallback to Peserta Baru
+    if (lower.startsWith("kelas") || lower.includes("alumni") || lower.includes("siswa")) {
+      return fallback;
+    }
+    return str || fallback;
   }
 
   async function parseFile(fileToParse: File) {
@@ -169,54 +235,153 @@ export function InternshipExcelImportModal({
       }
 
       const previews: InternshipImportRowPreview[] = jsonData.map((row, idx) => {
-        let rawBatch = findColumnValue(row, ["batch no", "batch", "batch_no", "no batch"], 0);
+        let rawBatch = findColumnValue(
+          row,
+          ["batch no", "batch", "batch_no", "no batch", "gelombang"],
+          0,
+          ["sekolah", "nama", "peserta", "domisili"],
+        );
         let rawTraining = findColumnValue(
           row,
-          ["training center", "sekolah", "asal sekolah", "training_center"],
+          [
+            "training center",
+            "sekolah",
+            "asal sekolah",
+            "nama sekolah",
+            "training_center",
+            "smk",
+            "institusi",
+          ],
           1,
+          ["peserta", "siswa", "domisili", "kota"],
         );
         let rawName = findColumnValue(
           row,
-          ["nama peserta", "nama", "nama siswa", "peserta", "student_name"],
+          ["nama peserta", "nama siswa", "nama lengkap", "nama", "peserta", "student_name"],
           2,
+          ["sekolah", "perusahaan", "pendamping", "kota", "domisili"],
         );
-        let rawMentor = findColumnValue(row, ["pendamping", "mentor", "guru pendamping"], 3);
+        let rawMentor = findColumnValue(
+          row,
+          ["pendamping", "mentor", "guru pendamping", "guru", "pembimbing"],
+          3,
+          ["sekolah", "peserta", "siswa"],
+        );
         let rawCity = findColumnValue(
           row,
-          ["kabupaten", "kabupaten/kota domisili", "domisili", "kota"],
+          [
+            "kabupaten/kota domisili",
+            "kabupaten/domisili",
+            "kabupaten",
+            "kota",
+            "domisili",
+            "alamat domisili",
+            "kab",
+          ],
           4,
+          ["sekolah"],
         );
         let rawDriving = findColumnValue(
           row,
-          ["kemampuan mengemudi", "kemampuan", "mengemudi", "r4", "sim"],
+          [
+            "kemampuan mengemudi",
+            "kemampuan mengemudi r4",
+            "kemampuan",
+            "mengemudi",
+            "r4",
+            "driving",
+          ],
           5,
+          ["status", "nama"],
         );
         let rawStatusSiswa = findColumnValue(
           row,
-          ["status siswa", "status pendidikan", "kelas", "status_siswa"],
+          [
+            "status siswa",
+            "status pendidikan",
+            "tingkat",
+            "kelas",
+            "status_siswa",
+            "tingkat kelas",
+          ],
           6,
+          ["magang", "penempatan", "keterangan", "ket"],
         );
         let rawTargetPkt = findColumnValue(
           row,
-          ["target pkt", "pkt", "penempatan", "perusahaan", "target_pkt"],
+          [
+            "target pkt",
+            "cabang pkt",
+            "lokasi pkt",
+            "pkt",
+            "penempatan",
+            "perusahaan",
+            "target_pkt",
+          ],
           7,
+          ["status", "bulan", "tgl", "siswa"],
         );
-        let rawJobdesk = findColumnValue(row, ["jobdesk", "posisi", "role", "divisi"], 8);
+        let rawJobdesk = findColumnValue(
+          row,
+          ["jobdesk", "posisi", "role", "divisi", "bidang", "jabatan"],
+          8,
+          ["status", "penempatan", "siswa"],
+        );
         let rawPlacement = findColumnValue(
           row,
-          ["bulan penempatan", "penempatan", "tgl penempatan", "bulan"],
+          [
+            "bulan penempatan",
+            "tgl penempatan",
+            "waktu penempatan",
+            "penempatan",
+            "bulan",
+            "tanggal",
+            "periode",
+          ],
           9,
+          ["target", "status", "pkt", "siswa"],
         );
-        let rawEmail = findColumnValue(row, ["email", "email address"], 10);
+        let rawEmail = findColumnValue(
+          row,
+          ["email", "alamat email", "email address", "surel"],
+          10,
+        );
         let rawPhone = findColumnValue(
           row,
-          ["nomor wa", "no wa", "telepon", "phone", "whatsapp"],
+          [
+            "nomor wa",
+            "no wa",
+            "no whatsapp",
+            "whatsapp",
+            "nomor telpon",
+            "no hp",
+            "no telepon",
+            "telepon",
+            "phone",
+            "kontak",
+          ],
           11,
         );
         let rawStatusMagang = findColumnValue(
           row,
-          ["status magang", "status", "status_magang"],
+          [
+            "status magang",
+            "keterangan",
+            "keterangan magang",
+            "ket",
+            "status penempatan",
+            "peserta baru / pengganti",
+            "peserta baru/pengganti",
+            "baru / pengganti",
+            "baru/pengganti",
+            "kategori peserta",
+            "jenis peserta",
+            "tipe peserta",
+            "kategori",
+            "status",
+          ],
           12,
+          ["siswa", "pendidikan", "sekolah", "kelas", "tingkat"],
         );
 
         // Smart shift correction: if row has code in Col 1 and School in Col 2
@@ -259,16 +424,7 @@ export function InternshipExcelImportModal({
           : null;
         const phone = normalizePhone(rawPhone);
 
-        let internship_status = "Peserta Baru";
-        if (rawStatusMagang) {
-          const stLower = String(rawStatusMagang).toLowerCase().trim();
-          if (stLower.includes("pengganti")) internship_status = "Peserta Pengganti";
-          else if (stLower.includes("selesai")) internship_status = "Selesai";
-          else if (stLower.includes("mundur") || stLower.includes("keluar"))
-            internship_status = "Mundur";
-          else if (stLower.includes("aktif")) internship_status = "Aktif Magang";
-          else internship_status = String(rawStatusMagang).trim();
-        }
+        const internship_status = normalizeInternshipStatus(rawStatusMagang, "Peserta Baru");
 
         const errors: string[] = [];
         const warnings: string[] = [];

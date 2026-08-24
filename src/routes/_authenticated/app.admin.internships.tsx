@@ -328,7 +328,29 @@ function AdminInternshipsPage() {
     const matchesJobdesk = selectedJobdesk === "ALL" || i.jobdesk === selectedJobdesk;
     const matchesStatus =
       selectedStatus === "ALL" ||
-      (i.internship_status || "").toLowerCase() === selectedStatus.toLowerCase();
+      (() => {
+        const itemSt = (i.internship_status || "Peserta Baru").toLowerCase().trim();
+        const filterSt = selectedStatus.toLowerCase().trim();
+        if (filterSt.includes("pengganti")) {
+          return itemSt.includes("pengganti") || itemSt.includes("ganti") || itemSt === "pp";
+        }
+        if (filterSt.includes("baru")) {
+          return (
+            itemSt.includes("baru") ||
+            itemSt === "pb" ||
+            (!itemSt.includes("pengganti") &&
+              !itemSt.includes("ganti") &&
+              !itemSt.includes("selesai") &&
+              !itemSt.includes("mundur") &&
+              itemSt !== "pp")
+          );
+        }
+        if (filterSt.includes("selesai")) return itemSt.includes("selesai");
+        if (filterSt.includes("mundur"))
+          return itemSt.includes("mundur") || itemSt.includes("keluar");
+        if (filterSt.includes("aktif")) return itemSt.includes("aktif");
+        return itemSt === filterSt;
+      })();
 
     return matchesSearch && matchesBatch && matchesPkt && matchesJobdesk && matchesStatus;
   });
@@ -358,12 +380,28 @@ function AdminInternshipsPage() {
 
   // KPI Calculations
   const totalPeserta = allItems.length;
-  const pesertaBaruCount = allItems.filter((i) =>
-    (i.internship_status || "").toLowerCase().includes("baru"),
-  ).length;
-  const pesertaPenggantiCount = allItems.filter((i) =>
-    (i.internship_status || "").toLowerCase().includes("pengganti"),
-  ).length;
+  const pesertaPenggantiCount = allItems.filter((i) => {
+    const st = (i.internship_status || "").toLowerCase().trim();
+    return (
+      st.includes("pengganti") ||
+      st.includes("ganti") ||
+      st === "pp" ||
+      st.includes("replacement") ||
+      st.includes("substitusi")
+    );
+  }).length;
+  const pesertaBaruCount = allItems.filter((i) => {
+    const st = (i.internship_status || "Peserta Baru").toLowerCase().trim();
+    return (
+      st.includes("baru") ||
+      st === "pb" ||
+      (!st.includes("pengganti") &&
+        !st.includes("ganti") &&
+        !st.includes("selesai") &&
+        !st.includes("mundur") &&
+        st !== "pp")
+    );
+  }).length;
   const uniquePktCount = new Set(allItems.map((i) => i.target_pkt).filter(Boolean)).size;
   const uniqueBatchCount = new Set(allItems.map((i) => i.batch_no).filter(Boolean)).size;
 

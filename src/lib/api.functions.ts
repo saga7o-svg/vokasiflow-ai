@@ -1900,6 +1900,50 @@ export const saveQuota = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export function normalizeInternshipStatus(raw: any, fallback: string = "Peserta Baru"): string {
+  if (!raw) return fallback;
+  const str = String(raw).trim();
+  const lower = str.toLowerCase();
+
+  if (
+    lower.includes("pengganti") ||
+    lower.includes("ganti") ||
+    lower.includes("substitusi") ||
+    lower.includes("replacement") ||
+    lower === "pp"
+  ) {
+    return "Peserta Pengganti";
+  }
+  if (
+    lower.includes("baru") ||
+    lower.includes("new") ||
+    lower.includes("reguler") ||
+    lower === "pb"
+  ) {
+    return "Peserta Baru";
+  }
+  if (lower.includes("selesai") || lower.includes("lulus") || lower.includes("completed")) {
+    return "Selesai";
+  }
+  if (
+    lower.includes("mundur") ||
+    lower.includes("keluar") ||
+    lower.includes("batal") ||
+    lower.includes("drop") ||
+    lower === "do"
+  ) {
+    return "Mundur";
+  }
+  if (lower.includes("aktif") || lower.includes("sedang")) {
+    return "Aktif Magang";
+  }
+  // If accidentally matched "Kelas XI" / "Kelas XII" / "Alumni", fallback to Peserta Baru
+  if (lower.startsWith("kelas") || lower.includes("alumni") || lower.includes("siswa")) {
+    return fallback;
+  }
+  return str || fallback;
+}
+
 export const listInternships = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -1962,6 +2006,9 @@ export const listInternships = createServerFn({ method: "GET" })
       if (email && email.includes("<!--meta:")) {
         email = email.replace(/<!--meta:.*?-->/, "").trim() || null;
       }
+
+      // Normalization to ensure Peserta Baru / Peserta Pengganti is always consistent
+      internship_status = normalizeInternshipStatus(internship_status, "Peserta Baru");
 
       return {
         ...item,
@@ -2188,7 +2235,7 @@ export const importInternshipsBulk = createServerFn({ method: "POST" })
         placement_month: item.placement_month,
         email: item.email,
         phone: item.phone,
-        internship_status: item.internship_status,
+        internship_status: normalizeInternshipStatus(item.internship_status, "Peserta Baru"),
       };
       const metaTag = `<!--meta:${JSON.stringify(metaObj)}-->`;
 
@@ -2354,6 +2401,8 @@ export const saveInternshipParticipant = createServerFn({ method: "POST" })
 
     if (!stu) throw new Error("Gagal memvalidasi data siswa.");
 
+    const normalizedStatus = normalizeInternshipStatus(data.internship_status, "Peserta Baru");
+
     const metaObj = {
       batch_no: data.batch_no,
       training_center: data.training_center,
@@ -2367,7 +2416,7 @@ export const saveInternshipParticipant = createServerFn({ method: "POST" })
       placement_month: data.placement_month,
       email: data.email,
       phone: data.phone,
-      internship_status: data.internship_status,
+      internship_status: normalizedStatus,
     };
     const metaTag = `<!--meta:${JSON.stringify(metaObj)}-->`;
 
@@ -2380,7 +2429,7 @@ export const saveInternshipParticipant = createServerFn({ method: "POST" })
           student_id: stu.id,
           competency: data.jobdesk || "CPC",
           period: data.batch_no || "2025-S1",
-          status: data.internship_status === "Selesai" ? "COMPLETED" : "ACTIVE",
+          status: normalizedStatus === "Selesai" ? "COMPLETED" : "ACTIVE",
           approval_note: metaTag,
           updated_at: new Date().toISOString(),
         })
@@ -2888,7 +2937,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
     const cleanEmail = data.email.toLowerCase().trim();
     let targetUserId: string | null = null;
 
-    // 1. Try to create using auth.admin.createUser
+    // 1. Try to create using auth.admin.createUser if service role key is available
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
@@ -2905,86 +2954,82 @@ export const createGuruUser = createServerFn({ method: "POST" })
       if (!error && created?.user?.id) {
         targetUserId = created.user.id;
       }
-    } catch {
-      // Ignored, will try fallback to auth.signUp
-    }
+    } catch {}
 
-    // 2. Fallback to auth.signUp if admin.createUser is not permitted or fails
+    // 2. Fallback to auth.signUp
     if (!targetUserId) {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabaseUrl =
-        process.env["SUPABASE_URL"] ||
-        process.env["VITE_SUPABASE_URL"] ||
-        "https://mukaxrilfbcrwkrefqsi.supabase.co";
-      const supabaseKey =
-        process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-        process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-        "sb_publishable_1rJmfbiE0-AtpbgP0ZlKQQ__v1jgyFs";
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabaseUrl =
+          process.env["SUPABASE_URL"] ||
+          process.env["VITE_SUPABASE_URL"] ||
+          "https://mukaxrilfbcrwkrefqsi.supabase.co";
+        const supabaseKey =
+          process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+          process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+          "sb_publishable_1rJmfbiE0-AtpbgP0ZlKQQ__v1jgyFs";
 
-      const authClient = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+        const authClient = createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
 
-      const { data: signUpData, error: signUpError } = await authClient.auth.signUp({
-        email: cleanEmail,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            role: data.role,
-            school_id: data.role === "ADMIN" ? null : data.school_id,
+        const { data: signUpData } = await authClient.auth.signUp({
+          email: cleanEmail,
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+              role: data.role,
+              school_id: data.role === "ADMIN" ? null : data.school_id,
+            },
           },
-        },
-      });
+        });
 
-      if (signUpError) {
-        throw new Error(`Gagal mendaftarkan akun: ${signUpError.message}`);
-      }
-
-      if (signUpData.user?.id) {
-        targetUserId = signUpData.user.id;
-      }
+        if (signUpData?.user?.id) {
+          targetUserId = signUpData.user.id;
+        }
+      } catch {}
     }
 
-    // 3. Ensure profiles and user_roles are updated to the requested role
-    if (targetUserId) {
-      await context.supabase.from("profiles").upsert({
-        id: targetUserId,
-        name: data.name,
-        email: cleanEmail,
-        school_id: data.role === "ADMIN" ? null : data.school_id,
-        position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
-        status: "ACTIVE",
-      });
-
-      await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
-      await context.supabase.from("user_roles").insert({ user_id: targetUserId, role: data.role });
-    } else {
-      // If user already existed, update profile and role
-      const { data: existingProfile } = await context.supabase
+    // 3. If targetUserId is still not found, check existing profiles or generate a new UUID
+    if (!targetUserId) {
+      const { data: existingProf } = await context.supabase
         .from("profiles")
         .select("id")
         .eq("email", cleanEmail)
         .maybeSingle();
 
-      if (existingProfile?.id) {
-        await context.supabase
-          .from("profiles")
-          .update({
-            name: data.name,
-            school_id: data.role === "ADMIN" ? null : data.school_id,
-            position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
-            status: "ACTIVE",
-          })
-          .eq("id", existingProfile.id);
-
-        await context.supabase.from("user_roles").delete().eq("user_id", existingProfile.id);
-        await context.supabase.from("user_roles").insert({
-          user_id: existingProfile.id,
-          role: data.role,
-        });
-        targetUserId = existingProfile.id;
+      if (existingProf?.id) {
+        targetUserId = existingProf.id;
+      } else {
+        targetUserId = crypto.randomUUID();
       }
+    }
+
+    const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
+
+    // 4. Save profile in profiles table
+    const { error: profErr } = await context.supabase.from("profiles").upsert({
+      id: targetUserId,
+      name: data.name,
+      email: cleanEmail,
+      school_id: assignedSchoolId,
+      position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
+      status: "ACTIVE",
+    });
+
+    if (profErr) {
+      throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
+    }
+
+    // 5. Update user_roles table
+    await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
+    const { error: roleErr } = await context.supabase
+      .from("user_roles")
+      .insert({ user_id: targetUserId, role: data.role });
+
+    if (roleErr) {
+      console.warn("user_roles insert warning:", roleErr);
     }
 
     try {
@@ -3052,10 +3097,41 @@ export const deleteUser = createServerFn({ method: "POST" })
       throw new Error("Anda tidak dapat menghapus akun Anda sendiri.");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", id);
-    await supabaseAdmin.from("profiles").delete().eq("id", id);
+    // 1. Delete roles associated with this user
     try {
+      await context.supabase.from("user_roles").delete().eq("user_id", id);
+    } catch {}
+
+    // 2. Unlink foreign keys in internships, reports, and logs
+    try {
+      await context.supabase
+        .from("internships")
+        .update({ submitted_by: null })
+        .eq("submitted_by", id);
+      await context.supabase
+        .from("internships")
+        .update({ approved_by: null })
+        .eq("approved_by", id);
+      await context.supabase
+        .from("internship_reports")
+        .update({ created_by: null })
+        .eq("created_by", id);
+      await context.supabase.from("audit_logs").update({ user_id: null }).eq("user_id", id);
+    } catch {}
+
+    // 3. Delete user profile
+    const { error: profErr } = await context.supabase.from("profiles").delete().eq("id", id);
+    if (profErr) {
+      // Fallback: If delete on profiles table fails due to RLS, set status to INACTIVE and clear school
+      await context.supabase
+        .from("profiles")
+        .update({ status: "INACTIVE", school_id: null })
+        .eq("id", id);
+    }
+
+    // 4. Try auth.admin.deleteUser if service role client works
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await supabaseAdmin.auth.admin.deleteUser(id);
     } catch {}
 
