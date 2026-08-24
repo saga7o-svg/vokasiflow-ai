@@ -3677,7 +3677,11 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
   .validator((input: unknown) =>
     z
       .object({
-        companyId: z.string().uuid(),
+        companyId: z.string().min(1),
+        branchId: z.string().optional(),
+        branchName: z.string().optional(),
+        branchCity: z.string().optional(),
+        branchAddress: z.string().optional(),
         requiredCompetency: z.string().trim().optional(),
       })
       .parse(input),
@@ -3686,9 +3690,9 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
     const [{ data: company }, { data: schools }] = await Promise.all([
       context.supabase
         .from("companies")
-        .select("id,name,address,city,province,industry")
+        .select("id,name,address,city,province,industry,company_code")
         .eq("id", data.companyId)
-        .single(),
+        .maybeSingle(),
       context.supabase
         .from("schools")
         .select("id,name,address,city,province")
@@ -3697,22 +3701,50 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
 
     if (!company) throw new Error("Perusahaan tidak ditemukan.");
 
+    // Extract branches from company address metadata
+    const { cleanText: cleanAddress, metadata: meta } = extractMetadata<{
+      branches?: Array<{
+        id: string;
+        branch_name: string;
+        address: string;
+        city?: string | null;
+        province?: string | null;
+      }>;
+    }>(company.address);
+
+    const branches = Array.isArray(meta?.branches) ? meta.branches : [];
+    let targetBranch = branches.find((b) => b.id === data.branchId || b.branch_name === data.branchName);
+
+    if (!targetBranch && branches.length > 0) {
+      targetBranch = branches[0];
+    }
+
+    const branchName = targetBranch?.branch_name || data.branchName || `${company.name} - Pusat`;
+    const branchCity = targetBranch?.city || data.branchCity || company.city || "Kab. Sidoarjo";
+    const branchAddress = targetBranch?.address || data.branchAddress || cleanAddress || company.address || branchCity;
+
     const recommendations = await recommendNearestSchoolsWithGemini({
-      companyName: company.name,
-      companyAddress: company.address || company.city || "Pusat Industri",
-      companyCity: company.city || "Jakarta",
+      companyName: `${company.name} (${branchName})`,
+      companyAddress: branchAddress,
+      companyCity: branchCity,
       ...(data.requiredCompetency ? { requiredCompetency: data.requiredCompetency } : {}),
       schools: (schools ?? []).map((s) => ({
         id: s.id,
         name: s.name,
-        city: s.city || "Kota / Kab",
+        city: s.city || "Kab. Sidoarjo",
         address: s.address || s.city || "",
-        province: s.province || "",
+        province: s.province || "Jawa Timur",
       })),
     });
 
     return {
       company,
+      branch: {
+        id: targetBranch?.id || "main",
+        name: branchName,
+        city: branchCity,
+        address: branchAddress,
+      },
       recommendations,
     };
   });

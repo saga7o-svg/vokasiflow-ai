@@ -364,29 +364,49 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
   }
 
   // Fallback heuristic jika tanpa API key
-  return params.schools.map((school, index) => {
-    const isSameCity = school.city?.toLowerCase() === params.companyCity?.toLowerCase();
-    const estDist = isSameCity ? 3.5 + index * 2.1 : 18.0 + index * 5.4;
-    const match = isSameCity ? 95 - index * 4 : 70 - index * 6;
+  const scored = params.schools.map((school, index) => {
+    const sCity = (school.city || "").toLowerCase().trim();
+    const cCity = (params.companyCity || "").toLowerCase().trim();
+    
+    const isSameCity = sCity && cCity && (sCity.includes(cCity) || cCity.includes(sCity));
+    const isSurabayaSidoarjo =
+      (sCity.includes("surabaya") && cCity.includes("sidoarjo")) ||
+      (sCity.includes("sidoarjo") && cCity.includes("surabaya"));
+
+    let estDist = isSameCity ? 2.5 + (index % 4) * 1.8 : isSurabayaSidoarjo ? 14.0 + (index % 3) * 3.2 : 28.0 + index * 8.5;
+    let match = isSameCity ? 96 - index * 3 : isSurabayaSidoarjo ? 85 - index * 4 : 65 - index * 5;
+    let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" = isSameCity
+      ? (estDist <= 5 ? "EXCELLENT" : "GOOD")
+      : isSurabayaSidoarjo
+        ? "GOOD"
+        : estDist < 50
+          ? "MODERATE"
+          : "CHALLENGING";
 
     return {
       schoolId: school.id,
       schoolName: school.name,
       estimatedDistanceKm: Math.round(estDist * 10) / 10,
-      travelTimeMinutes: Math.round(estDist * 3),
-      matchScore: Math.max(50, match),
-      logisticalFeasibility: isSameCity ? (index === 0 ? "EXCELLENT" : "GOOD") : "MODERATE",
+      travelTimeMinutes: Math.round(estDist * 2.5),
+      matchScore: Math.max(50, Math.min(99, match)),
+      logisticalFeasibility: feasibility,
       aiReasoning: isSameCity
-        ? `Lokasi ${school.name} sangat dekat dengan ${params.companyName} (${school.city}), memudahkan akses transportasi harian siswa magang.`
-        : `Lokasi sekolah di ${school.city} berjarak ${Math.round(estDist)} km dari perusahaan. Disarankan koordinasi mess/transportasi siswa.`,
+        ? `Lokasi ${school.name} berada satu wilayah (${school.city}) dengan cabang ${params.companyName}, memudahkan mobilitas harian siswa magang.`
+        : isSurabayaSidoarjo
+          ? `Lokasi ${school.name} di ${school.city} bertetangga dengan lokasi cabang (${params.companyCity}), sangat terjangkau via transportasi komuter.`
+          : `Lokasi sekolah di ${school.city} berjarak ${Math.round(estDist)} km dari cabang ${params.companyName}. Disarankan penyediaan akomodasi/mess siswa.`,
       availableCompetencies: [
-        params.requiredCompetency || "Teknik Komputer & Jaringan",
-        "Teknik Kendaraan Ringan",
-        "Rekayasa Perangkat Lunak",
+        params.requiredCompetency || "CPC",
+        "CIT",
+        "CIT/RPL",
+        "RPL",
+        "FLM",
       ],
-      recommendedInternSlots: 5 - (index % 3),
+      recommendedInternSlots: 8 - (index % 5),
     };
   });
+
+  return scored.sort((a, b) => a.estimatedDistanceKm - b.estimatedDistanceKm || b.matchScore - a.matchScore);
 }
 
 /**
