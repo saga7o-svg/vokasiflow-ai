@@ -862,8 +862,11 @@ function AdminSchoolsPage() {
       <SchoolExcelImportModal
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
-        onImport={async (payload) => {
-          return bulkImportMutation.mutateAsync(payload);
+        onImport={async (importedSchools, upsert) => {
+          return bulkImportMutation.mutateAsync({
+            schools: importedSchools,
+            upsert,
+          });
         }}
         isImporting={bulkImportMutation.isPending}
       />

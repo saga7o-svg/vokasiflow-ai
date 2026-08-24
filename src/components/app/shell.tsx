@@ -46,7 +46,7 @@ export const adminNav = [
   { to: "/app/admin/companies", label: "Data Perusahaan Tempat Magang", icon: Building2 },
   { to: "/app/admin/performance", label: "Performa AI", icon: Award },
   { to: "/app/admin/forecasting", label: "Forecasting AI", icon: TrendingUp },
-  { to: "/app/admin/users", label: "Manajemen User", icon: UserCog },
+  { to: "/app/admin/users", label: "Manajemen User", icon: UserCog, superAdminOnly: true },
 ];
 
 export const guruNav = [
@@ -77,7 +77,12 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = me?.role === "ADMIN" ? adminNav : guruNav;
+
+  const isSuperAdmin = me?.role === "SUPER_ADMIN" || Boolean(me?.isSuperAdmin);
+  const isAdmin = me?.role === "ADMIN" || isSuperAdmin;
+  const nav = isAdmin
+    ? adminNav.filter((item) => !item.superAdminOnly || isSuperAdmin)
+    : guruNav;
 
   const updateProfile = useServerFn(updateTeacherProfileFn);
 
@@ -172,7 +177,7 @@ export function AppShell({
         >
           {/* Brand Header */}
           <Link
-            to={me?.role === "ADMIN" ? "/app/admin/dashboard" : "/app/guru/dashboard"}
+            to={isAdmin ? "/app/admin/dashboard" : "/app/guru/dashboard"}
             aria-label="Kembali ke Dashboard"
             className="flex items-center gap-2.5 px-2 pb-6 border-b border-border hover:opacity-90 transition-opacity focus-visible:rounded-lg"
           >
@@ -186,7 +191,7 @@ export function AppShell({
                 Program Vokasi Sekolah
               </span>
               <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-                {me?.role === "ADMIN" ? "Admin Panel" : "Portal Guru"}
+                {isSuperAdmin ? "Super Admin" : isAdmin ? "Admin Panel" : "Portal Guru"}
               </span>
             </div>
           </Link>
@@ -329,7 +334,11 @@ export function AppShell({
                   <div className="hidden sm:block text-left">
                     <p className="text-xs font-semibold leading-none">{me?.name || "Pengguna"}</p>
                     <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium">
-                      {me?.role === "ADMIN" ? "Administrator" : me?.schoolName || "Guru"}
+                      {isSuperAdmin
+                        ? "Super Admin"
+                        : isAdmin
+                          ? "Admin"
+                          : me?.schoolName || "Guru"}
                     </p>
                   </div>
                 </button>
@@ -365,8 +374,21 @@ export function AppShell({
                           </p>
                         ) : null}
                         <div className="pt-1">
-                          <span className="inline-block rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase">
-                            {me?.role === "ADMIN" ? "Admin Pusat" : "Guru Pembimbing"}
+                          <span
+                            className={cn(
+                              "inline-block rounded-md px-2 py-0.5 text-[10px] font-bold uppercase",
+                              isSuperAdmin
+                                ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                                : isAdmin
+                                  ? "bg-primary/10 text-primary border border-primary/20"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+                            )}
+                          >
+                            {isSuperAdmin
+                              ? "Super Admin"
+                              : isAdmin
+                                ? "Admin"
+                                : "Guru Pembimbing"}
                           </span>
                         </div>
                       </div>

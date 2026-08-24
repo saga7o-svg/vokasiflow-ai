@@ -21,11 +21,7 @@ import { extractMetadata, embedMetadata, stripMetadata, mergeMetadata } from "./
 export function isDemoEmail(email?: string | null): boolean {
   if (!email) return false;
   const lower = email.toLowerCase().trim();
-  return (
-    lower === "admin@example.com" ||
-    lower === "guru@example.com" ||
-    (lower.endsWith("@example.com") && lower !== "saga7o@example.com")
-  );
+  return lower === "admin@example.com" || lower === "guru@example.com";
 }
 
 function assertNotDemo(context: { claims?: { email?: string } }) {
@@ -39,14 +35,38 @@ function assertNotDemo(context: { claims?: { email?: string } }) {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
+export function isSuperAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase().trim();
+  return lower === "saga7o@example.com" || lower.startsWith("saga7o@") || lower === "saga7o";
+}
+
 async function assertAdminRole(
   supabase: SupabaseClient<Database>,
   userId: string,
+  email?: string | null,
 ): Promise<boolean> {
+  if (isSuperAdminEmail(email)) return true;
   const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "ADMIN");
+  const isAdmin = (roles ?? []).some(
+    (r: { role: string }) => r.role === "ADMIN" || (r.role as string) === "SUPER_ADMIN",
+  );
   if (!isAdmin) {
     throw new Error("Akses Ditolak: Tindakan ini memerlukan hak akses Administrator.");
+  }
+  return true;
+}
+
+async function assertSuperAdminRole(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  email?: string | null,
+): Promise<boolean> {
+  if (isSuperAdminEmail(email)) return true;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const isSuper = (roles ?? []).some((r: { role: string }) => (r.role as string) === "SUPER_ADMIN");
+  if (!isSuper) {
+    throw new Error("Akses Ditolak: Fitur Manajemen User hanya dapat diakses oleh Super Admin.");
   }
   return true;
 }
@@ -64,12 +84,22 @@ export const getMe = createServerFn({ method: "GET" })
       supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
 
-    const isDemoAdmin = profile?.email?.toLowerCase() === "admin@example.com";
-    const isDemoGuru = profile?.email?.toLowerCase() === "guru@example.com";
+    const userEmail = profile?.email ?? context.claims?.email ?? "";
+    const isSuperAdmin = isSuperAdminEmail(userEmail);
+    const isDemoAdmin = userEmail.toLowerCase() === "admin@example.com";
+    const isDemoGuru = userEmail.toLowerCase() === "guru@example.com";
     const isDemo = isDemoAdmin || isDemoGuru;
 
-    const role: "ADMIN" | "GURU" =
-      roles?.some((r) => r.role === "ADMIN") || isDemoAdmin ? "ADMIN" : "GURU";
+    const hasAdminRole =
+      roles?.some((r) => r.role === "ADMIN" || (r.role as string) === "SUPER_ADMIN") ||
+      isDemoAdmin ||
+      isSuperAdmin;
+
+    const role: "SUPER_ADMIN" | "ADMIN" | "GURU" = isSuperAdmin
+      ? "SUPER_ADMIN"
+      : hasAdminRole
+        ? "ADMIN"
+        : "GURU";
 
     let currentSchoolId = profile?.school_id ?? null;
 
@@ -100,14 +130,23 @@ export const getMe = createServerFn({ method: "GET" })
 
     return {
       id: userId,
-      name: profile?.name || (isDemoAdmin ? "Admin Pusat" : isDemoGuru ? "Guru Pembimbing" : ""),
-      email: profile?.email ?? "",
+      name:
+        profile?.name ||
+        (isSuperAdmin
+          ? "Super Admin (saga7o)"
+          : isDemoAdmin
+            ? "Admin Pusat"
+            : isDemoGuru
+              ? "Guru Pembimbing"
+              : ""),
+      email: userEmail,
       phone: rawProf?.phone ?? null,
       position: rawProf?.position ?? null,
       schoolId: currentSchoolId,
       schoolName,
       status: profile?.status ?? "ACTIVE",
       role,
+      isSuperAdmin,
       isDemo,
     };
   });
@@ -2808,17 +2847,23 @@ export const listUsers = createServerFn({ method: "GET" })
         schoolName: u.schools?.name ?? null,
       }));
     }
+    await assertSuperAdminRole(context.supabase, context.userId, context.claims?.email);
     const [profiles, roles, schools] = await Promise.all([
       context.supabase.from("profiles").select("*").order("name"),
       context.supabase.from("user_roles").select("user_id,role"),
       context.supabase.from("schools").select("id,name"),
     ]);
     if (profiles.error) throw new Error("Gagal memuat data pengguna.");
-    return (profiles.data ?? []).map((p) => ({
-      ...p,
-      role: (roles.data ?? []).find((r) => r.user_id === p.id)?.role ?? "GURU",
-      schoolName: (schools.data ?? []).find((s) => s.id === p.school_id)?.name ?? null,
-    }));
+    return (profiles.data ?? []).map((p) => {
+      const userRole = (roles.data ?? []).find((r) => r.user_id === p.id)?.role ?? "GURU";
+      const isSuper = isSuperAdminEmail(p.email);
+      return {
+        ...p,
+        role: isSuper ? "SUPER_ADMIN" : userRole,
+        isSuperAdmin: isSuper,
+        schoolName: (schools.data ?? []).find((s) => s.id === p.school_id)?.name ?? null,
+      };
+    });
   });
 
 export const createGuruUser = createServerFn({ method: "POST" })
@@ -2826,49 +2871,132 @@ export const createGuruUser = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        name: z.string().trim().min(2).max(120),
-        email: z.string().trim().email().max(160),
-        password: z.string().min(8).max(72),
-        school_id: z.string().uuid(),
+        name: z.string().trim().min(2, "Nama minimal 2 karakter").max(120),
+        email: z.string().trim().email("Format email tidak valid").max(160),
+        password: z.string().min(6, "Password minimal 6 karakter").max(72),
+        school_id: z
+          .union([z.string().uuid(), z.string().length(0), z.null(), z.undefined()])
+          .transform((val) => (!val || val === "" ? null : val)),
         role: z.enum(["ADMIN", "GURU"]).default("GURU"),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (
-      context.claims.email === "admin@example.com" ||
-      context.claims.email === "guru@example.com"
-    ) {
-      throw new Error(
-        "Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan.",
-      );
+    assertNotDemo(context);
+    await assertSuperAdminRole(context.supabase, context.userId, context.claims?.email);
+
+    const cleanEmail = data.email.toLowerCase().trim();
+    let targetUserId: string | null = null;
+
+    // 1. Try to create using auth.admin.createUser
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+        email: cleanEmail,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: {
+          name: data.name,
+          role: data.role,
+          school_id: data.role === "ADMIN" ? null : data.school_id,
+        },
+      });
+
+      if (!error && created?.user?.id) {
+        targetUserId = created.user.id;
+      }
+    } catch {
+      // Ignored, will try fallback to auth.signUp
     }
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (!isAdmin) throw new Error("Anda tidak memiliki akses ke tindakan ini.");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { name: data.name },
-    });
-    if (error || !created.user)
-      throw new Error("Pengguna gagal dibuat. Email mungkin sudah terdaftar.");
-    await supabaseAdmin.from("profiles").upsert({
-      id: created.user.id,
-      name: data.name,
-      email: data.email,
-      school_id: data.school_id,
-    });
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", created.user.id);
-    await supabaseAdmin.from("user_roles").insert({ user_id: created.user.id, role: data.role });
-    await context.supabase.from("audit_logs").insert({
-      user_id: context.userId,
-      action: "CREATE",
-      entity: "user",
-      entity_id: created.user.id,
-      detail: data.email,
-    });
+
+    // 2. Fallback to auth.signUp if admin.createUser is not permitted or fails
+    if (!targetUserId) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseUrl =
+        process.env["SUPABASE_URL"] ||
+        process.env["VITE_SUPABASE_URL"] ||
+        "https://mukaxrilfbcrwkrefqsi.supabase.co";
+      const supabaseKey =
+        process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+        process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+        "sb_publishable_1rJmfbiE0-AtpbgP0ZlKQQ__v1jgyFs";
+
+      const authClient = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+
+      const { data: signUpData, error: signUpError } = await authClient.auth.signUp({
+        email: cleanEmail,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+            role: data.role,
+            school_id: data.role === "ADMIN" ? null : data.school_id,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw new Error(`Gagal mendaftarkan akun: ${signUpError.message}`);
+      }
+
+      if (signUpData.user?.id) {
+        targetUserId = signUpData.user.id;
+      }
+    }
+
+    // 3. Ensure profiles and user_roles are updated to the requested role
+    if (targetUserId) {
+      await context.supabase.from("profiles").upsert({
+        id: targetUserId,
+        name: data.name,
+        email: cleanEmail,
+        school_id: data.role === "ADMIN" ? null : data.school_id,
+        position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
+        status: "ACTIVE",
+      });
+
+      await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
+      await context.supabase.from("user_roles").insert({ user_id: targetUserId, role: data.role });
+    } else {
+      // If user already existed, update profile and role
+      const { data: existingProfile } = await context.supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+
+      if (existingProfile?.id) {
+        await context.supabase
+          .from("profiles")
+          .update({
+            name: data.name,
+            school_id: data.role === "ADMIN" ? null : data.school_id,
+            position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
+            status: "ACTIVE",
+          })
+          .eq("id", existingProfile.id);
+
+        await context.supabase.from("user_roles").delete().eq("user_id", existingProfile.id);
+        await context.supabase.from("user_roles").insert({
+          user_id: existingProfile.id,
+          role: data.role,
+        });
+        targetUserId = existingProfile.id;
+      }
+    }
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "CREATE",
+        entity: "user",
+        entity_id: targetUserId,
+        detail: `${cleanEmail} (${data.role})`,
+      });
+    } catch {}
+
     return { ok: true };
   });
 
@@ -2878,27 +3006,26 @@ export const updateUser = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        name: z.string().trim().min(2).max(120),
-        school_id: z.string().uuid().nullable(),
+        name: z.string().trim().min(2, "Nama minimal 2 karakter").max(120),
+        school_id: z
+          .union([z.string().uuid(), z.string().length(0), z.null(), z.undefined()])
+          .transform((val) => (!val || val === "" ? null : val)),
         status: z.enum(["ACTIVE", "INACTIVE"]),
         role: z.enum(["ADMIN", "GURU"]),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (
-      context.claims.email === "admin@example.com" ||
-      context.claims.email === "guru@example.com"
-    ) {
-      throw new Error(
-        "Akun Demo hanya memiliki akses lihat (View Only). Pengubahan data dinonaktifkan.",
-      );
-    }
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (!isAdmin) throw new Error("Anda tidak memiliki akses ke tindakan ini.");
+    assertNotDemo(context);
+    await assertSuperAdminRole(context.supabase, context.userId, context.claims?.email);
+
     const { error } = await context.supabase
       .from("profiles")
-      .update({ name: data.name, school_id: data.school_id, status: data.status })
+      .update({
+        name: data.name,
+        school_id: data.role === "ADMIN" ? null : data.school_id,
+        status: data.status,
+      })
       .eq("id", data.id);
     if (error) throw new Error("Data pengguna gagal disimpan.");
     await context.supabase.from("user_roles").delete().eq("user_id", data.id);
@@ -2908,8 +3035,40 @@ export const updateUser = createServerFn({ method: "POST" })
       action: "UPDATE",
       entity: "user",
       entity_id: data.id,
-      detail: data.status,
+      detail: `${data.status} - ${data.role}`,
     });
+    return { ok: true };
+  });
+
+export const deleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertSuperAdminRole(context.supabase, context.userId, context.claims?.email);
+    const { id } = data;
+
+    if (id === context.userId) {
+      throw new Error("Anda tidak dapat menghapus akun Anda sendiri.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", id);
+    await supabaseAdmin.from("profiles").delete().eq("id", id);
+    try {
+      await supabaseAdmin.auth.admin.deleteUser(id);
+    } catch {}
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "DELETE",
+        entity: "user",
+        entity_id: id,
+        detail: "Hapus akun pengguna",
+      });
+    } catch {}
+
     return { ok: true };
   });
 
