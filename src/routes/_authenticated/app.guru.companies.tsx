@@ -21,7 +21,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/app/guru/companies")({
   head: () => ({
     meta: [
-      { title: "Data Perusahaan Tempat Magang — Portal Guru" },
+      { title: "PKT — Portal Guru" },
       {
         name: "description",
         content: "Daftar industri mitra, cabang PKT, dan alamat penempatan magang.",
@@ -135,7 +135,7 @@ function GuruCompaniesPage() {
 
   return (
     <AppShell
-      title="Data Perusahaan Tempat Magang"
+      title="PKT"
       actions={
         <div className="flex items-center gap-2">
           <button
@@ -276,7 +276,15 @@ function GuruCompaniesPage() {
                             <span className="rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold px-2 py-0.5">
                               {comp.company_code}
                             </span>
-                            <StatusBadge status={comp.status} />
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                comp.status === "ACTIVE"
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                  : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20"
+                              }`}
+                            >
+                              {comp.status === "ACTIVE" ? "Aktif" : "Non-Aktif"}
+                            </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {comp.industry || "Industri Mitra"} • {branches.length} Cabang PKT •{" "}

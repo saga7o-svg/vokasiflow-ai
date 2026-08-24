@@ -12,6 +12,8 @@ import {
   importCompanyBranchesBulk,
   seedDefaultCompaniesAndBranches,
   clearAllCompanies,
+  bulkDeleteCompanies,
+  bulkUpdateCompaniesStatus,
 } from "@/lib/api.functions";
 import {
   Search,
@@ -41,7 +43,7 @@ import { CompanyBranchImportModal } from "@/components/app/company-branch-import
 export const Route = createFileRoute("/_authenticated/app/admin/companies")({
   head: () => ({
     meta: [
-      { title: "Data Perusahaan Tempat Magang — VokasiFlow AI" },
+      { title: "PKT — VokasiFlow AI" },
       {
         name: "description",
         content: "Manajemen industri mitra, cabang PKT, dan alamat penempatan magang.",
@@ -89,6 +91,8 @@ function AdminCompaniesPage() {
   const importBranchesFn = useServerFn(importCompanyBranchesBulk);
   const seedDefaultFn = useServerFn(seedDefaultCompaniesAndBranches);
   const clearAllFn = useServerFn(clearAllCompanies);
+  const bulkDeleteCompaniesFn = useServerFn(bulkDeleteCompanies);
+  const bulkUpdateCompaniesStatusFn = useServerFn(bulkUpdateCompaniesStatus);
 
   const [search, setSearch] = useState("");
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
@@ -96,6 +100,7 @@ function AdminCompaniesPage() {
     new Set(["demo-comp-kja", "demo-comp-acs"]),
   );
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Company Modal State
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
@@ -145,8 +150,8 @@ function AdminCompaniesPage() {
     onSuccess: () => {
       toast.success(
         editingCompany
-          ? "Data perusahaan berhasil diperbarui."
-          : "Perusahaan baru berhasil ditambahkan.",
+          ? "Data PKT / Perusahaan berhasil diperbarui."
+          : "PKT / Perusahaan baru berhasil ditambahkan.",
       );
       queryClient.invalidateQueries({ queryKey: ["companies-list"] });
       closeCompanyModal();
@@ -161,11 +166,43 @@ function AdminCompaniesPage() {
       return deleteCompanyFn({ data: { id } });
     },
     onSuccess: () => {
-      toast.success("Perusahaan berhasil dihapus.");
+      toast.success("Perusahaan / PKT berhasil dihapus.");
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["companies-list"] });
     },
     onError: (err: Error) => {
       toast.error(err?.message || "Gagal menghapus data perusahaan.");
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return bulkDeleteCompaniesFn({ data: { ids } });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Berhasil menghapus ${variables.length} perusahaan / PKT.`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal menghapus perusahaan terpilih.");
+    },
+  });
+
+  const bulkUpdateStatusMutation = useMutation({
+    mutationFn: async (payload: { ids: string[]; status: "ACTIVE" | "INACTIVE" }) => {
+      return bulkUpdateCompaniesStatusFn({ data: payload });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Berhasil memperbarui status ${variables.ids.length} perusahaan / PKT.`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["companies-list"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Gagal memperbarui status perusahaan terpilih.");
     },
   });
 
@@ -354,13 +391,36 @@ function AdminCompaniesPage() {
   const totalBranchesCount = companies.reduce((acc, c) => acc + (c.branches?.length || 0), 0);
   const totalInternsPlaced = companies.reduce((acc, c) => acc + (c.totalInterns || 0), 0);
 
+  const allFilteredSelected =
+    filteredCompanies.length > 0 && filteredCompanies.every((item) => selectedIds.has(item.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      const next = new Set(selectedIds);
+      filteredCompanies.forEach((item) => next.add(item.id));
+      setSelectedIds(next);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  }
+
   // Export Excel Handler
   async function handleExportExcel() {
     const XLSX = await import("xlsx");
     const exportRows: any[][] = [];
 
     companies.forEach((c) => {
-      exportRows.push(["Nama Perusahaan", c.name]);
+      exportRows.push(["Nama Perusahaan / PKT", c.name]);
       exportRows.push(["Cabang PKT", "Alamat", "Kota/Kab", "Peserta Magang"]);
       (c.branches || []).forEach((b) => {
         exportRows.push([b.branch_name, b.address, b.city || "-", b.internCount || 0]);
@@ -371,14 +431,14 @@ function AdminCompaniesPage() {
     const ws = XLSX.utils.aoa_to_sheet(exportRows);
     ws["!cols"] = [{ wch: 25 }, { wch: 75 }, { wch: 20 }, { wch: 15 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Perusahaan Magang");
-    XLSX.writeFile(wb, `data_perusahaan_cabang_pkt_${Date.now()}.xlsx`);
-    toast.success("Berhasil mengekspor data perusahaan dan cabang PKT.");
+    XLSX.utils.book_append_sheet(wb, ws, "Data PKT");
+    XLSX.writeFile(wb, `data_pkt_cabang_${Date.now()}.xlsx`);
+    toast.success("Berhasil mengekspor data PKT dan cabang.");
   }
 
   return (
     <AppShell
-      title="Data Perusahaan Tempat Magang"
+      title="PKT"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {companies.length === 0 && (
@@ -417,7 +477,7 @@ function AdminCompaniesPage() {
             onClick={openCreateCompanyModal}
             className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
           >
-            <Plus className="h-4 w-4" /> Tambah Perusahaan
+            <Plus className="h-4 w-4" /> Tambah PKT
           </button>
         </div>
       }
@@ -427,7 +487,9 @@ function AdminCompaniesPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">Total Perusahaan</p>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Total Perusahaan / PKT
+              </p>
               <h3 className="text-2xl font-black text-foreground mt-0.5">{companies.length}</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Mitra industri terdaftar</p>
             </div>
@@ -495,7 +557,7 @@ function AdminCompaniesPage() {
               onChange={(e) => setSelectedCompanyFilter(e.target.value)}
               className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
             >
-              <option value="ALL">Semua Perusahaan</option>
+              <option value="ALL">Semua Perusahaan / PKT</option>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.branches?.length || 0} Cabang)
@@ -505,12 +567,101 @@ function AdminCompaniesPage() {
           </div>
         </div>
 
+        {/* Floating Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 shadow-sm text-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground shadow-xs">
+                {selectedIds.size}
+              </span>
+              <span className="font-semibold text-foreground">
+                Perusahaan / PKT Dipilih (Multiple Choice)
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">Ubah Status:</span>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value === "ACTIVE" || e.target.value === "INACTIVE") {
+                      bulkUpdateStatusMutation.mutate({
+                        ids: Array.from(selectedIds),
+                        status: e.target.value as "ACTIVE" | "INACTIVE",
+                      });
+                      e.target.value = "";
+                    }
+                  }}
+                  defaultValue=""
+                  disabled={bulkUpdateStatusMutation.isPending}
+                  className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold outline-none focus:border-ai cursor-pointer shadow-2xs"
+                >
+                  <option value="" disabled>
+                    Pilih Status Baru...
+                  </option>
+                  <option value="ACTIVE">Set Aktif (ACTIVE)</option>
+                  <option value="INACTIVE">Set Non-Aktif (INACTIVE)</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Apakah Anda yakin ingin menghapus ${selectedIds.size} perusahaan/PKT terpilih beserta seluruh cabang dan relasinya? Tindakan ini tidak dapat dibatalkan.`,
+                    )
+                  ) {
+                    bulkDeleteMutation.mutate(Array.from(selectedIds));
+                  }
+                }}
+                disabled={bulkDeleteMutation.isPending}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-rose-600 transition-colors shadow-xs disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {bulkDeleteMutation.isPending ? "Menghapus..." : `Hapus ${selectedIds.size} PKT`}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Select All Row */}
+        {filteredCompanies.length > 0 && (
+          <div className="flex items-center justify-between px-2 py-1 text-xs text-muted-foreground">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none font-semibold hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+              <span>
+                {allFilteredSelected
+                  ? "Batal Pilih Semua"
+                  : "Pilih Semua Perusahaan / PKT (Bulk Up)"}{" "}
+                ({filteredCompanies.length})
+              </span>
+            </label>
+            {selectedIds.size > 0 && (
+              <span className="font-semibold text-primary">{selectedIds.size} dipilih</span>
+            )}
+          </div>
+        )}
+
         {/* Content Section */}
         {isPending ? <Loading count={3} /> : null}
 
         {isError ? (
           <Card className="border-destructive/20 bg-destructive/5 text-destructive p-4">
-            <p className="text-xs font-medium">Gagal memuat data perusahaan tempat magang.</p>
+            <p className="text-xs font-medium">Gagal memuat data PKT / perusahaan tempat magang.</p>
           </Card>
         ) : null}
 
@@ -524,7 +675,9 @@ function AdminCompaniesPage() {
                 return (
                   <Card
                     key={comp.id}
-                    className="overflow-hidden p-0 transition-all border-border shadow-2xs"
+                    className={`overflow-hidden p-0 transition-all border-border shadow-2xs ${
+                      selectedIds.has(comp.id) ? "ring-2 ring-primary/40 bg-primary/[0.02]" : ""
+                    }`}
                   >
                     {/* Company Header (Click to expand/collapse) */}
                     <div
@@ -532,6 +685,16 @@ function AdminCompaniesPage() {
                       className="flex flex-wrap items-center justify-between gap-3 p-4 bg-softgray/40 hover:bg-softgray/70 cursor-pointer transition-colors border-b border-border"
                     >
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(comp.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleSelect(comp.id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer shrink-0"
+                        />
                         <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
                           {isExpanded ? (
                             <ChevronDown className="h-5 w-5" />
@@ -547,7 +710,15 @@ function AdminCompaniesPage() {
                             <span className="rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold px-2 py-0.5">
                               {comp.company_code}
                             </span>
-                            <StatusBadge status={comp.status} />
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                comp.status === "ACTIVE"
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                  : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20"
+                              }`}
+                            >
+                              {comp.status === "ACTIVE" ? "Aktif" : "Non-Aktif"}
+                            </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {comp.industry || "Industri Mitra"} • {branches.length} Cabang PKT •{" "}

@@ -43,7 +43,7 @@ export const adminNav = [
   { to: "/app/admin/internships", label: "Data Peserta Magang", icon: Briefcase },
   { to: "/app/admin/students", label: "Data Siswa", icon: Users },
   { to: "/app/admin/schools", label: "Data Sekolah", icon: School },
-  { to: "/app/admin/companies", label: "Data Perusahaan Tempat Magang", icon: Building2 },
+  { to: "/app/admin/companies", label: "PKT", icon: Building2 },
   { to: "/app/admin/performance", label: "Performa AI", icon: Award },
   { to: "/app/admin/forecasting", label: "Forecasting AI", icon: TrendingUp },
   { to: "/app/admin/users", label: "Manajemen User", icon: UserCog, superAdminOnly: true },
@@ -53,7 +53,7 @@ export const guruNav = [
   { to: "/app/guru/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/guru/students", label: "Data Siswa", icon: Users },
   { to: "/app/guru/internships", label: "Pengajuan Magang", icon: FileText },
-  { to: "/app/guru/companies", label: "Data Perusahaan Magang", icon: Building2 },
+  { to: "/app/guru/companies", label: "PKT", icon: Building2 },
   { to: "/app/guru/monitoring", label: "Monitoring & Log", icon: CalendarCheck },
   { to: "/app/guru/evaluations", label: "Penilaian Magang", icon: Award },
 ];
@@ -80,9 +80,7 @@ export function AppShell({
 
   const isSuperAdmin = me?.role === "SUPER_ADMIN" || Boolean(me?.isSuperAdmin);
   const isAdmin = me?.role === "ADMIN" || isSuperAdmin;
-  const nav = isAdmin
-    ? adminNav.filter((item) => !item.superAdminOnly || isSuperAdmin)
-    : guruNav;
+  const nav = isAdmin ? adminNav.filter((item) => !item.superAdminOnly || isSuperAdmin) : guruNav;
 
   const updateProfile = useServerFn(updateTeacherProfileFn);
 
@@ -334,11 +332,7 @@ export function AppShell({
                   <div className="hidden sm:block text-left">
                     <p className="text-xs font-semibold leading-none">{me?.name || "Pengguna"}</p>
                     <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium">
-                      {isSuperAdmin
-                        ? "Super Admin"
-                        : isAdmin
-                          ? "Admin"
-                          : me?.schoolName || "Guru"}
+                      {isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : me?.schoolName || "Guru"}
                     </p>
                   </div>
                 </button>
@@ -384,11 +378,7 @@ export function AppShell({
                                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
                             )}
                           >
-                            {isSuperAdmin
-                              ? "Super Admin"
-                              : isAdmin
-                                ? "Admin"
-                                : "Guru Pembimbing"}
+                            {isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Guru Pembimbing"}
                           </span>
                         </div>
                       </div>

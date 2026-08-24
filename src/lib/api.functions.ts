@@ -1469,6 +1469,95 @@ export const deleteCompany = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const bulkDeleteCompanies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(input))
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+    const { ids } = data;
+
+    // 1. Delete company quotas & competency demand
+    try {
+      await context.supabase.from("company_quotas").delete().in("company_id", ids);
+      await context.supabase.from("competency_demand").delete().in("company_id", ids);
+    } catch {}
+
+    // 2. Unlink or handle internships
+    try {
+      const { error: nullErr } = await context.supabase
+        .from("internships")
+        .update({ company_id: null as any })
+        .in("company_id", ids);
+
+      if (nullErr) {
+        const { data: linkedInterns } = await context.supabase
+          .from("internships")
+          .select("id")
+          .in("company_id", ids);
+
+        const internIds = (linkedInterns || []).map((i) => i.id);
+        if (internIds.length > 0) {
+          await context.supabase.from("attendance").delete().in("internship_id", internIds);
+          await context.supabase.from("evaluations").delete().in("internship_id", internIds);
+          await context.supabase.from("internship_reports").delete().in("internship_id", internIds);
+          await context.supabase.from("internships").delete().in("id", internIds);
+        }
+      }
+    } catch {}
+
+    // 3. Delete companies
+    const { error } = await context.supabase.from("companies").delete().in("id", ids);
+    if (error) throw new Error(`Gagal menghapus data perusahaan/PKT terpilih: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "BULK_DELETE",
+        entity: "companies",
+        entity_id: null,
+        detail: `Hapus massal ${ids.length} data perusahaan/PKT`,
+      });
+    } catch {}
+
+    return { ok: true, count: ids.length };
+  });
+
+export const bulkUpdateCompaniesStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1),
+        status: z.enum(["ACTIVE", "INACTIVE"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertNotDemo(context);
+    await assertAdminRole(context.supabase, context.userId);
+    const { ids, status } = data;
+
+    const { error } = await context.supabase
+      .from("companies")
+      .update({ status, updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    if (error) throw new Error(`Gagal mengubah status perusahaan/PKT: ${error.message}`);
+
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "BULK_UPDATE_STATUS",
+        entity: "companies",
+        entity_id: null,
+        detail: `Ubah status ${ids.length} data perusahaan/PKT menjadi ${status}`,
+      });
+    } catch {}
+
+    return { ok: true, count: ids.length };
+  });
+
 export const clearAllCompanies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
