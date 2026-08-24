@@ -42,6 +42,9 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// Feature Flag: Ubah ke `true` jika ke depannya ingin mengaktifkan kembali tombol masuk/daftar via Akun Google
+const ENABLE_GOOGLE_AUTH = false;
+
 function AuthPage() {
   const searchParams = Route.useSearch();
   const navigate = useNavigate();
@@ -387,26 +390,28 @@ function AuthPage() {
               Akses dashboard manajemen magang untuk Administrator dan Guru.
             </p>
 
-            {/* Google OAuth Login Button */}
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
-              >
-                <GoogleIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Masuk dengan Google</span>
-              </button>
-              <div className="relative my-4 flex items-center justify-center" aria-hidden="true">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
+            {/* Google OAuth Login Button (Set ENABLE_GOOGLE_AUTH = true to re-enable) */}
+            {ENABLE_GOOGLE_AUTH && (
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
+                >
+                  <GoogleIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Masuk dengan Google</span>
+                </button>
+                <div className="relative my-4 flex items-center justify-center" aria-hidden="true">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border" />
+                  </div>
+                  <span className="relative bg-background px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    atau masuk via email
+                  </span>
                 </div>
-                <span className="relative bg-background px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  atau masuk via email
-                </span>
               </div>
-            </div>
+            )}
 
             {/* Fast Login Buttons */}
             <div className="mt-5 rounded-2xl border border-border bg-softgray/50 p-3.5">
@@ -524,8 +529,9 @@ function AuthPage() {
               Pendaftaran Guru Baru
             </h1>
             <p className="mt-1 text-xs text-muted-foreground">
-              Lengkapi data profil guru di bawah ini, lalu pilih metode pendaftaran (Google /
-              Email).
+              {ENABLE_GOOGLE_AUTH
+                ? "Lengkapi data profil guru di bawah ini, lalu pilih metode pendaftaran (Google / Email)."
+                : "Lengkapi data profil guru di bawah ini untuk mendaftarkan akun."}
             </p>
 
             <form onSubmit={handleRegister} className="mt-5 grid gap-3.5" noValidate>
@@ -646,10 +652,11 @@ function AuthPage() {
 
               {/* Password */}
               <label className="grid gap-1.5 text-xs font-medium">
-                Password (Opsional jika via Google)
+                {ENABLE_GOOGLE_AUTH ? "Password (Opsional jika via Google)" : "Password Akun *"}
                 <div className="relative">
                   <input
                     type="password"
+                    required={!ENABLE_GOOGLE_AUTH}
                     minLength={6}
                     aria-invalid={!!error}
                     aria-describedby={error ? "auth-register-error" : undefined}
@@ -678,22 +685,28 @@ function AuthPage() {
 
               {/* Submit Actions: Google vs Email Password */}
               <div className="mt-2 grid gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleGoogleRegister}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-background px-4 py-3 text-xs font-bold text-foreground shadow-xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
-                >
-                  <GoogleIcon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-                  <span>{loading ? "Memproses..." : "Daftar dengan Akun Google"}</span>
-                </button>
+                {ENABLE_GOOGLE_AUTH && (
+                  <button
+                    type="button"
+                    onClick={handleGoogleRegister}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-background px-4 py-3 text-xs font-bold text-foreground shadow-xs hover:bg-softgray hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
+                  >
+                    <GoogleIcon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+                    <span>{loading ? "Memproses..." : "Daftar dengan Akun Google"}</span>
+                  </button>
+                )}
 
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-ai"
                 >
-                  {loading ? "Mendaftarkan..." : "Daftar dengan Password Email"}
+                  {loading
+                    ? "Mendaftarkan..."
+                    : ENABLE_GOOGLE_AUTH
+                      ? "Daftar dengan Password Email"
+                      : "Daftar Akun Guru"}
                   {!loading && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
