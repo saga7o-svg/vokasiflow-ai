@@ -336,34 +336,126 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
 ]
 `;
 
-  if (ai) {
+  const googleMapsKey =
+    (typeof process !== "undefined" && process.env
+      ? (process.env["VITE_GOOGLE_MAPS_API_KEY"] || process.env["GOOGLE_MAPS_API_KEY"])
+      : "") ||
+    (typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)
+      : "") ||
+    "";
+
+  const originQuery = [
+    params.companyAddress || params.companyName,
+    params.companyCity,
+    "Indonesia",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // 1. Primary Engine: Official Google Maps Routes API (v2) for authoritative real distances
+  if (googleMapsKey && googleMapsKey.length > 10) {
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
+      const routePromises = params.schools.map(async (school, index) => {
+        const destQuery = [
+          school.name,
+          school.address || school.city,
+          school.city,
+          school.province,
+          "Indonesia",
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        try {
+          const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": googleMapsKey,
+              "X-Goog-FieldMask": "routes.distanceMeters,routes.duration,routes.description",
+            },
+            body: JSON.stringify({
+              origin: { address: originQuery },
+              destination: { address: destQuery },
+              travelMode: "DRIVE",
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.routes) && data.routes.length > 0) {
+              const route = data.routes[0];
+              const distMeters = Number(route.distanceMeters) || 0;
+              const durSecs = parseInt(String(route.duration || "0").replace("s", ""), 10) || 0;
+              const distKm = Math.round((distMeters / 1000) * 10) / 10;
+              const durMin = Math.round(durSecs / 60);
+              const routeDesc = route.description ? ` via ${route.description}` : "";
+
+              let match =
+                distKm <= 15
+                  ? 98 - (index % 3)
+                  : distKm <= 50
+                    ? 88 - (index % 4)
+                    : distKm <= 120
+                      ? 78 - (index % 4)
+                      : distKm <= 300
+                        ? 60 - (index % 5)
+                        : Math.max(30, 45 - Math.round(distKm / 100));
+
+              let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" =
+                distKm <= 20
+                  ? "EXCELLENT"
+                  : distKm <= 75
+                    ? "GOOD"
+                    : distKm <= 150
+                      ? "MODERATE"
+                      : "CHALLENGING";
+
+              return {
+                schoolId: school.id,
+                schoolName: school.name,
+                estimatedDistanceKm: distKm,
+                travelTimeMinutes: durMin,
+                matchScore: Math.max(30, Math.min(99, match)),
+                logisticalFeasibility: feasibility,
+                aiReasoning:
+                  distKm <= 20
+                    ? `Lokasi ${school.name} sangat dekat (±${distKm} km, ~${durMin} menit${routeDesc}) dengan cabang ${params.companyName}. Sangat ideal untuk mobilitas harian peserta magang.`
+                    : distKm <= 80
+                      ? `Lokasi ${school.name} (${school.city || "Jawa Barat"}) berjarak ±${distKm} km (~${durMin} menit${routeDesc}) dari cabang ${params.companyName}. Terjangkau via jalur transportasi harian.`
+                      : `Lokasi sekolah di ${school.city || "Luar Kota"} berjarak cukup jauh (±${distKm} km, ~${durMin} menit${routeDesc}) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
+                availableCompetencies: [
+                  params.requiredCompetency || "CPC",
+                  "CIT",
+                  "CIT/RPL",
+                  "RPL",
+                  "FLM",
+                ],
+                recommendedInternSlots: distKm <= 75 ? 8 - (index % 4) : 4,
+              };
+            }
+          }
+        } catch (routeErr) {
+          console.warn("Google Routes API call failed for", school.name, routeErr);
+        }
+        return null;
       });
 
-      if (response.text) {
-        const cleaned = response.text
-          .replace(/```json/g, "")
-          .replace(/```/g, "")
-          .trim();
-        const parsed = JSON.parse(cleaned);
-        const validated = NearestSchoolSchema.safeParse(parsed);
-        if (validated.success && validated.data.length > 0) {
-          return validated.data;
-        }
-        console.warn("Nearest schools validation failed, using fallback heuristic.");
+      const routeResults = await Promise.all(routePromises);
+      const successfulRoutes = routeResults.filter((r): r is NonNullable<typeof r> => r !== null);
+
+      if (successfulRoutes.length > 0) {
+        return successfulRoutes.sort(
+          (a, b) => a.estimatedDistanceKm - b.estimatedDistanceKm || b.matchScore - a.matchScore,
+        );
       }
     } catch (err) {
-      console.warn("Gemini API call failed for nearest schools, using heuristic fallback:", err);
+      console.warn("Google Maps Routes API batch processing error, using fallback:", err);
     }
   }
 
-  // Comprehensive Indonesian City & Regency Coordinates Reference
+  // 2. Comprehensive Geocoding Heuristic Fallback
   const CITY_COORDS: Record<string, [number, number]> = {
     // Jawa Barat & Banten & DKI
     subang: [-6.5716, 107.7587],
@@ -387,14 +479,7 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     tangerang: [-6.1783, 106.6319],
     serang: [-6.12, 106.1503],
     cilegon: [-6.0174, 106.0538],
-    lebak: [-6.5388, 106.2486],
-    pandeglang: [-6.3088, 106.1065],
     jakarta: [-6.2088, 106.8456],
-    "jakarta selatan": [-6.2615, 106.8106],
-    "jakarta pusat": [-6.1805, 106.8284],
-    "jakarta barat": [-6.1683, 106.7588],
-    "jakarta utara": [-6.1384, 106.864],
-    "jakarta timur": [-6.225, 106.9004],
 
     // Jawa Timur
     sidoarjo: [-7.4478, 112.7183],
@@ -404,93 +489,38 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     mojokerto: [-7.4726, 112.4381],
     pasuruan: [-7.6453, 112.9075],
     probolinggo: [-7.7543, 113.2159],
-    lumajang: [-8.1331, 113.2246],
     jember: [-8.1724, 113.7007],
     banyuwangi: [-8.2192, 114.3691],
-    bondowoso: [-7.9135, 113.8214],
-    situbondo: [-7.7063, 114.0048],
     madiun: [-7.6298, 111.5239],
-    magetan: [-7.6536, 111.3283],
-    ngawi: [-7.4039, 111.4456],
-    ponorogo: [-7.8712, 111.4623],
-    pacitan: [-8.1966, 111.1072],
     kediri: [-7.8228, 112.0119],
     blitar: [-8.0983, 112.1681],
-    tulungagung: [-8.0664, 111.9015],
-    trenggalek: [-8.05, 111.7167],
-    nganjuk: [-7.6044, 111.9044],
     jombang: [-7.5468, 112.2331],
-    tuban: [-6.8976, 112.0649],
-    lamongan: [-7.1205, 112.4158],
-    bojonegoro: [-7.1502, 111.8817],
-    bangkalan: [-7.0455, 112.7351],
-    sampang: [-7.1873, 113.2394],
-    pamekasan: [-7.1578, 113.4735],
-    sumenep: [-7.0167, 113.8667],
 
     // Jawa Tengah & DIY
     semarang: [-6.9667, 110.4167],
     yogyakarta: [-7.7956, 110.3695],
-    jogja: [-7.7956, 110.3695],
     solo: [-7.5755, 110.8243],
     surakarta: [-7.5755, 110.8243],
-    salatiga: [-7.3305, 110.5084],
-    magelang: [-7.4706, 110.2178],
-    pekalongan: [-6.8886, 109.6753],
-    tegal: [-6.8694, 109.1402],
-    kudus: [-6.8048, 110.8405],
-    pati: [-6.756, 111.0379],
-    jepara: [-6.5924, 110.6784],
-    demak: [-6.8944, 110.6386],
-    kendal: [-6.9256, 110.2036],
-    batang: [-6.9128, 109.7347],
-    pemalang: [-6.8911, 109.3808],
-    brebes: [-6.8703, 109.0433],
-    purwokerto: [-7.4244, 109.2302],
-    banyumas: [-7.5147, 109.2941],
-    cilacap: [-7.7279, 109.0059],
-    purbalingga: [-7.3892, 109.3639],
-    kebumen: [-7.6689, 109.6525],
-    purworejo: [-7.7144, 110.0078],
-    klaten: [-7.7031, 110.6033],
-    sukoharjo: [-7.6833, 110.8333],
-    wonogiri: [-7.8167, 110.9333],
-    karanganyar: [-7.5967, 110.9514],
-    sragen: [-7.4286, 111.0225],
 
-    // Bali & Nusa Tenggara
-    denpasar: [-8.6705, 115.2126],
-    bali: [-8.4095, 115.1889],
-    badung: [-8.5819, 115.1771],
-    gianyar: [-8.5444, 115.3269],
-    tabanan: [-8.5393, 115.1248],
-    singaraja: [-8.112, 115.0882],
-    buleleng: [-8.112, 115.0882],
-    mataram: [-8.5833, 116.1167],
-    lombok: [-8.5833, 116.1167],
-    kupang: [-10.1772, 123.607],
-
-    // Sumatera
-    medan: [3.5952, 98.6722],
+    // Luar Jawa (Kalimantan, Sulawesi, Sumatera, Bali)
+    batumandi: [-2.3557, 115.3942],
+    balangan: [-2.3557, 115.3942],
+    belitang: [-4.0531, 104.5822],
+    gorontalo: [0.5401, 123.0601],
+    limboto: [0.6272, 122.9818],
+    pulubala: [0.6394, 122.8464],
+    pasaman: [0.1558, 100.0631],
     perdagangan: [3.1755, 99.3244],
     simalungun: [2.9667, 99.0667],
+    medan: [3.5952, 98.6722],
     palembang: [-2.9761, 104.7754],
     padang: [-0.9471, 100.4172],
-    pekanbaru: [0.5071, 101.4478],
-    lampung: [-5.45, 105.2667],
-    "bandar lampung": [-5.45, 105.2667],
-    jambi: [-1.6101, 103.6131],
-    bengkulu: [-3.7928, 102.2608],
-    aceh: [5.5483, 95.3238],
-
-    // Kalimantan & Sulawesi
+    denpasar: [-8.6705, 115.2126],
+    bali: [-8.4095, 115.1889],
+    makassar: [-5.1477, 119.4327],
     balikpapan: [-1.2379, 116.8289],
     samarinda: [-0.5022, 117.1536],
     banjarmasin: [-3.3194, 114.5908],
-    pontianak: [-0.0263, 109.3425],
-    makassar: [-5.1477, 119.4327],
-    manado: [1.4748, 124.8428],
-    palu: [-0.9003, 119.878],
   };
 
   const getCityCoord = (...texts: (string | null | undefined)[]): [number, number] => {
@@ -498,18 +528,15 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     for (const [key, coords] of Object.entries(CITY_COORDS)) {
       if (combined.includes(key)) return coords;
     }
-    return [-6.9175, 107.6191]; // Default Bandung/Java anchor
+    // Neutral fallback coordinates for unmatched places
+    return [0.0, 117.0];
   };
 
   const cCoords = getCityCoord(params.companyCity, params.companyAddress, params.companyName);
 
-  // Fallback heuristic jika tanpa API key
   const scored = params.schools.map((school, index) => {
-    const sCity = (school.city || "").toLowerCase().trim();
-    const cCity = (params.companyCity || "").toLowerCase().trim();
-    const sCoords = getCityCoord(school.city, school.name, school.address);
+    const sCoords = getCityCoord(school.city, school.name, school.address, school.province);
 
-    // Haversine formula for exact distance
     const R = 6371; // Earth radius in km
     const dLat = ((sCoords[0] - cCoords[0]) * Math.PI) / 180;
     const dLon = ((sCoords[1] - cCoords[1]) * Math.PI) / 180;
@@ -522,34 +549,27 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     let rawDist = R * c;
 
-    // Road factor (driving road distance is ~1.2x to 1.3x straight line)
-    let estDist = Math.max(2.5, Math.round(rawDist * 1.25 * 10) / 10);
-    if (sCity && cCity && (sCity.includes(cCity) || cCity.includes(sCity))) {
-      estDist = 2.5 + (index % 4) * 1.8;
-    }
-
+    let estDist = Math.max(3.5, Math.round(rawDist * 1.25 * 10) / 10);
     const estMinutes = Math.round(estDist * 2.2);
     let match =
-      estDist <= 10
-        ? 98 - index * 2
-        : estDist <= 35
-          ? 90 - index * 3
-          : estDist <= 80
-            ? 82 - index * 4
-            : estDist <= 150
-              ? 70 - index * 5
-              : Math.max(30, 55 - Math.round(estDist / 25));
+      estDist <= 20
+        ? 98 - (index % 3)
+        : estDist <= 60
+          ? 88 - (index % 4)
+          : estDist <= 120
+            ? 78 - (index % 4)
+            : estDist <= 300
+              ? 60 - (index % 5)
+              : Math.max(30, 45 - Math.round(estDist / 100));
 
     let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" =
-      estDist <= 15
+      estDist <= 20
         ? "EXCELLENT"
-        : estDist <= 65
+        : estDist <= 75
           ? "GOOD"
-          : estDist <= 120
+          : estDist <= 150
             ? "MODERATE"
             : "CHALLENGING";
-
-    const isSameCity = estDist <= 20;
 
     return {
       schoolId: school.id,
@@ -558,11 +578,12 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
       travelTimeMinutes: estMinutes,
       matchScore: Math.max(30, Math.min(99, match)),
       logisticalFeasibility: feasibility,
-      aiReasoning: isSameCity
-        ? `Lokasi ${school.name} berada sangat dekat (${estDist} km) dengan cabang ${params.companyName}, sangat ideal untuk mobilitas harian peserta magang.`
-        : estDist <= 75
-          ? `Lokasi ${school.name} (${school.city || "Jawa Barat"}) berjarak ±${estDist} km dari cabang ${params.companyName}. Sangat terjangkau via jalur transportasi harian/komuter.`
-          : `Lokasi sekolah di ${school.city || "Luar Kota"} berjarak cukup jauh (±${estDist} km) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
+      aiReasoning:
+        estDist <= 20
+          ? `Lokasi ${school.name} berada sangat dekat (${estDist} km) dengan cabang ${params.companyName}. Sangat ideal untuk mobilitas harian peserta magang.`
+          : estDist <= 75
+            ? `Lokasi ${school.name} (${school.city || "Jawa Barat"}) berjarak ±${estDist} km dari cabang ${params.companyName}. Terjangkau via jalur transportasi harian.`
+            : `Lokasi sekolah di ${school.city || "Luar Daerah"} berjarak cukup jauh (±${estDist} km) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
       availableCompetencies: [
         params.requiredCompetency || "CPC",
         "CIT",
@@ -570,11 +591,13 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
         "RPL",
         "FLM",
       ],
-      recommendedInternSlots: 8 - (index % 5),
+      recommendedInternSlots: estDist <= 75 ? 8 - (index % 4) : 4,
     };
   });
 
-  return scored.sort((a, b) => a.estimatedDistanceKm - b.estimatedDistanceKm || b.matchScore - a.matchScore);
+  return scored.sort(
+    (a, b) => a.estimatedDistanceKm - b.estimatedDistanceKm || b.matchScore - a.matchScore,
+  );
 }
 
 /**
