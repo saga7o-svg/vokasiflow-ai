@@ -98,6 +98,26 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   solo: [-7.5755, 110.8243],
   surakarta: [-7.5755, 110.8243],
 
+  // North Sumatra (Medan, Simalungun, Perdagangan, Tebing Tinggi)
+  "al washliyah 2 perdagangan": [3.1615, 99.3329],
+  "al washliyah": [3.1615, 99.3329],
+  perdagangan: [3.1615, 99.3329],
+  simalungun: [2.9667, 99.0667],
+  "pematang siantar": [2.9608, 99.0682],
+  pematangsiantar: [2.9608, 99.0682],
+  "tebing tinggi": [3.3285, 99.1625],
+  tebingtinggi: [3.3285, 99.1625],
+  "batu bara": [3.1714, 99.5397],
+  batubara: [3.1714, 99.5397],
+  "lima puluh": [3.1714, 99.5397],
+  asahan: [2.9854, 99.6271],
+  kisaran: [2.9854, 99.6271],
+  medan: [3.5952, 98.6722],
+  "abacus cash solution medan": [3.5831, 98.7044],
+  "acs - medan": [3.5831, 98.7044],
+  "deli serdang": [3.4217, 98.6722],
+  binjai: [3.6006, 98.4854],
+
   // Other Regions
   "blk don bosco budi daya": [-9.4353, 119.2621],
   "don bosco budi daya": [-9.4353, 119.2621],
@@ -122,7 +142,6 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   limboto: [0.6272, 122.9818],
   pulubala: [0.6394, 122.8464],
   pasaman: [0.1558, 100.0631],
-  medan: [3.5952, 98.6722],
   palembang: [-2.9761, 104.7754],
   padang: [-0.9471, 100.4172],
   pekanbaru: [0.5071, 101.4478],
@@ -249,6 +268,9 @@ export function GoogleMapsView({
     }
     if (t.includes("al mufti") && !t.includes("subang")) {
       return `${destinationName}, Kab. Subang, Jawa Barat, Indonesia`;
+    }
+    if ((t.includes("al washliyah") || t.includes("perdagangan") || t.includes("simalungun")) && !t.includes("sumatera utara")) {
+      return `${destinationName}, Perdagangan, Kab. Simalungun, Sumatera Utara, Indonesia`;
     }
     return raw;
   })();

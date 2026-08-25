@@ -3914,6 +3914,8 @@ export const getGoogleRoutePolylineFn = createServerFn({ method: "POST" })
       normDest = `${data.destination}, Tambun Selatan, Kab. Bekasi, Jawa Barat, Indonesia`;
     } else if (dLow.includes("al mufti") && !dLow.includes("subang")) {
       normDest = `${data.destination}, Kab. Subang, Jawa Barat, Indonesia`;
+    } else if ((dLow.includes("al washliyah") || dLow.includes("perdagangan") || dLow.includes("simalungun")) && !dLow.includes("sumatera utara")) {
+      normDest = `${data.destination}, Perdagangan, Kab. Simalungun, Sumatera Utara, Indonesia`;
     }
 
     try {
