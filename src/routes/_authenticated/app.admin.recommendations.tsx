@@ -22,6 +22,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   MapPinned,
+  ExternalLink,
 } from "lucide-react";
 import { AppShell, useMe, Card } from "@/components/app/shell";
 import {
@@ -30,6 +31,7 @@ import {
   getSpecialSkillsStudentMatchingFn,
 } from "@/lib/api.functions";
 import type { NearestSchoolRecommendationResult, SpecialSkillMatchCandidate } from "@/lib/gemini";
+import { GoogleMapsView } from "@/components/app/google-maps-view";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/admin/recommendations")({
@@ -67,6 +69,8 @@ function SmartMatchingPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [selectedCompetency, setSelectedCompetency] = useState<string>("");
+  const [selectedSchoolForMap, setSelectedSchoolForMap] =
+    useState<NearestSchoolRecommendationResult | null>(null);
   const [nearestResult, setNearestResult] = useState<{
     company: { name: string; city: string | null; address: string | null };
     branch?: { id?: string; name?: string; city?: string; address?: string };
@@ -104,6 +108,10 @@ function SmartMatchingPage() {
     },
     onSuccess: (data) => {
       setNearestResult(data);
+      const firstSchool = data.recommendations?.[0];
+      if (firstSchool) {
+        setSelectedSchoolForMap(firstSchool);
+      }
     },
   });
 
@@ -296,10 +304,22 @@ function SmartMatchingPage() {
               </div>
             </div>
 
-            {/* Results Grid */}
+            {/* Google Maps Interactive View & Results Grid */}
             {nearestResult && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="space-y-6" id="map-section">
+                {/* 1. Google Maps View Component */}
+                <GoogleMapsView
+                  originName={`${nearestResult.company.name} (${nearestResult.branch?.name || "Pusat"})`}
+                  originAddress={nearestResult.branch?.address || nearestResult.company.address || undefined}
+                  originCity={nearestResult.branch?.city || nearestResult.company.city || undefined}
+                  destinationName={selectedSchoolForMap?.schoolName}
+                  destinationAddress={selectedSchoolForMap?.schoolName}
+                  distanceKm={selectedSchoolForMap?.estimatedDistanceKm}
+                  travelTimeMinutes={selectedSchoolForMap?.travelTimeMinutes}
+                />
+
+                {/* 2. Results Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2">
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                     <Navigation className="h-5 w-5 text-emerald-600" />
                     Hasil Rekomendasi Sekolah Terdekat untuk {nearestResult.company.name}{" "}
@@ -310,82 +330,141 @@ function SmartMatchingPage() {
                   </span>
                 </div>
 
+                {/* 3. Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {nearestResult.recommendations.map((sch, i) => (
-                    <div
-                      key={sch.schoolId || i}
-                      className="rounded-2xl border border-border bg-background p-5 shadow-sm space-y-4 hover:border-primary/50 transition-all"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary font-bold text-base">
-                            {i + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-base text-foreground">
-                              {sch.schoolName}
-                            </h4>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                              <MapPin className="h-3.5 w-3.5 text-primary" />
-                              <span>± {sch.estimatedDistanceKm} km dari lokasi cabang</span>
-                              <span>•</span>
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>~{sch.travelTimeMinutes} menit</span>
+                  {nearestResult.recommendations.map((sch, i) => {
+                    const isSelectedOnMap =
+                      selectedSchoolForMap?.schoolId === sch.schoolId ||
+                      (!selectedSchoolForMap && i === 0);
+
+                    const dirUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                      `${nearestResult.company.name} ${nearestResult.branch?.address || ""} ${nearestResult.branch?.city || ""}`,
+                    )}&destination=${encodeURIComponent(sch.schoolName)}&travelmode=driving`;
+
+                    return (
+                      <div
+                        key={sch.schoolId || i}
+                        className={cn(
+                          "rounded-2xl border bg-background p-5 shadow-sm space-y-4 transition-all",
+                          isSelectedOnMap
+                            ? "border-primary ring-2 ring-primary/20 shadow-md"
+                            : "border-border hover:border-primary/40",
+                        )}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                "grid h-10 w-10 shrink-0 place-items-center rounded-xl font-bold text-base transition-colors",
+                                isSelectedOnMap
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-primary/10 text-primary",
+                              )}
+                            >
+                              {i + 1}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-base text-foreground flex items-center gap-2">
+                                <span>{sch.schoolName}</span>
+                                {isSelectedOnMap && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                    Aktif di Peta
+                                  </span>
+                                )}
+                              </h4>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                <MapPin className="h-3.5 w-3.5 text-primary" />
+                                <span>± {sch.estimatedDistanceKm} km dari lokasi cabang</span>
+                                <span>•</span>
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>~{sch.travelTimeMinutes} menit</span>
+                              </div>
                             </div>
                           </div>
+
+                          <div className="text-right">
+                            <span className="text-xs text-muted-foreground block font-medium">
+                              Match Score
+                            </span>
+                            <span className="text-lg font-black text-primary">
+                              {sch.matchScore}%
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="text-right">
-                          <span className="text-xs text-muted-foreground block font-medium">
-                            Match Score
-                          </span>
-                          <span className="text-lg font-black text-primary">
-                            {sch.matchScore}%
-                          </span>
+                        {/* AI Reasoning */}
+                        <div className="bg-softgray/60 p-3.5 rounded-xl text-xs space-y-1.5 border border-border/50">
+                          <div className="flex items-center gap-1.5 font-bold text-foreground">
+                            <Sparkles className="h-3.5 w-3.5 text-primary" />
+                            <span>Analisis Kesesuaian Lokasi AI:</span>
+                          </div>
+                          <p className="text-muted-foreground leading-relaxed">
+                            {sch.aiReasoning}
+                          </p>
                         </div>
-                      </div>
 
-                      {/* AI Reasoning */}
-                      <div className="bg-softgray/60 p-3.5 rounded-xl text-xs space-y-1.5 border border-border/50">
-                        <div className="flex items-center gap-1.5 font-bold text-foreground">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                          <span>Analisis Kesesuaian Lokasi AI:</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed">
-                          {sch.aiReasoning}
-                        </p>
-                      </div>
-
-                      {/* Footer Info */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Kelayakan Logistik:</span>
-                          <span
+                        {/* Action Buttons for Google Maps */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSchoolForMap(sch);
+                              document.getElementById("map-section")?.scrollIntoView({ behavior: "smooth" });
+                            }}
                             className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                              sch.logisticalFeasibility === "EXCELLENT"
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                : sch.logisticalFeasibility === "GOOD"
-                                  ? "bg-blue-100 text-blue-800 border-blue-300"
-                                  : "bg-amber-100 text-amber-800 border-amber-300",
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                              isSelectedOnMap
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-card hover:bg-muted text-foreground border-border",
                             )}
                           >
-                            {sch.logisticalFeasibility}
-                          </span>
+                            <Compass className="h-3.5 w-3.5" />
+                            <span>{isSelectedOnMap ? "Sedang Ditampilkan di Peta" : "Tampilkan Rute di Peta"}</span>
+                          </button>
+
+                          <a
+                            href={dirUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-muted hover:bg-muted/80 text-foreground border border-border transition-all"
+                            title="Buka navigasi Google Maps di tab baru"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                            <span className="hidden sm:inline">Google Maps</span>
+                          </a>
                         </div>
 
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Users className="h-3.5 w-3.5" />
-                          <span>
-                            Saran Kuota:{" "}
-                            <strong className="text-foreground">
-                              {sch.recommendedInternSlots} Siswa
-                            </strong>
-                          </span>
+                        {/* Footer Info */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">Kelayakan Logistik:</span>
+                            <span
+                              className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                sch.logisticalFeasibility === "EXCELLENT"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                                  : sch.logisticalFeasibility === "GOOD"
+                                    ? "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+                                    : "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+                              )}
+                            >
+                              {sch.logisticalFeasibility}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Users className="h-3.5 w-3.5" />
+                            <span>
+                              Saran Kuota:{" "}
+                              <strong className="text-foreground">
+                                {sch.recommendedInternSlots} Siswa
+                              </strong>
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
