@@ -3721,29 +3721,69 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
 
     const branchName = targetBranch?.branch_name || data.branchName || `${company.name} - Pusat`;
     
-    // Intelligent dynamic city detection from branch metadata or address text
-    const detectedCity = (() => {
-      const combined = `${company.name} ${branchName} ${targetBranch?.address || ""} ${cleanAddress || company.address || ""}`.toLowerCase();
-      if (combined.includes("bandung")) return "Kota Bandung";
-      if (combined.includes("subang")) return "Kab. Subang";
-      if (combined.includes("surabaya")) return "Kota Surabaya";
-      if (combined.includes("sidoarjo")) return "Kab. Sidoarjo";
-      if (combined.includes("gresik")) return "Kab. Gresik";
-      if (combined.includes("malang")) return "Kota Malang";
-      if (combined.includes("pasuruan")) return "Kab. Pasuruan";
-      if (combined.includes("mojokerto")) return "Kab. Mojokerto";
-      if (combined.includes("denpasar") || combined.includes("bali")) return "Kota Denpasar";
-      if (combined.includes("jakarta")) return "DKI Jakarta";
-      if (combined.includes("semarang")) return "Kota Semarang";
-      if (combined.includes("yogyakarta") || combined.includes("jogja")) return "Kota Yogyakarta";
-      if (combined.includes("solo") || combined.includes("surakarta")) return "Kota Surakarta";
-      if (combined.includes("medan")) return "Kota Medan";
-      if (combined.includes("makassar")) return "Kota Makassar";
+    // 1. Detect city specifically from Branch Name & Branch Address first
+    const detectCityFromText = (text: string): string => {
+      const t = text.toLowerCase();
+      if (t.includes("kupang") || t.includes("ntt")) return "Kota Kupang";
+      if (t.includes("mataram") || t.includes("lombok") || t.includes("ntb")) return "Kota Mataram";
+      if (t.includes("denpasar") || t.includes("bali") || t.includes("badung")) return "Kota Denpasar";
+      if (t.includes("makassar") || t.includes("sulsel")) return "Kota Makassar";
+      if (t.includes("manado") || t.includes("sulut")) return "Kota Manado";
+      if (t.includes("gorontalo")) return "Kota Gorontalo";
+      if (t.includes("palu") || t.includes("sulteng")) return "Kota Palu";
+      if (t.includes("kendari") || t.includes("sultra")) return "Kota Kendari";
+      if (t.includes("ambon") || t.includes("maluku")) return "Kota Ambon";
+      if (t.includes("jayapura") || t.includes("papua")) return "Kota Jayapura";
+      if (t.includes("balikpapan")) return "Kota Balikpapan";
+      if (t.includes("samarinda") || t.includes("kaltim")) return "Kota Samarinda";
+      if (t.includes("banjarmasin") || t.includes("kalsel")) return "Kota Banjarmasin";
+      if (t.includes("pontianak") || t.includes("kalbar")) return "Kota Pontianak";
+      if (t.includes("palangkaraya") || t.includes("kalteng")) return "Kota Palangka Raya";
+      if (t.includes("medan") || t.includes("sumut")) return "Kota Medan";
+      if (t.includes("palembang") || t.includes("sumsel")) return "Kota Palembang";
+      if (t.includes("padang") || t.includes("sumbar")) return "Kota Padang";
+      if (t.includes("pekanbaru") || t.includes("riau")) return "Kota Pekanbaru";
+      if (t.includes("bandar lampung") || t.includes("lampung")) return "Kota Bandar Lampung";
+      if (t.includes("jambi")) return "Kota Jambi";
+      if (t.includes("bengkulu")) return "Kota Bengkulu";
+      if (t.includes("batam") || t.includes("kepri")) return "Kota Batam";
+      if (t.includes("bandung")) return "Kota Bandung";
+      if (t.includes("subang")) return "Kab. Subang";
+      if (t.includes("purwakarta")) return "Kab. Purwakarta";
+      if (t.includes("karawang")) return "Kab. Karawang";
+      if (t.includes("bekasi")) return "Kota Bekasi";
+      if (t.includes("bogor")) return "Kota Bogor";
+      if (t.includes("depok")) return "Kota Depok";
+      if (t.includes("tangerang")) return "Kota Tangerang";
+      if (t.includes("surabaya")) return "Kota Surabaya";
+      if (t.includes("sidoarjo")) return "Kab. Sidoarjo";
+      if (t.includes("gresik")) return "Kab. Gresik";
+      if (t.includes("malang")) return "Kota Malang";
+      if (t.includes("pasuruan")) return "Kab. Pasuruan";
+      if (t.includes("mojokerto")) return "Kab. Mojokerto";
+      if (t.includes("jombang")) return "Kab. Jombang";
+      if (t.includes("kediri")) return "Kota Kediri";
+      if (t.includes("blitar")) return "Kota Blitar";
+      if (t.includes("jember")) return "Kab. Jember";
+      if (t.includes("banyuwangi")) return "Kab. Banyuwangi";
+      if (t.includes("semarang")) return "Kota Semarang";
+      if (t.includes("yogyakarta") || t.includes("jogja")) return "Kota Yogyakarta";
+      if (t.includes("solo") || t.includes("surakarta")) return "Kota Surakarta";
+      if (t.includes("jakarta") || t.includes("ciracas") || t.includes("pasar rebo")) return "DKI Jakarta";
       return "";
-    })();
+    };
 
-    const branchCity = targetBranch?.city || data.branchCity || company.city || detectedCity || "Indonesia";
-    const branchAddress = targetBranch?.address || data.branchAddress || cleanAddress || company.address || branchCity;
+    const branchText = `${branchName} ${targetBranch?.address || ""} ${data.branchCity || ""} ${data.branchAddress || ""}`;
+    const detectedBranchCity = targetBranch?.city || data.branchCity || detectCityFromText(branchText);
+    
+    // Final branch city: prioritize detected branch city before falling back to company HQ city
+    const branchCity = detectedBranchCity || company.city || detectCityFromText(company.address || company.name) || "Indonesia";
+    
+    // Final branch address: if branch has specific address use it, otherwise use branch city
+    const branchAddress =
+      targetBranch?.address ||
+      data.branchAddress ||
+      (detectedBranchCity ? `${branchName}, ${detectedBranchCity}` : cleanAddress || company.address || branchCity);
 
     const recommendations = await recommendNearestSchoolsWithGemini({
       companyName: `${company.name} (${branchName})`,

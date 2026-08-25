@@ -554,7 +554,11 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     solo: [-7.5755, 110.8243],
     surakarta: [-7.5755, 110.8243],
 
-    // Luar Jawa (Kalimantan, Sulawesi, Sumatera, Bali)
+    // Luar Jawa (Kalimantan, Sulawesi, Sumatera, Bali, NTT/NTB, Papua)
+    kupang: [-10.1772, 123.607],
+    ntt: [-10.1772, 123.607],
+    mataram: [-8.5833, 116.1167],
+    lombok: [-8.5833, 116.1167],
     batumandi: [-2.3557, 115.3942],
     balangan: [-2.3557, 115.3942],
     belitang: [-4.0531, 104.5822],
@@ -567,12 +571,24 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     medan: [3.5952, 98.6722],
     palembang: [-2.9761, 104.7754],
     padang: [-0.9471, 100.4172],
+    pekanbaru: [0.5071, 101.4478],
+    lampung: [-5.45, 105.2667],
+    jambi: [-1.6101, 103.6131],
+    bengkulu: [-3.7928, 102.2608],
+    aceh: [5.5483, 95.3238],
     denpasar: [-8.6705, 115.2126],
     bali: [-8.4095, 115.1889],
     makassar: [-5.1477, 119.4327],
+    manado: [1.4748, 124.8428],
+    palu: [-0.9003, 119.878],
+    kendari: [-3.9985, 122.5126],
+    ambon: [-3.6547, 128.1906],
+    jayapura: [-2.5916, 140.669],
     balikpapan: [-1.2379, 116.8289],
     samarinda: [-0.5022, 117.1536],
     banjarmasin: [-3.3194, 114.5908],
+    pontianak: [-0.0263, 109.3425],
+    palangkaraya: [-2.2161, 113.9139],
   };
 
   const getCityCoord = (...texts: (string | null | undefined)[]): [number, number] => {
