@@ -378,7 +378,8 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
             headers: {
               "Content-Type": "application/json",
               "X-Goog-Api-Key": googleMapsKey,
-              "X-Goog-FieldMask": "routes.distanceMeters,routes.duration,routes.description",
+              "X-Goog-FieldMask":
+                "routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline",
             },
             body: JSON.stringify({
               origin: { address: originQuery },
@@ -555,6 +556,10 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     surakarta: [-7.5755, 110.8243],
 
     // Luar Jawa (Kalimantan, Sulawesi, Sumatera, Bali, NTT/NTB, Papua)
+    "blk don bosco budi daya": [-9.4353, 119.2621],
+    "don bosco budi daya": [-9.4353, 119.2621],
+    "budi daya": [-9.4353, 119.2621],
+    "rangga roko": [-9.4353, 119.2621],
     "blk don bosco": [-9.4353, 119.2621],
     "don bosco": [-9.4353, 119.2621],
     "sumba barat daya": [-9.4353, 119.2621],

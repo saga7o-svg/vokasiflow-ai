@@ -99,6 +99,10 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   surakarta: [-7.5755, 110.8243],
 
   // Other Regions
+  "blk don bosco budi daya": [-9.4353, 119.2621],
+  "don bosco budi daya": [-9.4353, 119.2621],
+  "budi daya": [-9.4353, 119.2621],
+  "rangga roko": [-9.4353, 119.2621],
   "blk don bosco": [-9.4353, 119.2621],
   "don bosco": [-9.4353, 119.2621],
   "sumba barat daya": [-9.4353, 119.2621],
