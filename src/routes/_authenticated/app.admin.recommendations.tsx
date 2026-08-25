@@ -312,10 +312,10 @@ function SmartMatchingPage() {
                   originName={`${nearestResult.company.name} (${nearestResult.branch?.name || "Pusat"})`}
                   originAddress={nearestResult.branch?.address || nearestResult.company.address || undefined}
                   originCity={nearestResult.branch?.city || nearestResult.company.city || undefined}
-                  destinationName={selectedSchoolForMap?.schoolName}
-                  destinationAddress={selectedSchoolForMap?.schoolName}
-                  distanceKm={selectedSchoolForMap?.estimatedDistanceKm}
-                  travelTimeMinutes={selectedSchoolForMap?.travelTimeMinutes}
+                  destinationName={selectedSchoolForMap?.schoolName || nearestResult.recommendations[0]?.schoolName}
+                  destinationAddress={selectedSchoolForMap?.schoolName || nearestResult.recommendations[0]?.schoolName}
+                  distanceKm={selectedSchoolForMap?.estimatedDistanceKm ?? nearestResult.recommendations[0]?.estimatedDistanceKm}
+                  travelTimeMinutes={selectedSchoolForMap?.travelTimeMinutes ?? nearestResult.recommendations[0]?.travelTimeMinutes}
                 />
 
                 {/* 2. Results Header */}

@@ -29,93 +29,39 @@ interface GoogleMapsViewProps {
   className?: string | undefined;
 }
 
-// Known Anchor Coordinates for Indonesian cities/regions
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  sidoarjo: [-7.4478, 112.7183],
-  surabaya: [-7.2575, 112.7521],
-  gresik: [-7.1566, 112.6555],
-  malang: [-7.9666, 112.6326],
-  mojokerto: [-7.4726, 112.4381],
-  pasuruan: [-7.6453, 112.9075],
-  probolinggo: [-7.7543, 113.2159],
-  jember: [-8.1724, 113.7007],
-  banyuwangi: [-8.2192, 114.3691],
-  madiun: [-7.6298, 111.5239],
-  kediri: [-7.8228, 112.0119],
-  blitar: [-8.0983, 112.1681],
-  denpasar: [-8.6705, 115.2126],
-  bali: [-8.4095, 115.1889],
-  bandung: [-6.9175, 107.6191],
-  subang: [-6.5716, 107.7587],
-  purwakarta: [-6.5561, 107.4431],
-  cimahi: [-6.8723, 107.542],
-  jakarta: [-6.2088, 106.8456],
-  "jakarta selatan": [-6.2615, 106.8106],
-  "jakarta pusat": [-6.1805, 106.8284],
-  "jakarta barat": [-6.1683, 106.7588],
-  "jakarta utara": [-6.1384, 106.864],
-  "jakarta timur": [-6.225, 106.9004],
-  bogor: [-6.5971, 106.806],
-  depok: [-6.4025, 106.7942],
-  tangerang: [-6.1783, 106.6319],
-  bekasi: [-6.2383, 106.9756],
-  semarang: [-6.9667, 110.4167],
-  yogyakarta: [-7.7956, 110.3695],
-  jogja: [-7.7956, 110.3695],
-  solo: [-7.5755, 110.8243],
-  surakarta: [-7.5755, 110.8243],
-  medan: [3.5952, 98.6722],
-  makassar: [-5.1477, 119.4327],
-  palembang: [-2.9761, 104.7754],
-  lampung: [-5.45, 105.2667],
-  balikpapan: [-1.2379, 116.8289],
-  samarinda: [-0.5022, 117.1536],
-};
+// Decode Google Maps Encoded Polyline algorithm
+function decodeGooglePolyline(encoded: string): [number, number][] {
+  const points: [number, number][] = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
 
-function getFallbackCoords(name: string, city?: string | null, address?: string | null, offsetIndex = 0): [number, number] {
-  const combined = `${name} ${city || ""} ${address || ""}`.toLowerCase();
-  
-  for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
-    if (combined.includes(key)) {
-      const latOffset = (offsetIndex * 0.01) - 0.005;
-      const lngOffset = (offsetIndex * 0.01) - 0.005;
-      return [coords[0] + latOffset, coords[1] + lngOffset];
-    }
+  while (index < len) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push([lat / 1e5, lng / 1e5]);
   }
-
-  // Default coordinate (Bandung / Java region)
-  return [-6.9175 + (offsetIndex * 0.015), 107.6191 + (offsetIndex * 0.015)];
-}
-
-const geocodeCache = new Map<string, [number, number]>();
-
-async function geocodeLocation(query: string, fallback: [number, number]): Promise<[number, number]> {
-  const clean = query.trim();
-  if (!clean) return fallback;
-  if (geocodeCache.has(clean)) return geocodeCache.get(clean)!;
-
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=id&q=${encodeURIComponent(clean)}`;
-    const res = await fetch(url, {
-      headers: {
-        "Accept-Language": "id,en",
-        "User-Agent": "VokasiFlow-AI/1.0",
-      },
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
-        const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-        geocodeCache.set(clean, coords);
-        return coords;
-      }
-    }
-  } catch (err) {
-    console.warn("Geocoding fetch error:", err);
-  }
-
-  return fallback;
+  return points;
 }
 
 export function GoogleMapsView({
@@ -131,9 +77,13 @@ export function GoogleMapsView({
 }: GoogleMapsViewProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  
-  // Statically read Vite environment variable
-  const googleMapsKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "").trim();
+
+  const googleMapsKey = (
+    (typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)
+      : "") || ""
+  ).trim();
+
   const hasValidGoogleKey = Boolean(googleMapsKey && googleMapsKey.length > 10);
 
   const [activeEngine, setActiveEngine] = useState<"GOOGLE_OFFICIAL" | "LEAFLET_INTERACTIVE">(
@@ -141,26 +91,40 @@ export function GoogleMapsView({
   );
   const [tileLayerType, setTileLayerType] = useState<"STREET" | "SATELLITE" | "DARK">("STREET");
   const [isRoutingLoading, setIsRoutingLoading] = useState<boolean>(false);
-  const [realDistanceKm, setRealDistanceKm] = useState<number | null>(initialDistanceKm ?? null);
-  const [realTravelTimeMin, setRealTravelTimeMin] = useState<number | null>(initialTravelTimeMinutes ?? null);
+  const [routeInfo, setRouteInfo] = useState<{
+    distanceKm: number;
+    travelTimeMinutes: number;
+    routeName?: string;
+  } | null>(null);
 
-  // Search queries for Google Maps API and OpenStreetMap
-  const originQuery = [originAddress || originName, originCity, "Indonesia"].filter(Boolean).join(", ");
+  // Accurate Geocoding and Route Query Formulation
+  const originQuery = [originName, originAddress, originCity, "Indonesia"]
+    .filter(Boolean)
+    .join(", ");
+
   const destQuery = destinationName
-    ? [destinationAddress || destinationName, destinationCity, "Indonesia"].filter(Boolean).join(", ")
+    ? [destinationName, destinationAddress, destinationCity, "Indonesia"]
+        .filter(Boolean)
+        .join(", ")
     : "";
 
   // Official Google Maps Embed API URLs
   const googleMapsEmbedUrl = destinationName
-    ? `https://www.google.com/maps/embed/v1/directions?key=${googleMapsKey}&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(destQuery)}&mode=driving`
-    : `https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${encodeURIComponent(originQuery)}`;
+    ? `https://www.google.com/maps/embed/v1/directions?key=${googleMapsKey}&origin=${encodeURIComponent(
+        originQuery,
+      )}&destination=${encodeURIComponent(destQuery)}&mode=driving`
+    : `https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${encodeURIComponent(
+        originQuery,
+      )}`;
 
-  // Web deep-link for navigation in Google Maps app
+  // Web deep-link for Google Maps navigation app
   const googleMapsWebDirUrl = destinationName
-    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(destQuery)}&travelmode=driving`
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+        originQuery,
+      )}&destination=${encodeURIComponent(destQuery)}&travelmode=driving`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(originQuery)}`;
 
-  // Leaflet rendering when active
+  // Interactive Leaflet Map Route Fetching with Google Routes API v2
   useEffect(() => {
     if (activeEngine === "GOOGLE_OFFICIAL" && hasValidGoogleKey) {
       if (mapInstanceRef.current) {
@@ -172,7 +136,7 @@ export function GoogleMapsView({
 
     let isCancelled = false;
 
-    async function loadMapAndRoute() {
+    async function loadGoogleRouteOnMap() {
       if (!mapContainerRef.current) return;
       setIsRoutingLoading(true);
 
@@ -181,38 +145,75 @@ export function GoogleMapsView({
         mapInstanceRef.current = null;
       }
 
-      const originFallback = getFallbackCoords(originName, originCity, originAddress, 0);
-      const destFallback = destinationName
-        ? getFallbackCoords(destinationName, destinationCity, destinationAddress, 1)
-        : null;
+      let routePolylinePoints: [number, number][] = [];
+      let originPoint: [number, number] = [-6.9175, 107.6191]; // Bandung
+      let destPoint: [number, number] = [-7.3274, 108.2207]; // Tasikmalaya / West Java default
 
-      const originCoords = await geocodeLocation(originQuery, originFallback);
-      const destCoords = destQuery && destFallback
-        ? await geocodeLocation(destQuery, destFallback)
-        : null;
+      // 1. Fetch exact real-road route and polyline from Google Routes API v2
+      if (hasValidGoogleKey && destinationName) {
+        try {
+          const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": googleMapsKey,
+              "X-Goog-FieldMask":
+                "routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline",
+            },
+            body: JSON.stringify({
+              origin: { address: originQuery },
+              destination: { address: destQuery },
+              travelMode: "DRIVE",
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.routes) && data.routes.length > 0) {
+              const route = data.routes[0];
+              const distMeters = Number(route.distanceMeters) || 0;
+              const durSecs = parseInt(String(route.duration || "0").replace("s", ""), 10) || 0;
+              const distKm = Math.round((distMeters / 1000) * 10) / 10;
+              const durMin = Math.round(durSecs / 60);
+
+                const decoded = decodeGooglePolyline(route.polyline.encodedPolyline);
+                const firstPt = decoded[0];
+                const lastPt = decoded[decoded.length - 1];
+                if (firstPt && lastPt) {
+                  routePolylinePoints = decoded;
+                  originPoint = firstPt;
+                  destPoint = lastPt;
+                }
+
+              setRouteInfo({
+                distanceKm: distKm,
+                travelTimeMinutes: durMin,
+                routeName: route.description || undefined,
+              });
+            }
+          }
+        } catch (routeErr) {
+          console.warn("Google Routes API failed in client map:", routeErr);
+        }
+      }
 
       if (isCancelled || !mapContainerRef.current) return;
 
       const map = L.map(mapContainerRef.current, {
-        center: originCoords,
-        zoom: 13,
+        center: originPoint,
+        zoom: 12,
         zoomControl: false,
       });
 
       const tileUrls = {
         STREET: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        SATELLITE: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        SATELLITE:
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         DARK: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       };
 
-      const tileAttributions = {
-        STREET: "&copy; OpenStreetMap contributors | Google Maps Platform",
-        SATELLITE: "&copy; Esri World Imagery",
-        DARK: "&copy; CartoDB",
-      };
-
       L.tileLayer(tileUrls[tileLayerType], {
-        attribution: tileAttributions[tileLayerType],
+        attribution: "&copy; Google Maps Platform & OpenStreetMap",
         maxZoom: 19,
       }).addTo(map);
 
@@ -221,78 +222,62 @@ export function GoogleMapsView({
       const pktIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
-          <div style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.4); border: 2.5px solid white; font-size: 16px;">
+          <div style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(37,99,235,0.45); border: 3px solid white; font-size: 18px;">
             🏢
           </div>
         `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
       });
 
       const smkIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
-          <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(16,185,129,0.4); border: 2.5px solid white; font-size: 16px;">
+          <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(16,185,129,0.45); border: 3px solid white; font-size: 18px;">
             🏫
           </div>
         `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
       });
 
-      const originMarker = L.marker(originCoords, { icon: pktIcon }).addTo(map);
+      const originMarker = L.marker(originPoint, { icon: pktIcon }).addTo(map);
       originMarker.bindPopup(`
-        <div style="font-family: sans-serif; padding: 4px; min-width: 180px;">
-          <div style="font-size: 11px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 2px;">🏢 Lokasi Cabang PKT</div>
+        <div style="font-family: sans-serif; padding: 4px; min-width: 190px;">
+          <div style="font-size: 11px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 3px;">🏢 Titik Cabang PKT</div>
           <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${originName}</div>
           <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${originAddress || originCity || "Indonesia"}</div>
         </div>
       `);
 
-      if (destCoords && destinationName) {
-        const destMarker = L.marker(destCoords, { icon: smkIcon }).addTo(map);
+      if (destinationName) {
+        const destMarker = L.marker(destPoint, { icon: smkIcon }).addTo(map);
         destMarker.bindPopup(`
-          <div style="font-family: sans-serif; padding: 4px; min-width: 180px;">
-            <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase; margin-bottom: 2px;">🏫 Sekolah Vokasi (SMK)</div>
+          <div style="font-family: sans-serif; padding: 4px; min-width: 190px;">
+            <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase; margin-bottom: 3px;">🏫 Sekolah Vokasi (SMK)</div>
             <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${destinationName}</div>
             <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${destinationAddress || destinationCity || "Indonesia"}</div>
           </div>
         `);
 
-        let routeCoordinates: [number, number][] = [originCoords, destCoords];
-        try {
-          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originCoords[1]},${originCoords[0]};${destCoords[1]},${destCoords[0]}?overview=full&geometries=geojson`;
-          const osrmRes = await fetch(osrmUrl);
-          if (osrmRes.ok) {
-            const osrmData = await osrmRes.json();
-            if (osrmData.routes && osrmData.routes.length > 0) {
-              const route = osrmData.routes[0];
-              const geojsonCoords = route.geometry.coordinates;
-              routeCoordinates = geojsonCoords.map((c: [number, number]) => [c[1], c[0]]);
+        if (routePolylinePoints.length > 0) {
+          const polyline = L.polyline(routePolylinePoints, {
+            color: "#2563eb",
+            weight: 5.5,
+            opacity: 0.9,
+            lineJoin: "round",
+          }).addTo(map);
 
-              const calcKm = Math.round((route.distance / 1000) * 10) / 10;
-              const calcMin = Math.round(route.duration / 60);
-              setRealDistanceKm(calcKm);
-              setRealTravelTimeMin(calcMin);
-            }
-          }
-        } catch (err) {
-          console.warn("OSRM routing error:", err);
+          const bounds = L.latLngBounds(routePolylinePoints);
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        } else {
+          const group = L.featureGroup([originMarker, destMarker]);
+          map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 14 });
         }
-
-        const routeLine = L.polyline(routeCoordinates, {
-          color: "#2563eb",
-          weight: 5,
-          opacity: 0.85,
-        }).addTo(map);
-
-        const group = L.featureGroup([originMarker, destMarker, routeLine]);
-        map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 15 });
       } else {
-        map.setView(originCoords, 14);
+        map.setView(originPoint, 14);
       }
 
-      // Ensure tiles render immediately inside DOM container
       setTimeout(() => {
         map.invalidateSize();
       }, 150);
@@ -301,7 +286,7 @@ export function GoogleMapsView({
       setIsRoutingLoading(false);
     }
 
-    loadMapAndRoute();
+    loadGoogleRouteOnMap();
 
     return () => {
       isCancelled = true;
@@ -321,6 +306,9 @@ export function GoogleMapsView({
     destinationCity,
     tileLayerType,
   ]);
+
+  const displayDistance = routeInfo?.distanceKm ?? initialDistanceKm;
+  const displayDuration = routeInfo?.travelTimeMinutes ?? initialTravelTimeMinutes;
 
   return (
     <div
@@ -395,7 +383,9 @@ export function GoogleMapsView({
                 onClick={() => setTileLayerType("STREET")}
                 className={cn(
                   "px-2 py-1 rounded text-[11px] font-medium transition-all",
-                  tileLayerType === "STREET" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-foreground",
+                  tileLayerType === "STREET"
+                    ? "bg-primary/20 text-primary font-bold"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Jalan
@@ -405,7 +395,9 @@ export function GoogleMapsView({
                 onClick={() => setTileLayerType("SATELLITE")}
                 className={cn(
                   "px-2 py-1 rounded text-[11px] font-medium transition-all",
-                  tileLayerType === "SATELLITE" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-foreground",
+                  tileLayerType === "SATELLITE"
+                    ? "bg-primary/20 text-primary font-bold"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Satelit
@@ -423,7 +415,9 @@ export function GoogleMapsView({
               <span className="h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-200 shrink-0" />
               <span className="font-semibold text-muted-foreground">Titik PKT:</span>
               <span className="font-bold">{originName}</span>
-              <span className="text-muted-foreground">({originCity || originAddress || "Bandung"})</span>
+              <span className="text-muted-foreground">
+                ({originCity || originAddress || "Bandung"})
+              </span>
             </div>
 
             <span className="text-muted-foreground font-bold">➔</span>
@@ -432,18 +426,27 @@ export function GoogleMapsView({
               <span className="h-3 w-3 rounded-full bg-emerald-600 ring-2 ring-emerald-200 shrink-0" />
               <span className="font-semibold text-muted-foreground">Tujuan SMK:</span>
               <span className="font-bold">{destinationName}</span>
-              <span className="text-muted-foreground">({destinationCity || destinationAddress || "Subang"})</span>
+              <span className="text-muted-foreground">
+                ({destinationCity || destinationAddress || "Jawa Barat"})
+              </span>
             </div>
           </div>
 
-          {(realDistanceKm !== null || initialDistanceKm !== undefined) && (
+          {(displayDistance !== null || displayDuration !== null) && (
             <div className="flex items-center gap-3 font-semibold text-primary shrink-0 bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10">
-              <span className="flex items-center gap-1">
-                <Car className="h-3.5 w-3.5" /> ±{realDistanceKm ?? initialDistanceKm} km
-              </span>
-              {(realTravelTimeMin !== null || initialTravelTimeMinutes !== undefined) && (
+              {displayDistance !== null && displayDistance !== undefined && (
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" /> ~{realTravelTimeMin ?? initialTravelTimeMinutes} menit
+                  <Car className="h-3.5 w-3.5" /> ±{displayDistance} km
+                </span>
+              )}
+              {displayDuration !== null && displayDuration !== undefined && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" /> ~{displayDuration} menit
+                </span>
+              )}
+              {routeInfo?.routeName && (
+                <span className="hidden md:inline text-xs text-muted-foreground font-normal">
+                  (via {routeInfo.routeName})
                 </span>
               )}
             </div>
@@ -452,7 +455,7 @@ export function GoogleMapsView({
       )}
 
       {/* Map Display Viewport */}
-      <div className="relative w-full h-[380px] sm:h-[430px] bg-muted/10 overflow-hidden">
+      <div className="relative w-full h-[390px] sm:h-[450px] bg-muted/10 overflow-hidden">
         {activeEngine === "GOOGLE_OFFICIAL" && hasValidGoogleKey ? (
           <iframe
             key={`${originQuery}-${destQuery}`}
@@ -464,7 +467,11 @@ export function GoogleMapsView({
             referrerPolicy="no-referrer-when-downgrade"
           />
         ) : (
-          <div ref={mapContainerRef} className="w-full h-full z-0" style={{ minHeight: "380px" }} />
+          <div
+            ref={mapContainerRef}
+            className="w-full h-full z-0"
+            style={{ minHeight: "390px" }}
+          />
         )}
 
         {/* Floating Google Maps Direct Deep-Link */}
