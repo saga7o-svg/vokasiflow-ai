@@ -363,38 +363,86 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     }
   }
 
+  // Indonesian City Coordinates Reference for True Distance Calculations
+  const CITY_COORDS: Record<string, [number, number]> = {
+    sidoarjo: [-7.4478, 112.7183],
+    surabaya: [-7.2575, 112.7521],
+    gresik: [-7.1566, 112.6555],
+    malang: [-7.9666, 112.6326],
+    mojokerto: [-7.4726, 112.4381],
+    pasuruan: [-7.6453, 112.9075],
+    denpasar: [-8.6705, 115.2126],
+    bali: [-8.4095, 115.1889],
+    bandung: [-6.9175, 107.6191],
+    jakarta: [-6.2088, 106.8456],
+    semarang: [-6.9667, 110.4167],
+    yogyakarta: [-7.7956, 110.3695],
+    solo: [-7.5755, 110.8243],
+    medan: [3.5952, 98.6722],
+    makassar: [-5.1477, 119.4327],
+  };
+
+  const getCityCoord = (cityStr?: string | null): [number, number] => {
+    const clean = (cityStr || "").toLowerCase();
+    for (const [key, coords] of Object.entries(CITY_COORDS)) {
+      if (clean.includes(key)) return coords;
+    }
+    return [-7.4478, 112.7183]; // Default Sidoarjo
+  };
+
+  const cCoords = getCityCoord(params.companyCity || params.companyAddress);
+
   // Fallback heuristic jika tanpa API key
   const scored = params.schools.map((school, index) => {
     const sCity = (school.city || "").toLowerCase().trim();
     const cCity = (params.companyCity || "").toLowerCase().trim();
-    
-    const isSameCity = sCity && cCity && (sCity.includes(cCity) || cCity.includes(sCity));
-    const isSurabayaSidoarjo =
-      (sCity.includes("surabaya") && cCity.includes("sidoarjo")) ||
-      (sCity.includes("sidoarjo") && cCity.includes("surabaya"));
+    const sCoords = getCityCoord(school.city || school.address);
 
-    let estDist = isSameCity ? 2.5 + (index % 4) * 1.8 : isSurabayaSidoarjo ? 14.0 + (index % 3) * 3.2 : 28.0 + index * 8.5;
-    let match = isSameCity ? 96 - index * 3 : isSurabayaSidoarjo ? 85 - index * 4 : 65 - index * 5;
-    let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" = isSameCity
-      ? (estDist <= 5 ? "EXCELLENT" : "GOOD")
-      : isSurabayaSidoarjo
-        ? "GOOD"
-        : estDist < 50
-          ? "MODERATE"
-          : "CHALLENGING";
+    // Haversine formula
+    const R = 6371; // Earth radius in km
+    const dLat = ((sCoords[0] - cCoords[0]) * Math.PI) / 180;
+    const dLon = ((sCoords[1] - cCoords[1]) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((cCoords[0] * Math.PI) / 180) *
+        Math.cos((sCoords[0] * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    let rawDist = R * c;
+
+    // Road factor (roads are ~1.25x straight line)
+    let estDist = Math.max(2.5, Math.round(rawDist * 1.25 * 10) / 10);
+    if (sCity && cCity && (sCity.includes(cCity) || cCity.includes(sCity))) {
+      estDist = 2.5 + (index % 4) * 1.8;
+    }
+
+    const estMinutes = Math.round(estDist * 2.4);
+    let match = estDist <= 10 ? 96 - index * 2 : estDist <= 30 ? 88 - index * 3 : estDist <= 100 ? 70 - index * 4 : Math.max(35, 60 - Math.round(estDist / 20));
+    
+    let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" =
+      estDist <= 8
+        ? "EXCELLENT"
+        : estDist <= 30
+          ? "GOOD"
+          : estDist <= 75
+            ? "MODERATE"
+            : "CHALLENGING";
+
+    const isSameCity = estDist <= 15;
 
     return {
       schoolId: school.id,
       schoolName: school.name,
-      estimatedDistanceKm: Math.round(estDist * 10) / 10,
-      travelTimeMinutes: Math.round(estDist * 2.5),
-      matchScore: Math.max(50, Math.min(99, match)),
+      estimatedDistanceKm: estDist,
+      travelTimeMinutes: estMinutes,
+      matchScore: Math.max(40, Math.min(99, match)),
       logisticalFeasibility: feasibility,
       aiReasoning: isSameCity
-        ? `Lokasi ${school.name} berada satu wilayah (${school.city}) dengan cabang ${params.companyName}, memudahkan mobilitas harian siswa magang.`
-        : isSurabayaSidoarjo
-          ? `Lokasi ${school.name} di ${school.city} bertetangga dengan lokasi cabang (${params.companyCity}), sangat terjangkau via transportasi komuter.`
-          : `Lokasi sekolah di ${school.city} berjarak ${Math.round(estDist)} km dari cabang ${params.companyName}. Disarankan penyediaan akomodasi/mess siswa.`,
+        ? `Lokasi ${school.name} berada sangat dekat (${estDist} km) dengan cabang ${params.companyName}, sangat ideal untuk mobilitas harian peserta magang.`
+        : estDist <= 50
+          ? `Lokasi ${school.name} (${school.city}) berjarak ±${estDist} km dari cabang ${params.companyName}. Terjangkau via transportasi komuter atau angkutan harian.`
+          : `Lokasi sekolah di ${school.city} berjarak cukup jauh (±${estDist} km) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
       availableCompetencies: [
         params.requiredCompetency || "CPC",
         "CIT",
