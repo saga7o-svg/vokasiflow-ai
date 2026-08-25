@@ -3720,7 +3720,29 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
     }
 
     const branchName = targetBranch?.branch_name || data.branchName || `${company.name} - Pusat`;
-    const branchCity = targetBranch?.city || data.branchCity || company.city || "Kab. Sidoarjo";
+    
+    // Intelligent dynamic city detection from branch metadata or address text
+    const detectedCity = (() => {
+      const combined = `${company.name} ${branchName} ${targetBranch?.address || ""} ${cleanAddress || company.address || ""}`.toLowerCase();
+      if (combined.includes("bandung")) return "Kota Bandung";
+      if (combined.includes("subang")) return "Kab. Subang";
+      if (combined.includes("surabaya")) return "Kota Surabaya";
+      if (combined.includes("sidoarjo")) return "Kab. Sidoarjo";
+      if (combined.includes("gresik")) return "Kab. Gresik";
+      if (combined.includes("malang")) return "Kota Malang";
+      if (combined.includes("pasuruan")) return "Kab. Pasuruan";
+      if (combined.includes("mojokerto")) return "Kab. Mojokerto";
+      if (combined.includes("denpasar") || combined.includes("bali")) return "Kota Denpasar";
+      if (combined.includes("jakarta")) return "DKI Jakarta";
+      if (combined.includes("semarang")) return "Kota Semarang";
+      if (combined.includes("yogyakarta") || combined.includes("jogja")) return "Kota Yogyakarta";
+      if (combined.includes("solo") || combined.includes("surakarta")) return "Kota Surakarta";
+      if (combined.includes("medan")) return "Kota Medan";
+      if (combined.includes("makassar")) return "Kota Makassar";
+      return "";
+    })();
+
+    const branchCity = targetBranch?.city || data.branchCity || company.city || detectedCity || "Indonesia";
     const branchAddress = targetBranch?.address || data.branchAddress || cleanAddress || company.address || branchCity;
 
     const recommendations = await recommendNearestSchoolsWithGemini({
@@ -3731,9 +3753,9 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
       schools: (schools ?? []).map((s) => ({
         id: s.id,
         name: s.name,
-        city: s.city || "Kab. Sidoarjo",
+        city: s.city || (s.name.toLowerCase().includes("subang") ? "Kab. Subang" : s.name.toLowerCase().includes("bandung") ? "Kota Bandung" : s.name.toLowerCase().includes("surabaya") ? "Kota Surabaya" : "Jawa Timur"),
         address: s.address || s.city || "",
-        province: s.province || "Jawa Timur",
+        province: s.province || "Indonesia",
       })),
     });
 

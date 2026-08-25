@@ -10,8 +10,8 @@ import {
   Layers,
   Compass,
   RotateCw,
-  AlertCircle,
-  LocateFixed,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -29,7 +29,7 @@ interface GoogleMapsViewProps {
   className?: string | undefined;
 }
 
-// Known Anchor Coordinates for major Indonesian cities/regions
+// Known Anchor Coordinates for Indonesian cities/regions
 const CITY_COORDINATES: Record<string, [number, number]> = {
   sidoarjo: [-7.4478, 112.7183],
   surabaya: [-7.2575, 112.7521],
@@ -45,8 +45,9 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   blitar: [-8.0983, 112.1681],
   denpasar: [-8.6705, 115.2126],
   bali: [-8.4095, 115.1889],
-  badung: [-8.5819, 115.1771],
   bandung: [-6.9175, 107.6191],
+  subang: [-6.5716, 107.7587],
+  purwakarta: [-6.5561, 107.4431],
   cimahi: [-6.8723, 107.542],
   jakarta: [-6.2088, 106.8456],
   "jakarta selatan": [-6.2615, 106.8106],
@@ -69,8 +70,6 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   lampung: [-5.45, 105.2667],
   balikpapan: [-1.2379, 116.8289],
   samarinda: [-0.5022, 117.1536],
-  banjarmasin: [-3.3194, 114.5908],
-  pontianak: [-0.0263, 109.3425],
 };
 
 function getFallbackCoords(name: string, city?: string | null, address?: string | null, offsetIndex = 0): [number, number] {
@@ -84,8 +83,8 @@ function getFallbackCoords(name: string, city?: string | null, address?: string 
     }
   }
 
-  // Default coordinate (Sidoarjo/Surabaya region)
-  return [-7.4478 + (offsetIndex * 0.015), 112.7183 + (offsetIndex * 0.015)];
+  // Default coordinate (Bandung / Java region)
+  return [-6.9175 + (offsetIndex * 0.015), 107.6191 + (offsetIndex * 0.015)];
 }
 
 // In-memory geocode cache to prevent redundant network calls
@@ -133,53 +132,56 @@ export function GoogleMapsView({
 }: GoogleMapsViewProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const [activeEngine, setActiveEngine] = useState<"GOOGLE_OFFICIAL" | "LEAFLET_INTERACTIVE">("GOOGLE_OFFICIAL");
   const [tileLayerType, setTileLayerType] = useState<"STREET" | "SATELLITE" | "DARK">("STREET");
   const [isRoutingLoading, setIsRoutingLoading] = useState<boolean>(false);
   const [realDistanceKm, setRealDistanceKm] = useState<number | null>(initialDistanceKm ?? null);
   const [realTravelTimeMin, setRealTravelTimeMin] = useState<number | null>(initialTravelTimeMinutes ?? null);
 
-  const originQuery = [originAddress, originCity, originName].filter(Boolean).join(", ");
+  const googleMapsKey = ((import.meta.env as Record<string, string | undefined>)["VITE_GOOGLE_MAPS_API_KEY"] || "").trim();
+
+  // Search queries for Google Maps API and OpenStreetMap
+  const originQuery = [originAddress || originName, originCity, "Indonesia"].filter(Boolean).join(", ");
   const destQuery = destinationName
-    ? [destinationAddress, destinationCity, destinationName].filter(Boolean).join(", ")
+    ? [destinationAddress || destinationName, destinationCity, "Indonesia"].filter(Boolean).join(", ")
     : "";
 
+  // Official Google Maps Embed API URLs
+  const googleMapsEmbedUrl = destinationName
+    ? `https://www.google.com/maps/embed/v1/directions?key=${googleMapsKey}&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(destQuery)}&mode=driving`
+    : `https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${encodeURIComponent(originQuery)}`;
+
+  // Web deep-link for navigation in Google Maps app
   const googleMapsWebDirUrl = destinationName
     ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(destQuery)}&travelmode=driving`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(originQuery)}`;
 
+  // Leaflet rendering when active
   useEffect(() => {
+    if (activeEngine !== "LEAFLET_INTERACTIVE" || !mapContainerRef.current) return;
     let isCancelled = false;
 
     async function loadMapAndRoute() {
       if (!mapContainerRef.current) return;
       setIsRoutingLoading(true);
 
-      // Clean up previous map
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
 
-      // 1. Resolve Fallback Coordinates
       const originFallback = getFallbackCoords(originName, originCity, originAddress, 0);
       const destFallback = destinationName
         ? getFallbackCoords(destinationName, destinationCity, destinationAddress, 1)
         : null;
 
-      // 2. Perform Real Dynamic Geocoding
-      const originSearchQuery = [originAddress || originName, originCity, "Indonesia"].filter(Boolean).join(", ");
-      const destSearchQuery = destinationName
-        ? [destinationAddress || destinationName, destinationCity, "Indonesia"].filter(Boolean).join(", ")
-        : "";
-
-      const originCoords = await geocodeLocation(originSearchQuery, originFallback);
-      const destCoords = destSearchQuery && destFallback
-        ? await geocodeLocation(destSearchQuery, destFallback)
+      const originCoords = await geocodeLocation(originQuery, originFallback);
+      const destCoords = destQuery && destFallback
+        ? await geocodeLocation(destQuery, destFallback)
         : null;
 
       if (isCancelled || !mapContainerRef.current) return;
 
-      // 3. Initialize Leaflet Map
       const map = L.map(mapContainerRef.current, {
         center: originCoords,
         zoom: 13,
@@ -205,7 +207,6 @@ export function GoogleMapsView({
 
       L.control.zoom({ position: "topright" }).addTo(map);
 
-      // Custom Icon for PKT
       const pktIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
@@ -217,7 +218,6 @@ export function GoogleMapsView({
         iconAnchor: [18, 18],
       });
 
-      // Custom Icon for SMK
       const smkIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
@@ -235,7 +235,6 @@ export function GoogleMapsView({
           <div style="font-size: 11px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 2px;">🏢 Lokasi Cabang PKT</div>
           <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${originName}</div>
           <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${originAddress || originCity || "Indonesia"}</div>
-          <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(originQuery)}" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 11px; color: #2563eb; text-decoration: none; font-weight: bold;">Buka di Google Maps ➔</a>
         </div>
       `);
 
@@ -246,11 +245,9 @@ export function GoogleMapsView({
             <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase; margin-bottom: 2px;">🏫 Sekolah Vokasi (SMK)</div>
             <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${destinationName}</div>
             <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${destinationAddress || destinationCity || "Indonesia"}</div>
-            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destQuery)}" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 11px; color: #059669; text-decoration: none; font-weight: bold;">Buka di Google Maps ➔</a>
           </div>
         `);
 
-        // 4. Fetch Real Road Geometry via OSRM Driving Router
         let routeCoordinates: [number, number][] = [originCoords, destCoords];
         try {
           const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originCoords[1]},${originCoords[0]};${destCoords[1]},${destCoords[0]}?overview=full&geometries=geojson`;
@@ -259,7 +256,7 @@ export function GoogleMapsView({
             const osrmData = await osrmRes.json();
             if (osrmData.routes && osrmData.routes.length > 0) {
               const route = osrmData.routes[0];
-              const geojsonCoords = route.geometry.coordinates; // [lng, lat]
+              const geojsonCoords = route.geometry.coordinates;
               routeCoordinates = geojsonCoords.map((c: [number, number]) => [c[1], c[0]]);
 
               const calcKm = Math.round((route.distance / 1000) * 10) / 10;
@@ -269,10 +266,9 @@ export function GoogleMapsView({
             }
           }
         } catch (err) {
-          console.warn("OSRM routing error, using direct vector line:", err);
+          console.warn("OSRM routing error:", err);
         }
 
-        // Draw Route Polyline on Map
         const routeLine = L.polyline(routeCoordinates, {
           color: "#2563eb",
           weight: 5,
@@ -299,6 +295,7 @@ export function GoogleMapsView({
       }
     };
   }, [
+    activeEngine,
     originName,
     originAddress,
     originCity,
@@ -323,64 +320,55 @@ export function GoogleMapsView({
           </div>
           <div>
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <span>Peta Lokasi &amp; Rute Geospasial</span>
-              {isRoutingLoading ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                  <RotateCw className="h-2.5 w-2.5 animate-spin" /> Menghitung Rute Nyata...
+              <span>Peta Lokasi &amp; Rute Google Maps</span>
+              {googleMapsKey ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <ShieldCheck className="h-3 w-3" /> API Key Aktif
                 </span>
               ) : (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Rute Jalan Riil
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  Peta Terhubung
                 </span>
               )}
             </h4>
             <p className="text-xs text-muted-foreground">
               {destinationName
-                ? `Rute jalan dari ${originName} menuju ${destinationName}`
+                ? `Rute dari ${originName} menuju ${destinationName}`
                 : `Lokasi Cabang PKT: ${originName}`}
             </p>
           </div>
         </div>
 
-        {/* Map Type Switcher */}
+        {/* Engine Switcher */}
         <div className="flex items-center gap-1 bg-background/90 p-1 rounded-xl border border-border text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setTileLayerType("STREET")}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all",
-              tileLayerType === "STREET"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <span>Jalan</span>
-          </button>
+          {googleMapsKey && (
+            <button
+              type="button"
+              onClick={() => setActiveEngine("GOOGLE_OFFICIAL")}
+              className={cn(
+                "flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all",
+                activeEngine === "GOOGLE_OFFICIAL"
+                  ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Google Maps Resmi</span>
+            </button>
+          )}
 
           <button
             type="button"
-            onClick={() => setTileLayerType("SATELLITE")}
+            onClick={() => setActiveEngine("LEAFLET_INTERACTIVE")}
             className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all",
-              tileLayerType === "SATELLITE"
-                ? "bg-primary text-primary-foreground shadow-sm"
+              "flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all",
+              activeEngine === "LEAFLET_INTERACTIVE" || !googleMapsKey
+                ? "bg-primary text-primary-foreground shadow-sm font-bold"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <span>Satelit</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTileLayerType("DARK")}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all",
-              tileLayerType === "DARK"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <span>Gelap</span>
+            <Layers className="h-3.5 w-3.5" />
+            <span>Peta Interaktif</span>
           </button>
         </div>
       </div>
@@ -393,6 +381,7 @@ export function GoogleMapsView({
               <span className="h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-200 shrink-0" />
               <span className="font-semibold text-muted-foreground">Titik PKT:</span>
               <span className="font-bold">{originName}</span>
+              <span className="text-muted-foreground">({originCity || originAddress || "Bandung"})</span>
             </div>
 
             <span className="text-muted-foreground font-bold">➔</span>
@@ -401,6 +390,7 @@ export function GoogleMapsView({
               <span className="h-3 w-3 rounded-full bg-emerald-600 ring-2 ring-emerald-200 shrink-0" />
               <span className="font-semibold text-muted-foreground">Tujuan SMK:</span>
               <span className="font-bold">{destinationName}</span>
+              <span className="text-muted-foreground">({destinationCity || destinationAddress || "Subang"})</span>
             </div>
           </div>
 
@@ -419,9 +409,20 @@ export function GoogleMapsView({
         </div>
       )}
 
-      {/* Interactive Map Canvas Container */}
-      <div className="relative w-full h-[360px] sm:h-[400px] bg-muted/20">
-        <div ref={mapContainerRef} className="w-full h-full z-0" />
+      {/* Map Display Viewport */}
+      <div className="relative w-full h-[380px] sm:h-[430px] bg-muted/20">
+        {activeEngine === "GOOGLE_OFFICIAL" && googleMapsKey ? (
+          <iframe
+            title="Official Google Maps Platform"
+            src={googleMapsEmbedUrl}
+            className="w-full h-full border-0"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        ) : (
+          <div ref={mapContainerRef} className="w-full h-full z-0" />
+        )}
 
         {/* Floating Google Maps Direct Deep-Link */}
         <div className="absolute bottom-3 right-3 z-[1000]">
@@ -432,7 +433,7 @@ export function GoogleMapsView({
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-background/95 hover:bg-background text-foreground shadow-xl border border-border text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md ring-1 ring-black/5"
           >
             <ExternalLink className="h-4 w-4 text-primary" />
-            <span>Buka Petunjuk Arah Resmi di Google Maps</span>
+            <span>Buka Rute di Aplikasi Google Maps</span>
           </a>
         </div>
       </div>
