@@ -16,6 +16,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils";
+import { getGoogleRoutePolylineFn } from "@/lib/api.functions";
 
 interface GoogleMapsViewProps {
   originName: string;
@@ -32,8 +33,26 @@ interface GoogleMapsViewProps {
   className?: string | undefined;
 }
 
-// Known Regional Geographic Coordinates Dictionary
+// Comprehensive Known Coordinates Dictionary for exact fallback
 const KNOWN_COORDINATES: Record<string, [number, number]> = {
+  // Jakarta & Ciracas
+  ciracas: [-6.3095, 106.8743],
+  "pasar rebo": [-6.3095, 106.8743],
+  "abacus dana pensiuntama": [-6.3095, 106.8743],
+  "jakarta timur": [-6.225, 106.9004],
+  "jakarta selatan": [-6.2615, 106.8106],
+  "jakarta pusat": [-6.1805, 106.8284],
+  "jakarta barat": [-6.1683, 106.7588],
+  "jakarta utara": [-6.1384, 106.864],
+  jakarta: [-6.2088, 106.8456],
+
+  // Bekasi & Yadika 13
+  "yadika 13": [-6.2405, 107.0626],
+  yadika: [-6.2405, 107.0626],
+  "tambun selatan": [-6.2405, 107.0626],
+  tambun: [-6.2405, 107.0626],
+  bekasi: [-6.2383, 106.9756],
+
   // Subang & West Java
   subang: [-6.4745, 107.6908],
   "al mufti": [-6.4745, 107.6908],
@@ -41,6 +60,7 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   purwakarta: [-6.5561, 107.4431],
   karawang: [-6.3073, 107.3078],
   bandung: [-6.9175, 107.6191],
+  "abacus cash solution": [-6.9122, 107.6504],
   cimahi: [-6.8723, 107.542],
   sumedang: [-6.8587, 107.9267],
   garut: [-7.2279, 107.9087],
@@ -55,9 +75,7 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   cianjur: [-6.8222, 107.1394],
   bogor: [-6.5971, 106.806],
   depok: [-6.4025, 106.7942],
-  bekasi: [-6.2383, 106.9756],
   tangerang: [-6.1783, 106.6319],
-  jakarta: [-6.2088, 106.8456],
 
   // East Java
   sidoarjo: [-7.4478, 112.7183],
@@ -165,7 +183,14 @@ export function GoogleMapsView({
     hasValidGoogleKey ? "GOOGLE_OFFICIAL" : "LEAFLET_INTERACTIVE",
   );
   const [tileLayerType, setTileLayerType] = useState<"STREET" | "SATELLITE" | "DARK">("STREET");
-  const [isRoutingLoading, setIsRoutingLoading] = useState<boolean>(false);
+  const [liveRouteData, setLiveRouteData] = useState<{
+    distanceKm?: number | undefined;
+    durationMin?: number | undefined;
+    routeName?: string | undefined;
+    startPoint?: [number, number] | undefined;
+    endPoint?: [number, number] | undefined;
+    polyline?: [number, number][] | undefined;
+  } | null>(null);
 
   // Accurate Geocoding and Route Query Formulation
   const originQuery = [originName, originAddress, originCity, "Indonesia"]
@@ -194,7 +219,70 @@ export function GoogleMapsView({
       )}&destination=${encodeURIComponent(destQuery)}&travelmode=driving`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(originQuery)}`;
 
-  // Interactive Leaflet Map Route Fetching & Display
+  // 1. Fetch exact Google Route from backend if not already provided
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchServerRoute() {
+      if (!destinationName) return;
+
+      // If pre-computed polyline and coordinates exist from parent
+      if (encodedPolyline && originCoords && destinationCoords) {
+        const decoded = decodeGooglePolyline(encodedPolyline);
+        if (!isCancelled) {
+          setLiveRouteData({
+            distanceKm: initialDistanceKm ?? undefined,
+            durationMin: initialTravelTimeMinutes ?? undefined,
+            startPoint: originCoords,
+            endPoint: destinationCoords,
+            polyline: decoded,
+          });
+        }
+        return;
+      }
+
+      // Otherwise, request authoritative calculation from server RPC
+      try {
+        const res = await getGoogleRoutePolylineFn({
+          data: {
+            origin: originQuery,
+            destination: destQuery,
+          },
+        });
+
+        if (!isCancelled && res.success && res.encodedPolyline) {
+          const decoded = decodeGooglePolyline(res.encodedPolyline);
+          setLiveRouteData({
+            distanceKm: res.distanceKm ?? undefined,
+            durationMin: res.travelTimeMinutes ?? undefined,
+            routeName: res.routeName,
+            startPoint: res.originCoords ?? decoded[0] ?? undefined,
+            endPoint: res.destinationCoords ?? decoded[decoded.length - 1] ?? undefined,
+            polyline: decoded,
+          });
+        }
+      } catch (err) {
+        console.warn("Server route query failed:", err);
+      }
+    }
+
+    fetchServerRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    originQuery,
+    destQuery,
+    destinationName,
+    encodedPolyline,
+    originCoords,
+    destinationCoords,
+    initialDistanceKm,
+    initialTravelTimeMinutes,
+  ]);
+
+  // 2. Interactive Leaflet Map Rendering
   useEffect(() => {
     if (activeEngine === "GOOGLE_OFFICIAL" && hasValidGoogleKey) {
       if (mapInstanceRef.current) {
@@ -204,153 +292,113 @@ export function GoogleMapsView({
       return;
     }
 
-    let isCancelled = false;
+    if (!mapContainerRef.current) return;
 
-    async function renderMap() {
-      if (!mapContainerRef.current) return;
-      setIsRoutingLoading(true);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
 
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+    // Resolve starting point
+    const startPoint: [number, number] =
+      liveRouteData?.startPoint ||
+      originCoords ||
+      getKnownCoords(originCity, originAddress, originName) ||
+      [-6.2088, 106.8456]; // Default Jakarta/Java
 
-      let routePolylinePoints: [number, number][] = [];
+    // Resolve destination point
+    const endPoint: [number, number] =
+      liveRouteData?.endPoint ||
+      destinationCoords ||
+      getKnownCoords(destinationName, destinationAddress, destinationCity) ||
+      [-6.2405, 107.0626]; // Default Bekasi/Yadika
 
-      // 1. Resolve starting point
-      let startPoint: [number, number] =
-        originCoords ||
-        getKnownCoords(originCity, originAddress, originName) ||
-        [-6.9175, 107.6191]; // Default Bandung
+    const map = L.map(mapContainerRef.current, {
+      center: startPoint,
+      zoom: 11,
+      zoomControl: false,
+    });
 
-      // 2. Resolve destination point
-      let endPoint: [number, number] =
-        destinationCoords ||
-        getKnownCoords(destinationCity, destinationAddress, destinationName) ||
-        [-6.4745, 107.6908]; // Default Subang/West Java
+    const tileUrls = {
+      STREET: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      SATELLITE:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      DARK: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    };
 
-      // 3. If pre-computed encodedPolyline exists from backend Google Routes API
-      if (encodedPolyline) {
-        const decoded = decodeGooglePolyline(encodedPolyline);
-        const pStart = decoded[0];
-        const pEnd = decoded[decoded.length - 1];
-        if (pStart && pEnd) {
-          routePolylinePoints = decoded;
-          startPoint = pStart;
-          endPoint = pEnd;
-        }
-      }
+    L.tileLayer(tileUrls[tileLayerType], {
+      attribution: "&copy; Google Maps Platform & OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(map);
 
-      // 4. If no polyline yet, fetch directly via OSRM driving engine
-      if (routePolylinePoints.length === 0 && destinationName) {
-        try {
-          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPoint[1]},${startPoint[0]};${endPoint[1]},${endPoint[0]}?overview=full&geometries=geojson`;
-          const osrmRes = await fetch(osrmUrl);
-          if (osrmRes.ok) {
-            const osrmData = await osrmRes.json();
-            if (osrmData.routes && osrmData.routes.length > 0) {
-              const geojsonCoords = osrmData.routes[0].geometry.coordinates;
-              routePolylinePoints = geojsonCoords.map((c: [number, number]) => [c[1], c[0]]);
-            }
-          }
-        } catch (err) {
-          console.warn("OSRM route fetch fallback:", err);
-        }
-      }
+    L.control.zoom({ position: "topright" }).addTo(map);
 
-      if (isCancelled || !mapContainerRef.current) return;
+    const pktIcon = L.divIcon({
+      className: "custom-leaflet-marker",
+      html: `
+        <div style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(37,99,235,0.45); border: 3px solid white; font-size: 18px;">
+          🏢
+        </div>
+      `,
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+    });
 
-      const map = L.map(mapContainerRef.current, {
-        center: startPoint,
-        zoom: 11,
-        zoomControl: false,
-      });
+    const smkIcon = L.divIcon({
+      className: "custom-leaflet-marker",
+      html: `
+        <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(16,185,129,0.45); border: 3px solid white; font-size: 18px;">
+          🏫
+        </div>
+      `,
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+    });
 
-      const tileUrls = {
-        STREET: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        SATELLITE:
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        DARK: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      };
+    const originMarker = L.marker(startPoint, { icon: pktIcon }).addTo(map);
+    originMarker.bindPopup(`
+      <div style="font-family: sans-serif; padding: 4px; min-width: 190px;">
+        <div style="font-size: 11px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 3px;">🏢 Titik Cabang PKT</div>
+        <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${originName}</div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${originAddress || originCity || "Indonesia"}</div>
+      </div>
+    `);
 
-      L.tileLayer(tileUrls[tileLayerType], {
-        attribution: "&copy; Google Maps Platform & OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(map);
-
-      L.control.zoom({ position: "topright" }).addTo(map);
-
-      const pktIcon = L.divIcon({
-        className: "custom-leaflet-marker",
-        html: `
-          <div style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(37,99,235,0.45); border: 3px solid white; font-size: 18px;">
-            🏢
-          </div>
-        `,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-      });
-
-      const smkIcon = L.divIcon({
-        className: "custom-leaflet-marker",
-        html: `
-          <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(16,185,129,0.45); border: 3px solid white; font-size: 18px;">
-            🏫
-          </div>
-        `,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-      });
-
-      const originMarker = L.marker(startPoint, { icon: pktIcon }).addTo(map);
-      originMarker.bindPopup(`
+    if (destinationName) {
+      const destMarker = L.marker(endPoint, { icon: smkIcon }).addTo(map);
+      destMarker.bindPopup(`
         <div style="font-family: sans-serif; padding: 4px; min-width: 190px;">
-          <div style="font-size: 11px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 3px;">🏢 Titik Cabang PKT</div>
-          <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${originName}</div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${originAddress || originCity || "Indonesia"}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase; margin-bottom: 3px;">🏫 Sekolah Vokasi (SMK)</div>
+          <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${destinationName}</div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${destinationAddress || destinationCity || "Indonesia"}</div>
         </div>
       `);
 
-      if (destinationName) {
-        const destMarker = L.marker(endPoint, { icon: smkIcon }).addTo(map);
-        destMarker.bindPopup(`
-          <div style="font-family: sans-serif; padding: 4px; min-width: 190px;">
-            <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase; margin-bottom: 3px;">🏫 Sekolah Vokasi (SMK)</div>
-            <div style="font-size: 13px; font-weight: bold; color: #0f172a;">${destinationName}</div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${destinationAddress || destinationCity || "Indonesia"}</div>
-          </div>
-        `);
+      if (liveRouteData?.polyline && liveRouteData.polyline.length > 0) {
+        const polyline = L.polyline(liveRouteData.polyline, {
+          color: "#2563eb",
+          weight: 5.5,
+          opacity: 0.9,
+          lineJoin: "round",
+        }).addTo(map);
 
-        if (routePolylinePoints.length > 0) {
-          const polyline = L.polyline(routePolylinePoints, {
-            color: "#2563eb",
-            weight: 5.5,
-            opacity: 0.9,
-            lineJoin: "round",
-          }).addTo(map);
-
-          const bounds = L.latLngBounds(routePolylinePoints);
-          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-        } else {
-          const group = L.featureGroup([originMarker, destMarker]);
-          map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 13 });
-        }
+        const bounds = L.latLngBounds(liveRouteData.polyline);
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       } else {
-        map.setView(startPoint, 13);
+        const group = L.featureGroup([originMarker, destMarker]);
+        map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 13 });
       }
-
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 150);
-
-      mapInstanceRef.current = map;
-      setIsRoutingLoading(false);
+    } else {
+      map.setView(startPoint, 13);
     }
 
-    renderMap();
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    mapInstanceRef.current = map;
 
     return () => {
-      isCancelled = true;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -367,9 +415,12 @@ export function GoogleMapsView({
     destinationAddress,
     destinationCity,
     destinationCoords,
-    encodedPolyline,
+    liveRouteData,
     tileLayerType,
   ]);
+
+  const displayDistance = liveRouteData?.distanceKm ?? initialDistanceKm;
+  const displayDuration = liveRouteData?.durationMin ?? initialTravelTimeMinutes;
 
   return (
     <div
@@ -477,7 +528,7 @@ export function GoogleMapsView({
               <span className="font-semibold text-muted-foreground">Titik PKT:</span>
               <span className="font-bold">{originName}</span>
               <span className="text-muted-foreground">
-                ({originCity || originAddress || "Bandung"})
+                ({originCity || originAddress || "Jakarta"})
               </span>
             </div>
 
@@ -488,19 +539,24 @@ export function GoogleMapsView({
               <span className="font-semibold text-muted-foreground">Tujuan SMK:</span>
               <span className="font-bold">{destinationName}</span>
               <span className="text-muted-foreground">
-                ({destinationCity || destinationAddress || "Jawa Barat"})
+                ({destinationCity || destinationAddress || "Bekasi"})
               </span>
             </div>
           </div>
 
-          {(initialDistanceKm !== null && initialDistanceKm !== undefined) && (
+          {(displayDistance !== null && displayDistance !== undefined) && (
             <div className="flex items-center gap-3 font-semibold text-primary shrink-0 bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10">
               <span className="flex items-center gap-1">
-                <Car className="h-3.5 w-3.5" /> ±{initialDistanceKm} km
+                <Car className="h-3.5 w-3.5" /> ±{displayDistance} km
               </span>
-              {initialTravelTimeMinutes !== null && initialTravelTimeMinutes !== undefined && (
+              {displayDuration !== null && displayDuration !== undefined && (
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" /> ~{initialTravelTimeMinutes} menit
+                  <Clock className="h-3.5 w-3.5" /> ~{displayDuration} menit
+                </span>
+              )}
+              {liveRouteData?.routeName && (
+                <span className="hidden md:inline text-xs text-muted-foreground font-normal">
+                  (via {liveRouteData.routeName})
                 </span>
               )}
             </div>

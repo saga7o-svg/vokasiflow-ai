@@ -3790,6 +3790,110 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
     };
   });
 
+export const getGoogleRoutePolylineFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        origin: z.string().trim().min(2),
+        destination: z.string().trim().min(2),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const key =
+      process.env["VITE_GOOGLE_MAPS_API_KEY"] ||
+      process.env["GOOGLE_MAPS_API_KEY"] ||
+      "AIzaSyB48JXqA8aRWXdUASwGarYoOthcuAydVBY";
+
+    try {
+      const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": key,
+          "X-Goog-FieldMask":
+            "routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline",
+        },
+        body: JSON.stringify({
+          origin: { address: data.origin },
+          destination: { address: data.destination },
+          travelMode: "DRIVE",
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.routes) && json.routes.length > 0) {
+          const route = json.routes[0];
+          const distMeters = Number(route.distanceMeters) || 0;
+          const durSecs = parseInt(String(route.duration || "0").replace("s", ""), 10) || 0;
+          const distKm = Math.round((distMeters / 1000) * 10) / 10;
+          const durMin = Math.round(durSecs / 60);
+
+          let originCoords: [number, number] | undefined = undefined;
+          let destinationCoords: [number, number] | undefined = undefined;
+
+          if (route.polyline?.encodedPolyline) {
+            const encoded = route.polyline.encodedPolyline;
+            const points: [number, number][] = [];
+            let pIndex = 0;
+            const pLen = encoded.length;
+            let pLat = 0;
+            let pLng = 0;
+
+            while (pIndex < pLen) {
+              let b: number;
+              let shift = 0;
+              let result = 0;
+              do {
+                b = encoded.charCodeAt(pIndex++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+              } while (b >= 0x20);
+              const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+              pLat += dlat;
+
+              shift = 0;
+              result = 0;
+              do {
+                b = encoded.charCodeAt(pIndex++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+              } while (b >= 0x20);
+              const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+              pLng += dlng;
+
+              points.push([pLat / 1e5, pLng / 1e5]);
+            }
+
+            if (points.length > 0 && points[0] && points[points.length - 1]) {
+              originCoords = points[0];
+              destinationCoords = points[points.length - 1];
+            }
+          }
+
+          return {
+            success: true,
+            distanceKm: distKm,
+            travelTimeMinutes: durMin,
+            routeName: route.description || undefined,
+            encodedPolyline: route.polyline?.encodedPolyline,
+            originCoords,
+            destinationCoords,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("getGoogleRoutePolylineFn error:", err);
+    }
+
+    return {
+      success: false,
+      distanceKm: null,
+      travelTimeMinutes: null,
+    };
+  });
+
 export const getSpecialSkillsStudentMatchingFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
