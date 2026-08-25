@@ -308,15 +308,24 @@ function SmartMatchingPage() {
             {nearestResult && (
               <div className="space-y-6" id="map-section">
                 {/* 1. Google Maps View Component */}
-                <GoogleMapsView
-                  originName={`${nearestResult.company.name} (${nearestResult.branch?.name || "Pusat"})`}
-                  originAddress={nearestResult.branch?.address || nearestResult.company.address || undefined}
-                  originCity={nearestResult.branch?.city || nearestResult.company.city || undefined}
-                  destinationName={selectedSchoolForMap?.schoolName || nearestResult.recommendations[0]?.schoolName}
-                  destinationAddress={selectedSchoolForMap?.schoolName || nearestResult.recommendations[0]?.schoolName}
-                  distanceKm={selectedSchoolForMap?.estimatedDistanceKm ?? nearestResult.recommendations[0]?.estimatedDistanceKm}
-                  travelTimeMinutes={selectedSchoolForMap?.travelTimeMinutes ?? nearestResult.recommendations[0]?.travelTimeMinutes}
-                />
+                {(() => {
+                  const activeRec = selectedSchoolForMap || nearestResult.recommendations[0];
+                  return (
+                    <GoogleMapsView
+                      originName={`${nearestResult.company.name} (${nearestResult.branch?.name || "Pusat"})`}
+                      originAddress={nearestResult.branch?.address || nearestResult.company.address || undefined}
+                      originCity={nearestResult.branch?.city || nearestResult.company.city || undefined}
+                      originCoords={activeRec?.originCoords}
+                      destinationName={activeRec?.schoolName}
+                      destinationAddress={activeRec?.schoolAddress || activeRec?.schoolName}
+                      destinationCity={activeRec?.schoolCity}
+                      destinationCoords={activeRec?.destinationCoords}
+                      encodedPolyline={activeRec?.encodedPolyline}
+                      distanceKm={activeRec?.estimatedDistanceKm}
+                      travelTimeMinutes={activeRec?.travelTimeMinutes}
+                    />
+                  );
+                })()}
 
                 {/* 2. Results Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2">

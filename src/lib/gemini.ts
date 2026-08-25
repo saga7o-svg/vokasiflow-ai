@@ -54,6 +54,11 @@ const NearestSchoolSchema = z.array(
   z.object({
     schoolId: z.string().trim(),
     schoolName: z.string().trim().max(200),
+    schoolCity: z.string().trim().optional(),
+    schoolAddress: z.string().trim().optional(),
+    encodedPolyline: z.string().trim().optional(),
+    originCoords: z.tuple([z.number(), z.number()]).optional(),
+    destinationCoords: z.tuple([z.number(), z.number()]).optional(),
     estimatedDistanceKm: z
       .number()
       .min(0)
@@ -392,6 +397,48 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
               const durMin = Math.round(durSecs / 60);
               const routeDesc = route.description ? ` via ${route.description}` : "";
 
+              let originCoords: [number, number] | undefined = undefined;
+              let destinationCoords: [number, number] | undefined = undefined;
+
+              if (route.polyline?.encodedPolyline) {
+                const encoded = route.polyline.encodedPolyline;
+                const points: [number, number][] = [];
+                let pIndex = 0;
+                const pLen = encoded.length;
+                let pLat = 0;
+                let pLng = 0;
+
+                while (pIndex < pLen) {
+                  let b: number;
+                  let shift = 0;
+                  let result = 0;
+                  do {
+                    b = encoded.charCodeAt(pIndex++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                  } while (b >= 0x20);
+                  const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+                  pLat += dlat;
+
+                  shift = 0;
+                  result = 0;
+                  do {
+                    b = encoded.charCodeAt(pIndex++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                  } while (b >= 0x20);
+                  const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+                  pLng += dlng;
+
+                  points.push([pLat / 1e5, pLng / 1e5]);
+                }
+
+                if (points.length > 0 && points[0] && points[points.length - 1]) {
+                  originCoords = points[0];
+                  destinationCoords = points[points.length - 1];
+                }
+              }
+
               let match =
                 distKm <= 15
                   ? 98 - (index % 3)
@@ -415,6 +462,11 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
               return {
                 schoolId: school.id,
                 schoolName: school.name,
+                schoolCity: school.city,
+                schoolAddress: school.address,
+                encodedPolyline: route.polyline?.encodedPolyline,
+                originCoords,
+                destinationCoords,
                 estimatedDistanceKm: distKm,
                 travelTimeMinutes: durMin,
                 matchScore: Math.max(30, Math.min(99, match)),
