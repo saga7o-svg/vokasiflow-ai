@@ -3750,13 +3750,32 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
       companyAddress: branchAddress,
       companyCity: branchCity,
       ...(data.requiredCompetency ? { requiredCompetency: data.requiredCompetency } : {}),
-      schools: (schools ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        city: s.city || (s.name.toLowerCase().includes("subang") ? "Kab. Subang" : s.name.toLowerCase().includes("bandung") ? "Kota Bandung" : s.name.toLowerCase().includes("surabaya") ? "Kota Surabaya" : "Jawa Timur"),
-        address: s.address || s.city || "",
-        province: s.province || "Indonesia",
-      })),
+      schools: (schools ?? []).map((s) => {
+        const schCombined = `${s.name} ${s.address || ""} ${s.city || ""}`.toLowerCase();
+        let schCity = s.city || "";
+        if (!schCity) {
+          if (schCombined.includes("subang")) schCity = "Kab. Subang";
+          else if (schCombined.includes("bandung")) schCity = "Kota Bandung";
+          else if (schCombined.includes("purwakarta")) schCity = "Kab. Purwakarta";
+          else if (schCombined.includes("karawang")) schCity = "Kab. Karawang";
+          else if (schCombined.includes("jakarta")) schCity = "DKI Jakarta";
+          else if (schCombined.includes("malang")) schCity = "Kota Malang";
+          else if (schCombined.includes("surabaya")) schCity = "Kota Surabaya";
+          else if (schCombined.includes("sidoarjo")) schCity = "Kab. Sidoarjo";
+          else if (schCombined.includes("gresik")) schCity = "Kab. Gresik";
+          else if (schCombined.includes("pasuruan")) schCity = "Kab. Pasuruan";
+          else if (schCombined.includes("perdagangan") || schCombined.includes("simalungun")) schCity = "Kab. Simalungun";
+          else if (schCombined.includes("medan")) schCity = "Kota Medan";
+          else schCity = "Indonesia";
+        }
+        return {
+          id: s.id,
+          name: s.name,
+          city: schCity,
+          address: s.address || schCity,
+          province: s.province || "Indonesia",
+        };
+      }),
     });
 
     return {

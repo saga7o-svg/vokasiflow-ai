@@ -87,7 +87,6 @@ function getFallbackCoords(name: string, city?: string | null, address?: string 
   return [-6.9175 + (offsetIndex * 0.015), 107.6191 + (offsetIndex * 0.015)];
 }
 
-// In-memory geocode cache to prevent redundant network calls
 const geocodeCache = new Map<string, [number, number]>();
 
 async function geocodeLocation(query: string, fallback: [number, number]): Promise<[number, number]> {
@@ -132,13 +131,18 @@ export function GoogleMapsView({
 }: GoogleMapsViewProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const [activeEngine, setActiveEngine] = useState<"GOOGLE_OFFICIAL" | "LEAFLET_INTERACTIVE">("GOOGLE_OFFICIAL");
+  
+  // Statically read Vite environment variable
+  const googleMapsKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "").trim();
+  const hasValidGoogleKey = Boolean(googleMapsKey && googleMapsKey.length > 10);
+
+  const [activeEngine, setActiveEngine] = useState<"GOOGLE_OFFICIAL" | "LEAFLET_INTERACTIVE">(
+    hasValidGoogleKey ? "GOOGLE_OFFICIAL" : "LEAFLET_INTERACTIVE",
+  );
   const [tileLayerType, setTileLayerType] = useState<"STREET" | "SATELLITE" | "DARK">("STREET");
   const [isRoutingLoading, setIsRoutingLoading] = useState<boolean>(false);
   const [realDistanceKm, setRealDistanceKm] = useState<number | null>(initialDistanceKm ?? null);
   const [realTravelTimeMin, setRealTravelTimeMin] = useState<number | null>(initialTravelTimeMinutes ?? null);
-
-  const googleMapsKey = ((import.meta.env as Record<string, string | undefined>)["VITE_GOOGLE_MAPS_API_KEY"] || "").trim();
 
   // Search queries for Google Maps API and OpenStreetMap
   const originQuery = [originAddress || originName, originCity, "Indonesia"].filter(Boolean).join(", ");
@@ -158,7 +162,14 @@ export function GoogleMapsView({
 
   // Leaflet rendering when active
   useEffect(() => {
-    if (activeEngine !== "LEAFLET_INTERACTIVE" || !mapContainerRef.current) return;
+    if (activeEngine === "GOOGLE_OFFICIAL" && hasValidGoogleKey) {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      return;
+    }
+
     let isCancelled = false;
 
     async function loadMapAndRoute() {
@@ -281,6 +292,11 @@ export function GoogleMapsView({
         map.setView(originCoords, 14);
       }
 
+      // Ensure tiles render immediately inside DOM container
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 150);
+
       mapInstanceRef.current = map;
       setIsRoutingLoading(false);
     }
@@ -296,6 +312,7 @@ export function GoogleMapsView({
     };
   }, [
     activeEngine,
+    hasValidGoogleKey,
     originName,
     originAddress,
     originCity,
@@ -321,7 +338,7 @@ export function GoogleMapsView({
           <div>
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <span>Peta Lokasi &amp; Rute Google Maps</span>
-              {googleMapsKey ? (
+              {hasValidGoogleKey ? (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   <ShieldCheck className="h-3 w-3" /> API Key Aktif
                 </span>
@@ -341,7 +358,7 @@ export function GoogleMapsView({
 
         {/* Engine Switcher */}
         <div className="flex items-center gap-1 bg-background/90 p-1 rounded-xl border border-border text-xs font-semibold">
-          {googleMapsKey && (
+          {hasValidGoogleKey && (
             <button
               type="button"
               onClick={() => setActiveEngine("GOOGLE_OFFICIAL")}
@@ -362,7 +379,7 @@ export function GoogleMapsView({
             onClick={() => setActiveEngine("LEAFLET_INTERACTIVE")}
             className={cn(
               "flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all",
-              activeEngine === "LEAFLET_INTERACTIVE" || !googleMapsKey
+              activeEngine === "LEAFLET_INTERACTIVE" || !hasValidGoogleKey
                 ? "bg-primary text-primary-foreground shadow-sm font-bold"
                 : "text-muted-foreground hover:text-foreground",
             )}
@@ -370,6 +387,31 @@ export function GoogleMapsView({
             <Layers className="h-3.5 w-3.5" />
             <span>Peta Interaktif</span>
           </button>
+
+          {activeEngine === "LEAFLET_INTERACTIVE" && (
+            <div className="flex items-center pl-1 border-l border-border gap-0.5">
+              <button
+                type="button"
+                onClick={() => setTileLayerType("STREET")}
+                className={cn(
+                  "px-2 py-1 rounded text-[11px] font-medium transition-all",
+                  tileLayerType === "STREET" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Jalan
+              </button>
+              <button
+                type="button"
+                onClick={() => setTileLayerType("SATELLITE")}
+                className={cn(
+                  "px-2 py-1 rounded text-[11px] font-medium transition-all",
+                  tileLayerType === "SATELLITE" ? "bg-primary/20 text-primary font-bold" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Satelit
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -410,9 +452,10 @@ export function GoogleMapsView({
       )}
 
       {/* Map Display Viewport */}
-      <div className="relative w-full h-[380px] sm:h-[430px] bg-muted/20">
-        {activeEngine === "GOOGLE_OFFICIAL" && googleMapsKey ? (
+      <div className="relative w-full h-[380px] sm:h-[430px] bg-muted/10 overflow-hidden">
+        {activeEngine === "GOOGLE_OFFICIAL" && hasValidGoogleKey ? (
           <iframe
+            key={`${originQuery}-${destQuery}`}
             title="Official Google Maps Platform"
             src={googleMapsEmbedUrl}
             className="w-full h-full border-0"
@@ -421,7 +464,7 @@ export function GoogleMapsView({
             referrerPolicy="no-referrer-when-downgrade"
           />
         ) : (
-          <div ref={mapContainerRef} className="w-full h-full z-0" />
+          <div ref={mapContainerRef} className="w-full h-full z-0" style={{ minHeight: "380px" }} />
         )}
 
         {/* Floating Google Maps Direct Deep-Link */}

@@ -363,42 +363,153 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     }
   }
 
-  // Indonesian City Coordinates Reference for True Distance Calculations
+  // Comprehensive Indonesian City & Regency Coordinates Reference
   const CITY_COORDS: Record<string, [number, number]> = {
+    // Jawa Barat & Banten & DKI
+    subang: [-6.5716, 107.7587],
+    purwakarta: [-6.5561, 107.4431],
+    karawang: [-6.3073, 107.3078],
+    bandung: [-6.9175, 107.6191],
+    cimahi: [-6.8723, 107.542],
+    sumedang: [-6.8587, 107.9267],
+    garut: [-7.2279, 107.9087],
+    tasikmalaya: [-7.3274, 108.2207],
+    ciamis: [-7.3262, 108.3534],
+    cirebon: [-6.732, 108.5523],
+    majalengka: [-6.8361, 108.2276],
+    indramayu: [-6.3264, 108.32],
+    kuningan: [-6.9765, 108.4834],
+    sukabumi: [-6.9277, 106.93],
+    cianjur: [-6.8222, 107.1394],
+    bogor: [-6.5971, 106.806],
+    depok: [-6.4025, 106.7942],
+    bekasi: [-6.2383, 106.9756],
+    tangerang: [-6.1783, 106.6319],
+    serang: [-6.12, 106.1503],
+    cilegon: [-6.0174, 106.0538],
+    lebak: [-6.5388, 106.2486],
+    pandeglang: [-6.3088, 106.1065],
+    jakarta: [-6.2088, 106.8456],
+    "jakarta selatan": [-6.2615, 106.8106],
+    "jakarta pusat": [-6.1805, 106.8284],
+    "jakarta barat": [-6.1683, 106.7588],
+    "jakarta utara": [-6.1384, 106.864],
+    "jakarta timur": [-6.225, 106.9004],
+
+    // Jawa Timur
     sidoarjo: [-7.4478, 112.7183],
     surabaya: [-7.2575, 112.7521],
     gresik: [-7.1566, 112.6555],
     malang: [-7.9666, 112.6326],
     mojokerto: [-7.4726, 112.4381],
     pasuruan: [-7.6453, 112.9075],
-    denpasar: [-8.6705, 115.2126],
-    bali: [-8.4095, 115.1889],
-    bandung: [-6.9175, 107.6191],
-    jakarta: [-6.2088, 106.8456],
+    probolinggo: [-7.7543, 113.2159],
+    lumajang: [-8.1331, 113.2246],
+    jember: [-8.1724, 113.7007],
+    banyuwangi: [-8.2192, 114.3691],
+    bondowoso: [-7.9135, 113.8214],
+    situbondo: [-7.7063, 114.0048],
+    madiun: [-7.6298, 111.5239],
+    magetan: [-7.6536, 111.3283],
+    ngawi: [-7.4039, 111.4456],
+    ponorogo: [-7.8712, 111.4623],
+    pacitan: [-8.1966, 111.1072],
+    kediri: [-7.8228, 112.0119],
+    blitar: [-8.0983, 112.1681],
+    tulungagung: [-8.0664, 111.9015],
+    trenggalek: [-8.05, 111.7167],
+    nganjuk: [-7.6044, 111.9044],
+    jombang: [-7.5468, 112.2331],
+    tuban: [-6.8976, 112.0649],
+    lamongan: [-7.1205, 112.4158],
+    bojonegoro: [-7.1502, 111.8817],
+    bangkalan: [-7.0455, 112.7351],
+    sampang: [-7.1873, 113.2394],
+    pamekasan: [-7.1578, 113.4735],
+    sumenep: [-7.0167, 113.8667],
+
+    // Jawa Tengah & DIY
     semarang: [-6.9667, 110.4167],
     yogyakarta: [-7.7956, 110.3695],
+    jogja: [-7.7956, 110.3695],
     solo: [-7.5755, 110.8243],
+    surakarta: [-7.5755, 110.8243],
+    salatiga: [-7.3305, 110.5084],
+    magelang: [-7.4706, 110.2178],
+    pekalongan: [-6.8886, 109.6753],
+    tegal: [-6.8694, 109.1402],
+    kudus: [-6.8048, 110.8405],
+    pati: [-6.756, 111.0379],
+    jepara: [-6.5924, 110.6784],
+    demak: [-6.8944, 110.6386],
+    kendal: [-6.9256, 110.2036],
+    batang: [-6.9128, 109.7347],
+    pemalang: [-6.8911, 109.3808],
+    brebes: [-6.8703, 109.0433],
+    purwokerto: [-7.4244, 109.2302],
+    banyumas: [-7.5147, 109.2941],
+    cilacap: [-7.7279, 109.0059],
+    purbalingga: [-7.3892, 109.3639],
+    kebumen: [-7.6689, 109.6525],
+    purworejo: [-7.7144, 110.0078],
+    klaten: [-7.7031, 110.6033],
+    sukoharjo: [-7.6833, 110.8333],
+    wonogiri: [-7.8167, 110.9333],
+    karanganyar: [-7.5967, 110.9514],
+    sragen: [-7.4286, 111.0225],
+
+    // Bali & Nusa Tenggara
+    denpasar: [-8.6705, 115.2126],
+    bali: [-8.4095, 115.1889],
+    badung: [-8.5819, 115.1771],
+    gianyar: [-8.5444, 115.3269],
+    tabanan: [-8.5393, 115.1248],
+    singaraja: [-8.112, 115.0882],
+    buleleng: [-8.112, 115.0882],
+    mataram: [-8.5833, 116.1167],
+    lombok: [-8.5833, 116.1167],
+    kupang: [-10.1772, 123.607],
+
+    // Sumatera
     medan: [3.5952, 98.6722],
+    perdagangan: [3.1755, 99.3244],
+    simalungun: [2.9667, 99.0667],
+    palembang: [-2.9761, 104.7754],
+    padang: [-0.9471, 100.4172],
+    pekanbaru: [0.5071, 101.4478],
+    lampung: [-5.45, 105.2667],
+    "bandar lampung": [-5.45, 105.2667],
+    jambi: [-1.6101, 103.6131],
+    bengkulu: [-3.7928, 102.2608],
+    aceh: [5.5483, 95.3238],
+
+    // Kalimantan & Sulawesi
+    balikpapan: [-1.2379, 116.8289],
+    samarinda: [-0.5022, 117.1536],
+    banjarmasin: [-3.3194, 114.5908],
+    pontianak: [-0.0263, 109.3425],
     makassar: [-5.1477, 119.4327],
+    manado: [1.4748, 124.8428],
+    palu: [-0.9003, 119.878],
   };
 
-  const getCityCoord = (cityStr?: string | null): [number, number] => {
-    const clean = (cityStr || "").toLowerCase();
+  const getCityCoord = (...texts: (string | null | undefined)[]): [number, number] => {
+    const combined = texts.filter(Boolean).join(" ").toLowerCase();
     for (const [key, coords] of Object.entries(CITY_COORDS)) {
-      if (clean.includes(key)) return coords;
+      if (combined.includes(key)) return coords;
     }
-    return [-7.4478, 112.7183]; // Default Sidoarjo
+    return [-6.9175, 107.6191]; // Default Bandung/Java anchor
   };
 
-  const cCoords = getCityCoord(params.companyCity || params.companyAddress);
+  const cCoords = getCityCoord(params.companyCity, params.companyAddress, params.companyName);
 
   // Fallback heuristic jika tanpa API key
   const scored = params.schools.map((school, index) => {
     const sCity = (school.city || "").toLowerCase().trim();
     const cCity = (params.companyCity || "").toLowerCase().trim();
-    const sCoords = getCityCoord(school.city || school.address);
+    const sCoords = getCityCoord(school.city, school.name, school.address);
 
-    // Haversine formula
+    // Haversine formula for exact distance
     const R = 6371; // Earth radius in km
     const dLat = ((sCoords[0] - cCoords[0]) * Math.PI) / 180;
     const dLon = ((sCoords[1] - cCoords[1]) * Math.PI) / 180;
@@ -411,38 +522,47 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     let rawDist = R * c;
 
-    // Road factor (roads are ~1.25x straight line)
+    // Road factor (driving road distance is ~1.2x to 1.3x straight line)
     let estDist = Math.max(2.5, Math.round(rawDist * 1.25 * 10) / 10);
     if (sCity && cCity && (sCity.includes(cCity) || cCity.includes(sCity))) {
       estDist = 2.5 + (index % 4) * 1.8;
     }
 
-    const estMinutes = Math.round(estDist * 2.4);
-    let match = estDist <= 10 ? 96 - index * 2 : estDist <= 30 ? 88 - index * 3 : estDist <= 100 ? 70 - index * 4 : Math.max(35, 60 - Math.round(estDist / 20));
-    
+    const estMinutes = Math.round(estDist * 2.2);
+    let match =
+      estDist <= 10
+        ? 98 - index * 2
+        : estDist <= 35
+          ? 90 - index * 3
+          : estDist <= 80
+            ? 82 - index * 4
+            : estDist <= 150
+              ? 70 - index * 5
+              : Math.max(30, 55 - Math.round(estDist / 25));
+
     let feasibility: "EXCELLENT" | "GOOD" | "MODERATE" | "CHALLENGING" =
-      estDist <= 8
+      estDist <= 15
         ? "EXCELLENT"
-        : estDist <= 30
+        : estDist <= 65
           ? "GOOD"
-          : estDist <= 75
+          : estDist <= 120
             ? "MODERATE"
             : "CHALLENGING";
 
-    const isSameCity = estDist <= 15;
+    const isSameCity = estDist <= 20;
 
     return {
       schoolId: school.id,
       schoolName: school.name,
       estimatedDistanceKm: estDist,
       travelTimeMinutes: estMinutes,
-      matchScore: Math.max(40, Math.min(99, match)),
+      matchScore: Math.max(30, Math.min(99, match)),
       logisticalFeasibility: feasibility,
       aiReasoning: isSameCity
         ? `Lokasi ${school.name} berada sangat dekat (${estDist} km) dengan cabang ${params.companyName}, sangat ideal untuk mobilitas harian peserta magang.`
-        : estDist <= 50
-          ? `Lokasi ${school.name} (${school.city}) berjarak ±${estDist} km dari cabang ${params.companyName}. Terjangkau via transportasi komuter atau angkutan harian.`
-          : `Lokasi sekolah di ${school.city} berjarak cukup jauh (±${estDist} km) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
+        : estDist <= 75
+          ? `Lokasi ${school.name} (${school.city || "Jawa Barat"}) berjarak ±${estDist} km dari cabang ${params.companyName}. Sangat terjangkau via jalur transportasi harian/komuter.`
+          : `Lokasi sekolah di ${school.city || "Luar Kota"} berjarak cukup jauh (±${estDist} km) dari cabang ${params.companyName}. Disarankan koordinasi penempatan mess/akomodasi peserta.`,
       availableCompetencies: [
         params.requiredCompetency || "CPC",
         "CIT",
