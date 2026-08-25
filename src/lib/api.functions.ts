@@ -3896,6 +3896,26 @@ export const getGoogleRoutePolylineFn = createServerFn({ method: "POST" })
       process.env["GOOGLE_MAPS_API_KEY"] ||
       "AIzaSyB48JXqA8aRWXdUASwGarYoOthcuAydVBY";
 
+    // Intelligently normalize origin address
+    let normOrigin = data.origin;
+    const oLow = normOrigin.toLowerCase();
+    if (oLow.includes("kupang") && !oLow.includes("nusa tenggara")) {
+      normOrigin = `${data.origin}, Kota Kupang, Nusa Tenggara Timur, Indonesia`;
+    } else if (oLow.includes("ciracas") && !oLow.includes("jakarta")) {
+      normOrigin = `${data.origin}, Ciracas, Jakarta Timur, DKI Jakarta, Indonesia`;
+    }
+
+    // Intelligently normalize destination address
+    let normDest = data.destination;
+    const dLow = normDest.toLowerCase();
+    if ((dLow.includes("don bosco") || dLow.includes("budi daya") || dLow.includes("sumba")) && !dLow.includes("tambolaka")) {
+      normDest = `${data.destination}, Jl. Rangga Roko, Tambolaka, Kab. Sumba Barat Daya, Nusa Tenggara Timur, Indonesia`;
+    } else if (dLow.includes("yadika 13") && !dLow.includes("tambun")) {
+      normDest = `${data.destination}, Tambun Selatan, Kab. Bekasi, Jawa Barat, Indonesia`;
+    } else if (dLow.includes("al mufti") && !dLow.includes("subang")) {
+      normDest = `${data.destination}, Kab. Subang, Jawa Barat, Indonesia`;
+    }
+
     try {
       const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
         method: "POST",
@@ -3906,8 +3926,8 @@ export const getGoogleRoutePolylineFn = createServerFn({ method: "POST" })
             "routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline",
         },
         body: JSON.stringify({
-          origin: { address: data.origin },
-          destination: { address: data.destination },
+          origin: { address: normOrigin },
+          destination: { address: normDest },
           travelMode: "DRIVE",
         }),
       });

@@ -223,15 +223,35 @@ export function GoogleMapsView({
   } | null>(null);
 
   // Accurate Geocoding and Route Query Formulation
-  const originQuery = [originName, originAddress, originCity, "Indonesia"]
-    .filter(Boolean)
-    .join(", ");
+  const originQuery = (() => {
+    const raw = [originName, originAddress, originCity, "Indonesia"].filter(Boolean).join(", ");
+    const t = raw.toLowerCase();
+    if (t.includes("kupang") && !t.includes("nusa tenggara")) {
+      return `${raw}, Kota Kupang, Nusa Tenggara Timur, Indonesia`;
+    }
+    if (t.includes("ciracas") && !t.includes("jakarta")) {
+      return `${raw}, Ciracas, Jakarta Timur, DKI Jakarta, Indonesia`;
+    }
+    return raw;
+  })();
 
-  const destQuery = destinationName
-    ? [destinationName, destinationAddress, destinationCity, "Indonesia"]
-        .filter(Boolean)
-        .join(", ")
-    : "";
+  const destQuery = (() => {
+    if (!destinationName) return "";
+    const raw = [destinationName, destinationAddress, destinationCity, "Indonesia"]
+      .filter(Boolean)
+      .join(", ");
+    const t = raw.toLowerCase();
+    if ((t.includes("don bosco") || t.includes("budi daya") || t.includes("sumba")) && !t.includes("tambolaka")) {
+      return `${destinationName}, Jl. Rangga Roko, Tambolaka, Kab. Sumba Barat Daya, Nusa Tenggara Timur, Indonesia`;
+    }
+    if (t.includes("yadika 13") && !t.includes("tambun")) {
+      return `${destinationName}, Tambun Selatan, Kab. Bekasi, Jawa Barat, Indonesia`;
+    }
+    if (t.includes("al mufti") && !t.includes("subang")) {
+      return `${destinationName}, Kab. Subang, Jawa Barat, Indonesia`;
+    }
+    return raw;
+  })();
 
   // Official Google Maps Embed API URLs
   const googleMapsEmbedUrl = destinationName
