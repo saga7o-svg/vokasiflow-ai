@@ -3791,29 +3791,80 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
       companyCity: branchCity,
       ...(data.requiredCompetency ? { requiredCompetency: data.requiredCompetency } : {}),
       schools: (schools ?? []).map((s) => {
-        const schCombined = `${s.name} ${s.address || ""} ${s.city || ""}`.toLowerCase();
+        const schCombined = `${s.name} ${s.address || ""} ${s.city || ""} ${s.province || ""}`.toLowerCase();
         let schCity = s.city || "";
-        if (!schCity) {
-          if (schCombined.includes("subang")) schCity = "Kab. Subang";
-          else if (schCombined.includes("bandung")) schCity = "Kota Bandung";
-          else if (schCombined.includes("purwakarta")) schCity = "Kab. Purwakarta";
-          else if (schCombined.includes("karawang")) schCity = "Kab. Karawang";
-          else if (schCombined.includes("jakarta")) schCity = "DKI Jakarta";
-          else if (schCombined.includes("malang")) schCity = "Kota Malang";
-          else if (schCombined.includes("surabaya")) schCity = "Kota Surabaya";
-          else if (schCombined.includes("sidoarjo")) schCity = "Kab. Sidoarjo";
-          else if (schCombined.includes("gresik")) schCity = "Kab. Gresik";
-          else if (schCombined.includes("pasuruan")) schCity = "Kab. Pasuruan";
-          else if (schCombined.includes("perdagangan") || schCombined.includes("simalungun")) schCity = "Kab. Simalungun";
-          else if (schCombined.includes("medan")) schCity = "Kota Medan";
-          else schCity = "Indonesia";
+        let schProvince = s.province || "";
+        let schAddress = s.address || "";
+
+        if (schCombined.includes("don bosco") || schCombined.includes("sumba") || schCombined.includes("tambolaka")) {
+          schCity = schCity || "Kab. Sumba Barat Daya";
+          schProvince = schProvince || "Nusa Tenggara Timur";
+          schAddress = schAddress || "Tambolaka, Sumba Barat Daya, NTT";
+        } else if (schCombined.includes("kupang")) {
+          schCity = schCity || "Kota Kupang";
+          schProvince = schProvince || "Nusa Tenggara Timur";
+        } else if (schCombined.includes("subang")) {
+          schCity = schCity || "Kab. Subang";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("bandung")) {
+          schCity = schCity || "Kota Bandung";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("manonjaya") || schCombined.includes("tasikmalaya")) {
+          schCity = schCity || "Kab. Tasikmalaya";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("purwakarta")) {
+          schCity = schCity || "Kab. Purwakarta";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("karawang")) {
+          schCity = schCity || "Kab. Karawang";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("yadika 13") || schCombined.includes("tambun")) {
+          schCity = schCity || "Kab. Bekasi";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("bekasi")) {
+          schCity = schCity || "Kota Bekasi";
+          schProvince = schProvince || "Jawa Barat";
+        } else if (schCombined.includes("jakarta") || schCombined.includes("perguruan rakyat")) {
+          schCity = schCity || "DKI Jakarta";
+          schProvince = schProvince || "DKI Jakarta";
+        } else if (schCombined.includes("batumandi") || schCombined.includes("balangan")) {
+          schCity = schCity || "Kab. Balangan";
+          schProvince = schProvince || "Kalimantan Selatan";
+        } else if (schCombined.includes("belitang") || schCombined.includes("oku timur")) {
+          schCity = schCity || "Kab. OKU Timur";
+          schProvince = schProvince || "Sumatera Selatan";
+        } else if (schCombined.includes("limboto") || schCombined.includes("pulubala") || schCombined.includes("gorontalo")) {
+          schCity = schCity || "Kab. Gorontalo";
+          schProvince = schProvince || "Gorontalo";
+        } else if (schCombined.includes("pasaman")) {
+          schCity = schCity || "Kab. Pasaman Barat";
+          schProvince = schProvince || "Sumatera Barat";
+        } else if (schCombined.includes("malang")) {
+          schCity = schCity || "Kota Malang";
+          schProvince = schProvince || "Jawa Timur";
+        } else if (schCombined.includes("surabaya")) {
+          schCity = schCity || "Kota Surabaya";
+          schProvince = schProvince || "Jawa Timur";
+        } else if (schCombined.includes("sidoarjo")) {
+          schCity = schCity || "Kab. Sidoarjo";
+          schProvince = schProvince || "Jawa Timur";
+        } else if (schCombined.includes("perdagangan") || schCombined.includes("simalungun")) {
+          schCity = schCity || "Kab. Simalungun";
+          schProvince = schProvince || "Sumatera Utara";
+        } else if (schCombined.includes("medan")) {
+          schCity = schCity || "Kota Medan";
+          schProvince = schProvince || "Sumatera Utara";
         }
+
+        if (!schCity) schCity = "Indonesia";
+        if (!schAddress) schAddress = `${s.name}, ${schCity}, ${schProvince || "Indonesia"}`;
+
         return {
           id: s.id,
           name: s.name,
           city: schCity,
-          address: s.address || schCity,
-          province: s.province || "Indonesia",
+          address: schAddress,
+          province: schProvince || "Indonesia",
         };
       }),
     });

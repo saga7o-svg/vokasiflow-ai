@@ -555,6 +555,15 @@ Kembalikan array JSON murni (tanpa markdown wrapper) berisi analisis urutan seko
     surakarta: [-7.5755, 110.8243],
 
     // Luar Jawa (Kalimantan, Sulawesi, Sumatera, Bali, NTT/NTB, Papua)
+    "blk don bosco": [-9.4353, 119.2621],
+    "don bosco": [-9.4353, 119.2621],
+    "sumba barat daya": [-9.4353, 119.2621],
+    "sumba barat": [-9.6264, 119.4144],
+    "sumba timur": [-9.6543, 120.2642],
+    tambolaka: [-9.4353, 119.2621],
+    waikabubak: [-9.6264, 119.4144],
+    waingapu: [-9.6543, 120.2642],
+    sumba: [-9.4353, 119.2621],
     kupang: [-10.1772, 123.607],
     ntt: [-10.1772, 123.607],
     mataram: [-8.5833, 116.1167],
