@@ -112,6 +112,16 @@ const KNOWN_COORDINATES: Record<string, [number, number]> = {
   "lima puluh": [3.1714, 99.5397],
   asahan: [2.9854, 99.6271],
   kisaran: [2.9854, 99.6271],
+  "smk swasta ruhul anshor": [1.9448, 100.1791],
+  "ruhul anshor": [1.9448, 100.1791],
+  torgamba: [1.9448, 100.1791],
+  bunut: [1.9448, 100.1791],
+  "labuhanbatu selatan": [1.9448, 100.1791],
+  labusel: [1.9448, 100.1791],
+  "labuhan batu": [2.0975, 99.8247],
+  "labuhanbatu": [2.0975, 99.8247],
+  "rantau prapat": [2.0975, 99.8247],
+  rantauprapat: [2.0975, 99.8247],
   medan: [3.5952, 98.6722],
   "abacus cash solution medan": [3.5831, 98.7044],
   "acs - medan": [3.5831, 98.7044],
@@ -271,6 +281,9 @@ export function GoogleMapsView({
     }
     if ((t.includes("al washliyah") || t.includes("perdagangan") || t.includes("simalungun")) && !t.includes("sumatera utara")) {
       return `${destinationName}, Perdagangan, Kab. Simalungun, Sumatera Utara, Indonesia`;
+    }
+    if ((t.includes("ruhul anshor") || t.includes("torgamba") || t.includes("labusel") || t.includes("labuhanbatu")) && !t.includes("sumatera utara")) {
+      return `${destinationName}, Bunut, Torgamba, Kab. Labuhanbatu Selatan, Sumatera Utara, Indonesia`;
     }
     return raw;
   })();

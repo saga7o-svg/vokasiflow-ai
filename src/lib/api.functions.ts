@@ -3851,6 +3851,10 @@ export const getNearestSchoolsRecommendationFn = createServerFn({ method: "POST"
         } else if (schCombined.includes("perdagangan") || schCombined.includes("simalungun")) {
           schCity = schCity || "Kab. Simalungun";
           schProvince = schProvince || "Sumatera Utara";
+        } else if (schCombined.includes("ruhul anshor") || schCombined.includes("torgamba") || schCombined.includes("labusel") || schCombined.includes("labuhanbatu selatan")) {
+          schCity = schCity || "Kab. Labuhanbatu Selatan";
+          schProvince = schProvince || "Sumatera Utara";
+          schAddress = "Bunut, Torgamba, Kab. Labuhanbatu Selatan, Sumatera Utara";
         } else if (schCombined.includes("medan")) {
           schCity = schCity || "Kota Medan";
           schProvince = schProvince || "Sumatera Utara";
@@ -3916,6 +3920,8 @@ export const getGoogleRoutePolylineFn = createServerFn({ method: "POST" })
       normDest = `${data.destination}, Kab. Subang, Jawa Barat, Indonesia`;
     } else if ((dLow.includes("al washliyah") || dLow.includes("perdagangan") || dLow.includes("simalungun")) && !dLow.includes("sumatera utara")) {
       normDest = `${data.destination}, Perdagangan, Kab. Simalungun, Sumatera Utara, Indonesia`;
+    } else if ((dLow.includes("ruhul anshor") || dLow.includes("torgamba") || dLow.includes("labusel") || dLow.includes("labuhanbatu")) && !dLow.includes("sumatera utara")) {
+      normDest = `${data.destination}, Bunut, Torgamba, Kab. Labuhanbatu Selatan, Sumatera Utara, Indonesia`;
     }
 
     try {
