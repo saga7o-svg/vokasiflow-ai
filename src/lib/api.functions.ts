@@ -3585,6 +3585,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
           .union([z.string().uuid(), z.string().length(0), z.null(), z.undefined()])
           .transform((val) => (!val || val === "" ? null : val)),
         role: z.enum(["ADMIN", "GURU"]).default("GURU"),
+        user_id: z.string().uuid().optional().nullable(),
       })
       .parse(input),
   )
@@ -3593,31 +3594,33 @@ export const createGuruUser = createServerFn({ method: "POST" })
     await assertSuperAdminRole(context.supabase, context.userId, context.claims?.email);
 
     const cleanEmail = data.email.toLowerCase().trim();
-    let targetUserId: string | null = null;
+    let targetUserId: string | null = data.user_id || null;
     const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
 
-    // 1. First attempt: Use admin_create_user RPC (creates in auth.users, auth.identities, profiles, user_roles)
-    try {
-      const { data: rpcRes, error: rpcErr } = await context.supabase.rpc(
-        "admin_create_user" as never,
-        {
-          target_name: data.name,
-          target_email: cleanEmail,
-          target_password: data.password,
-          target_role: data.role,
-          target_school_id: assignedSchoolId,
-        } as never,
-      );
+    // 1. If targetUserId was not provided from client, try admin_create_user RPC
+    if (!targetUserId) {
+      try {
+        const { data: rpcRes, error: rpcErr } = await context.supabase.rpc(
+          "admin_create_user" as never,
+          {
+            target_name: data.name,
+            target_email: cleanEmail,
+            target_password: data.password,
+            target_role: data.role,
+            target_school_id: assignedSchoolId,
+          } as never,
+        );
 
-      const parsedRpc = rpcRes as { success?: boolean; user_id?: string; error?: string } | null;
-      if (!rpcErr && parsedRpc?.success && parsedRpc?.user_id) {
-        targetUserId = parsedRpc.user_id;
+        const parsedRpc = rpcRes as { success?: boolean; user_id?: string; error?: string } | null;
+        if (!rpcErr && parsedRpc?.success && parsedRpc?.user_id) {
+          targetUserId = parsedRpc.user_id;
+        }
+      } catch (rpcEx) {
+        console.warn("admin_create_user RPC exception:", rpcEx);
       }
-    } catch (rpcEx) {
-      console.warn("admin_create_user RPC exception:", rpcEx);
     }
 
-    // 2. Second attempt: Use dedicated Supabase client auth.signUp on server
+    // 2. Second attempt: Direct server-side signUp
     if (!targetUserId) {
       try {
         const { createClient } = await import("@supabase/supabase-js");
@@ -3648,43 +3651,20 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
         if (signUpRes?.data?.user?.id) {
           targetUserId = signUpRes.data.user.id;
-        } else if (signUpRes?.error) {
-          console.warn("Direct signUp warning:", signUpRes.error.message);
         }
       } catch (directErr) {
         console.warn("Direct authClient error:", directErr);
       }
     }
 
-    // 3. Third attempt: Try Admin API if service key is active
-    if (!targetUserId) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: createdUser } = await supabaseAdmin.auth.admin.createUser({
-          email: cleanEmail,
-          password: data.password,
-          email_confirm: true,
-          user_metadata: {
-            name: data.name,
-            role: data.role,
-            school_id: assignedSchoolId,
-          },
-        });
-
-        if (createdUser?.user?.id) {
-          targetUserId = createdUser.user.id;
-        }
-      } catch {}
-    }
-
-    // 4. Auto confirm email via RPC
+    // 3. Auto confirm email via RPC
     try {
       await context.supabase.rpc("confirm_user_email" as never, {
         target_email: cleanEmail,
       } as never);
     } catch {}
 
-    // 5. If targetUserId is still not found, check existing profiles table
+    // 4. If targetUserId is still not found, check existing profiles table
     if (!targetUserId) {
       const { data: existingProf } = await context.supabase
         .from("profiles")
@@ -3699,11 +3679,11 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
     if (!targetUserId) {
       throw new Error(
-        "Gagal mendaftarkan akun di sistem autentikasi. Pastikan email belum terdaftar atau coba beberapa saat lagi.",
+        "Gagal mendaftarkan akun di sistem autentikasi. Pastikan email dan password valid.",
       );
     }
 
-    // 6. Ensure profile is saved in profiles table
+    // 5. Ensure profile is saved in profiles table
     const profilePayload = {
       id: targetUserId,
       name: data.name,
@@ -3722,7 +3702,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
     }
 
-    // 7. Ensure role is saved in user_roles table
+    // 6. Ensure role is saved in user_roles table
     await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
     const { error: roleErr } = await context.supabase
       .from("user_roles")
