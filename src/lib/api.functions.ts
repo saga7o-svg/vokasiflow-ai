@@ -3599,6 +3599,76 @@ export const listUsers = createServerFn({ method: "GET" })
     });
   });
 
+export const loginOrSyncSuperAdmin = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        email: z.string().trim().email(),
+        password: z.string().min(6),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const cleanEmail = data.email.toLowerCase().trim();
+    if (!isSuperAdminEmail(cleanEmail)) {
+      return { isSuperAdmin: false, synced: false };
+    }
+
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      // Find or create in auth.users
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const existing = usersData?.users?.find((u) => u.email?.toLowerCase() === cleanEmail);
+
+      let targetUid = existing?.id;
+      if (existing) {
+        await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+          password: data.password,
+          email_confirm: true,
+          user_metadata: { name: "saga7o (Super Admin)", role: "SUPER_ADMIN" },
+        });
+      } else {
+        const { data: createdUser } = await supabaseAdmin.auth.admin.createUser({
+          email: cleanEmail,
+          password: data.password,
+          email_confirm: true,
+          user_metadata: { name: "saga7o (Super Admin)", role: "SUPER_ADMIN" },
+        });
+        targetUid = createdUser?.user?.id;
+      }
+
+      // Ensure profile and roles exist in public tables
+      if (targetUid) {
+        await supabaseAdmin.from("profiles").upsert(
+          {
+            id: targetUid,
+            name: "saga7o (Super Admin)",
+            email: cleanEmail,
+            position: "Administrator Utama Website",
+            status: "ACTIVE",
+          },
+          { onConflict: "id" },
+        );
+
+        await supabaseAdmin.from("user_roles").delete().eq("user_id", targetUid);
+        await supabaseAdmin.from("user_roles").insert({
+          user_id: targetUid,
+          role: "ADMIN",
+        });
+      }
+
+      try {
+        await supabaseAdmin.rpc("setup_saga7o_admin" as never);
+        await supabaseAdmin.rpc("confirm_user_email" as never, { target_email: cleanEmail } as never);
+      } catch {}
+
+      return { isSuperAdmin: true, synced: true };
+    } catch (err) {
+      console.warn("loginOrSyncSuperAdmin error:", err);
+      return { isSuperAdmin: true, synced: false };
+    }
+  });
+
 export const confirmUserEmailFn = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z.object({ email: z.string().trim().email() }).parse(input),

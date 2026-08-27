@@ -56,6 +56,7 @@ function AuthPage() {
   const fetchPublicSchools = useServerFn(listPublicSchools);
   const registerTeacherFn = useServerFn(registerTeacherAccount);
   const confirmEmailServerFn = useServerFn(confirmUserEmailFn);
+  const loginOrSyncSuperAdminFn = useServerFn(loginOrSyncSuperAdmin);
 
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams["mode"] === "register" ? "register" : "login",
@@ -132,54 +133,73 @@ function AuthPage() {
         }
       }
 
-      // 3. Fallback auto-signup if user doesn't exist in Supabase Auth yet (e.g. initial super admin / demo account)
+      // 3. Fallback auto-sync for Super Admin / Admin accounts if credentials mismatch
       if (
         signInError &&
         (signInError.message?.toLowerCase().includes("invalid login credentials") ||
           signInError.message?.toLowerCase().includes("user not found"))
       ) {
-        let displayName =
-          emailVal === "saga7o@example.com"
-            ? "saga7o (Super Admin)"
-            : emailVal === "admin@example.com"
-              ? "Admin Pusat"
-              : "Pengguna VokasiFlow";
-
         try {
-          const { data: existingProf } = await supabase
-            .from("profiles")
-            .select("name")
-            .eq("email", emailVal)
-            .maybeSingle();
-          if (existingProf?.name) {
-            displayName = existingProf.name;
-          }
-        } catch {}
-
-        try {
-          await supabase.auth.signUp({
-            email: emailVal,
-            password: passVal,
-            options: {
-              data: { name: displayName },
-            },
+          const syncRes = await loginOrSyncSuperAdminFn({
+            data: { email: emailVal, password: passVal },
           });
+          if (syncRes?.synced) {
+            const retrySync = await supabase.auth.signInWithPassword({
+              email: emailVal,
+              password: passVal,
+            });
+            if (!retrySync.error) {
+              signInError = null;
+            }
+          }
+        } catch (syncEx) {
+          console.warn("loginOrSyncSuperAdmin exception:", syncEx);
+        }
 
-          // Confirm immediately
+        if (signInError) {
+          let displayName =
+            emailVal === "saga7o@example.com"
+              ? "saga7o (Super Admin)"
+              : emailVal === "admin@example.com"
+                ? "Admin Pusat"
+                : "Pengguna VokasiFlow";
+
           try {
-            await supabase.rpc("confirm_user_email" as never, { target_email: emailVal } as never);
-            await confirmEmailServerFn({ data: { email: emailVal } });
+            const { data: existingProf } = await supabase
+              .from("profiles")
+              .select("name")
+              .eq("email", emailVal)
+              .maybeSingle();
+            if (existingProf?.name) {
+              displayName = existingProf.name;
+            }
           } catch {}
 
-          const retry = await supabase.auth.signInWithPassword({
-            email: emailVal,
-            password: passVal,
-          });
-          if (!retry.error) {
-            signInError = null;
+          try {
+            await supabase.auth.signUp({
+              email: emailVal,
+              password: passVal,
+              options: {
+                data: { name: displayName },
+              },
+            });
+
+            // Confirm immediately
+            try {
+              await supabase.rpc("confirm_user_email" as never, { target_email: emailVal } as never);
+              await confirmEmailServerFn({ data: { email: emailVal } });
+            } catch {}
+
+            const retry = await supabase.auth.signInWithPassword({
+              email: emailVal,
+              password: passVal,
+            });
+            if (!retry.error) {
+              signInError = null;
+            }
+          } catch {
+            // ignore signup fallback error
           }
-        } catch {
-          // ignore signup fallback error, use original signInError
         }
       }
 
