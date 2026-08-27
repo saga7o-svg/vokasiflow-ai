@@ -17,7 +17,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { listPublicSchools } from "@/lib/api.functions";
+import { listPublicSchools, registerTeacherAccount } from "@/lib/api.functions";
 import { DUMMY_SCHOOLS } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,6 +50,7 @@ function AuthPage() {
   const searchParams = Route.useSearch();
   const navigate = useNavigate();
   const fetchPublicSchools = useServerFn(listPublicSchools);
+  const registerTeacherFn = useServerFn(registerTeacherAccount);
 
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams["mode"] === "register" ? "register" : "login",
@@ -186,26 +187,19 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      // Register account via Supabase Auth with metadata (Auto-role GURU in trigger)
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: regPassword,
-        options: {
-          data: {
-            name: regName.trim(),
-            phone: regPhone.trim(),
-            position: regPosition.trim() || "Guru Pembimbing Magang",
-            school_id: selectedSchool,
-          },
+      // 1. Register teacher via server function (ensures pre-confirmed account & profile creation)
+      await registerTeacherFn({
+        data: {
+          name: regName.trim(),
+          email: cleanEmail,
+          password: regPassword,
+          phone: regPhone.trim(),
+          position: regPosition.trim() || "Guru Pembimbing Magang",
+          schoolId: selectedSchool,
         },
       });
 
-      if (signUpError) {
-        setError(signUpError.message || "Gagal melakukan pendaftaran akun guru.");
-        return;
-      }
-
-      // Immediately sign in after successful registration
+      // 2. Immediately sign in with credentials
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: regPassword,
@@ -223,7 +217,30 @@ function AuthPage() {
       window.location.href = "/app";
     } catch (err: any) {
       console.error("Register error:", err);
-      setError(err?.message || "Terjadi kesalahan saat mendaftar.");
+      // Fallback: If server function threw, attempt client-side signup
+      try {
+        const { error: fallbackSignUpErr } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: regPassword,
+          options: {
+            data: {
+              name: regName.trim(),
+              phone: regPhone.trim(),
+              position: regPosition.trim() || "Guru Pembimbing Magang",
+              school_id: selectedSchool,
+            },
+          },
+        });
+        if (!fallbackSignUpErr) {
+          toast.success("Pendaftaran berhasil! Silakan masuk.");
+          setAuthMode("login");
+          setEmail(cleanEmail);
+          setPassword(regPassword);
+          return;
+        }
+      } catch {}
+
+      setError(err?.message || "Gagal melakukan pendaftaran akun guru. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }

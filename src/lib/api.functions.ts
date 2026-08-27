@@ -261,6 +261,160 @@ export const listPublicSchools = createServerFn({ method: "GET" }).handler(async
   }
 });
 
+export const registerTeacherAccount = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        name: z.string().trim().min(2, "Nama minimal 2 karakter"),
+        email: z.string().trim().email("Format email tidak valid"),
+        password: z.string().min(6, "Password minimal 6 karakter"),
+        phone: z.string().trim().optional().default(""),
+        position: z.string().trim().optional().default("Guru Pembimbing Magang"),
+        schoolId: z.string().trim().optional().default(""),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = data.email.toLowerCase().trim();
+    const { name, password, phone, position, schoolId } = data;
+
+    // 1. Resolve schoolId to a valid school in public.schools
+    let targetSchoolId: string | null = null;
+    try {
+      if (schoolId && schoolId.length === 36 && schoolId.includes("-")) {
+        const { data: sch } = await supabaseAdmin
+          .from("schools")
+          .select("id")
+          .eq("id", schoolId)
+          .maybeSingle();
+        if (sch) targetSchoolId = sch.id;
+      }
+
+      // If not resolved yet, try to find dummy match or pick first active school or create it
+      if (!targetSchoolId) {
+        const dummyMatch = DUMMY_SCHOOLS.find(
+          (d) => d.id === schoolId || d.name.toLowerCase() === schoolId.toLowerCase(),
+        );
+        if (dummyMatch) {
+          const { data: dbSch } = await supabaseAdmin
+            .from("schools")
+            .select("id")
+            .or(`name.eq."${dummyMatch.name}",school_code.eq."${dummyMatch.school_code}"`)
+            .maybeSingle();
+          if (dbSch) {
+            targetSchoolId = dbSch.id;
+          } else {
+            const { data: newSch } = await supabaseAdmin
+              .from("schools")
+              .insert({
+                name: dummyMatch.name,
+                school_code: dummyMatch.school_code,
+                city: dummyMatch.city,
+                province: dummyMatch.province,
+                address: dummyMatch.address,
+                contact_phone: dummyMatch.phone,
+                status: "ACTIVE",
+              })
+              .select("id")
+              .maybeSingle();
+            if (newSch) targetSchoolId = newSch.id;
+          }
+        }
+      }
+
+      // If still not resolved, pick any first school
+      if (!targetSchoolId) {
+        const { data: anySch } = await supabaseAdmin
+          .from("schools")
+          .select("id")
+          .order("created_at")
+          .limit(1)
+          .maybeSingle();
+        if (anySch) targetSchoolId = anySch.id;
+      }
+    } catch (e) {
+      console.warn("School resolution error in registerTeacherAccount:", e);
+    }
+
+    // 2. Create or Update user in Supabase Auth via Admin API
+    try {
+      const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          name,
+          phone: phone || null,
+          position: position || "Guru Pembimbing Magang",
+          school_id: targetSchoolId,
+        },
+      });
+
+      let userId = createdUser?.user?.id;
+
+      if (createError) {
+        // If user already exists, update their password and metadata
+        if (
+          createError.message?.toLowerCase().includes("already registered") ||
+          createError.message?.toLowerCase().includes("already exists") ||
+          createError.message?.toLowerCase().includes("duplicate")
+        ) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existing = listData?.users?.find((u) => u.email?.toLowerCase() === email);
+          if (existing) {
+            userId = existing.id;
+            await supabaseAdmin.auth.admin.updateUserById(userId, {
+              password,
+              email_confirm: true,
+              user_metadata: {
+                name,
+                phone: phone || null,
+                position: position || "Guru Pembimbing Magang",
+                school_id: targetSchoolId,
+              },
+            });
+          }
+        } else {
+          throw new Error(createError.message || "Gagal membuat akun di Supabase Auth.");
+        }
+      }
+
+      // 3. Ensure profile and GURU role exist in database
+      if (userId) {
+        await supabaseAdmin.from("profiles").upsert(
+          {
+            id: userId,
+            name,
+            email,
+            phone: phone || null,
+            position: position || "Guru Pembimbing Magang",
+            school_id: targetSchoolId,
+            status: "ACTIVE",
+          },
+          { onConflict: "id" },
+        );
+
+        const { data: existingRoles } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
+
+        if (!existingRoles || existingRoles.length === 0) {
+          await supabaseAdmin.from("user_roles").insert({
+            user_id: userId,
+            role: "GURU" as any,
+          });
+        }
+      }
+
+      return { success: true, userId };
+    } catch (err: any) {
+      console.error("registerTeacherAccount error:", err);
+      throw new Error(err?.message || "Terjadi kesalahan saat pendaftaran akun guru.");
+    }
+  });
+
 export const listSchools = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
