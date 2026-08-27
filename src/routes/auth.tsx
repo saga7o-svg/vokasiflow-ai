@@ -138,12 +138,23 @@ function AuthPage() {
         (signInError.message?.toLowerCase().includes("invalid login credentials") ||
           signInError.message?.toLowerCase().includes("user not found"))
       ) {
-        const displayName =
+        let displayName =
           emailVal === "saga7o@example.com"
             ? "saga7o (Super Admin)"
             : emailVal === "admin@example.com"
               ? "Admin Pusat"
-              : "Guru Pembimbing";
+              : "Pengguna VokasiFlow";
+
+        try {
+          const { data: existingProf } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("email", emailVal)
+            .maybeSingle();
+          if (existingProf?.name) {
+            displayName = existingProf.name;
+          }
+        } catch {}
 
         try {
           await supabase.auth.signUp({
