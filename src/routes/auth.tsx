@@ -21,6 +21,7 @@ import {
   listPublicSchools,
   registerTeacherAccount,
   confirmUserEmailFn,
+  loginOrSyncSuperAdmin,
 } from "@/lib/api.functions";
 import { DUMMY_SCHOOLS } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
