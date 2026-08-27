@@ -3594,42 +3594,83 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
     const cleanEmail = data.email.toLowerCase().trim();
     let targetUserId: string | null = null;
+    const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
 
-    // 1. Create account using supabase client with proper headers and timeout
+    // 1. Create or update user via Supabase Auth Admin API (auto-confirmed, instant login ready, works with dummy/example domains)
     try {
-      const { supabase: authClient } = await import("@/integrations/supabase/client");
-      const signUpPromise = authClient.auth.signUp({
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: cleanEmail,
         password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            role: data.role,
-            school_id: data.role === "ADMIN" ? null : data.school_id,
-          },
+        email_confirm: true,
+        user_metadata: {
+          name: data.name,
+          role: data.role,
+          school_id: assignedSchoolId,
+          is_dummy:
+            cleanEmail.endsWith("@example.com") ||
+            cleanEmail.endsWith(".test") ||
+            cleanEmail.includes("dummy")
+              ? true
+              : undefined,
         },
       });
 
-      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-        setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 3500),
-      );
-
-      const signUpRes = await Promise.race([signUpPromise, timeoutPromise]);
-      if (signUpRes?.data?.user?.id) {
-        targetUserId = signUpRes.data.user.id;
+      if (createdUser?.user?.id) {
+        targetUserId = createdUser.user.id;
+      } else if (createError) {
+        console.warn("supabaseAdmin.auth.admin.createUser notice:", createError.message);
+        // If user already exists in auth, update password and metadata
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const existing = listData?.users?.find((u) => u.email?.toLowerCase() === cleanEmail);
+        if (existing) {
+          targetUserId = existing.id;
+          await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+            password: data.password,
+            email_confirm: true,
+            user_metadata: {
+              name: data.name,
+              role: data.role,
+              school_id: assignedSchoolId,
+            },
+          });
+        }
       }
-    } catch (err) {
-      console.warn("User signUp warning in createGuruUser:", err);
+    } catch (adminErr) {
+      console.warn("Admin createUser error:", adminErr);
     }
 
-    // 2. Immediately auto-confirm the user in database if RPC is available
+    // 2. Fallback check from database profiles or client signUp if admin API didn't resolve an ID
+    if (!targetUserId) {
+      try {
+        const { supabase: authClient } = await import("@/integrations/supabase/client");
+        const signUpRes = await authClient.auth.signUp({
+          email: cleanEmail,
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+              role: data.role,
+              school_id: assignedSchoolId,
+            },
+          },
+        });
+        if (signUpRes?.data?.user?.id) {
+          targetUserId = signUpRes.data.user.id;
+        }
+      } catch (err) {
+        console.warn("Client signUp fallback warning:", err);
+      }
+    }
+
+    // 3. Confirm email via RPC if available
     try {
       await context.supabase.rpc("confirm_user_email" as never, {
         target_email: cleanEmail,
       } as never);
     } catch {}
 
-    // 3. If targetUserId is still not found, check existing profiles or generate a new UUID
+    // 4. If targetUserId is still not found, check existing profiles or generate a UUID
     if (!targetUserId) {
       const { data: existingProf } = await context.supabase
         .from("profiles")
@@ -3644,30 +3685,38 @@ export const createGuruUser = createServerFn({ method: "POST" })
       }
     }
 
-    const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
-
-    // 4. Save profile in profiles table
-    const { error: profErr } = await context.supabase.from("profiles").upsert({
+    // 5. Save/upsert profile in profiles table
+    const profilePayload = {
       id: targetUserId,
       name: data.name,
       email: cleanEmail,
       school_id: assignedSchoolId,
       position: data.role === "ADMIN" ? "Administrator" : "Guru Pembimbing Magang",
-      status: "ACTIVE",
+      status: "ACTIVE" as const,
+    };
+
+    const { error: profErr } = await context.supabase.from("profiles").upsert(profilePayload, {
+      onConflict: "id",
     });
 
     if (profErr) {
-      throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin.from("profiles").upsert(profilePayload, { onConflict: "id" });
+      } catch (e: any) {
+        throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
+      }
     }
 
-    // 5. Update user_roles table
-    await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
-    const { error: roleErr } = await context.supabase
-      .from("user_roles")
-      .insert({ user_id: targetUserId, role: data.role });
-
-    if (roleErr) {
-      console.warn("user_roles insert warning:", roleErr);
+    // 6. Update user_roles table
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", targetUserId);
+      await supabaseAdmin.from("user_roles").insert({ user_id: targetUserId, role: data.role });
+    } catch (roleErr) {
+      console.warn("user_roles update warning:", roleErr);
+      await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
+      await context.supabase.from("user_roles").insert({ user_id: targetUserId, role: data.role });
     }
 
     try {
@@ -3680,7 +3729,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       });
     } catch {}
 
-    return { ok: true, userId: targetUserId };
+    return { ok: true, userId: targetUserId, email: cleanEmail, role: data.role };
   });
 
 export const updateUser = createServerFn({ method: "POST" })

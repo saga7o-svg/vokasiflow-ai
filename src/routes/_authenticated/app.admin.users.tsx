@@ -25,6 +25,13 @@ import {
   ShieldAlert,
   Users,
   Crown,
+  Sparkles,
+  Copy,
+  Check,
+  FlaskConical,
+  KeyRound,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,6 +57,19 @@ interface UserItem {
   schoolName: string | null;
 }
 
+export function isDummyUser(email: string, name?: string): boolean {
+  const e = (email || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return (
+    e.endsWith("@example.com") ||
+    e.endsWith("@dummy.com") ||
+    e.endsWith("@test.com") ||
+    e.endsWith(".local") ||
+    e.includes("dummy") ||
+    n.includes("dummy")
+  );
+}
+
 function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
@@ -62,9 +82,19 @@ function AdminUsersPage() {
   const deleteUserFn = useServerFn(deleteUser);
 
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "GURU" | "DUMMY">("ALL");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+
+  // Success Created Modal
+  const [createdAccountInfo, setCreatedAccountInfo] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+  } | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
 
   // Create form state
   const [name, setName] = useState("");
@@ -105,10 +135,16 @@ function AdminUsersPage() {
     }) => {
       return createGuruFn({ data: payload });
     },
-    onSuccess: () => {
-      toast.success("Akun pengguna baru berhasil dibuat.");
+    onSuccess: (_, variables) => {
+      toast.success(`Akun "${variables.email}" berhasil dibuat & langsung aktif!`);
       queryClient.invalidateQueries({ queryKey: ["users-list"] });
       setCreateModalOpen(false);
+      setCreatedAccountInfo({
+        name: variables.name,
+        email: variables.email,
+        password: variables.password,
+        role: variables.role,
+      });
     },
     onError: (err: any) => {
       const msg = err?.message || err?.data?.message || "Gagal membuat akun.";
@@ -154,13 +190,61 @@ function AdminUsersPage() {
     },
   });
 
-  function openCreate() {
-    setName("");
-    setEmail("");
-    setPassword("");
-    setSchoolId(schools?.[0]?.id ?? "");
-    setRole("ADMIN");
+  function openCreate(presetType?: "NORMAL" | "DUMMY_ADMIN" | "DUMMY_GURU" | "DUMMY_RANDOM") {
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const firstSchool = schools?.[0]?.id ?? "";
+
+    if (presetType === "DUMMY_ADMIN") {
+      setName("Muzaki (Admin Dummy)");
+      setEmail(`muzaki@example.com`);
+      setPassword("Admin123!");
+      setSchoolId("");
+      setRole("ADMIN");
+    } else if (presetType === "DUMMY_GURU") {
+      setName("Budi Santoso (Guru Dummy)");
+      setEmail(`guru.dummy${randomSuffix}@example.com`);
+      setPassword("Guru123!");
+      setSchoolId(firstSchool);
+      setRole("GURU");
+    } else if (presetType === "DUMMY_RANDOM") {
+      setName(`Pengguna Dummy #${randomSuffix}`);
+      setEmail(`dummy.${randomSuffix}@example.com`);
+      setPassword("Dummy123!");
+      setSchoolId(firstSchool);
+      setRole("ADMIN");
+    } else {
+      setName("");
+      setEmail("");
+      setPassword("");
+      setSchoolId(firstSchool);
+      setRole("ADMIN");
+    }
     setCreateModalOpen(true);
+  }
+
+  function applyDummyPreset(preset: "ADMIN" | "GURU" | "RANDOM") {
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const firstSchool = schools?.[0]?.id ?? "";
+
+    if (preset === "ADMIN") {
+      setName("Muzaki (Admin Dummy)");
+      setEmail("muzaki@example.com");
+      setPassword("Admin123!");
+      setRole("ADMIN");
+      setSchoolId("");
+    } else if (preset === "GURU") {
+      setName("Budi Santoso, M.Pd (Guru Dummy)");
+      setEmail(`guru.dummy${randomSuffix}@example.com`);
+      setPassword("Guru123!");
+      setRole("GURU");
+      if (firstSchool) setSchoolId(firstSchool);
+    } else {
+      setName(`Tester Dummy #${randomSuffix}`);
+      setEmail(`dummy.${randomSuffix}@example.com`);
+      setPassword("Dummy123!");
+      setRole("ADMIN");
+    }
+    toast.info("Data contoh dummy telah diisikan ke formulir.");
   }
 
   function openEdit(u: UserItem) {
@@ -215,6 +299,16 @@ function AdminUsersPage() {
     });
   }
 
+  function handleCopyCredentials(creds: { email: string; password?: string }) {
+    const text = creds.password
+      ? `Email: ${creds.email}\nPassword: ${creds.password}`
+      : creds.email;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(true);
+    toast.success("Kredensial login berhasil disalin ke clipboard!");
+    setTimeout(() => setCopiedKey(false), 2500);
+  }
+
   if (!isSuperAdmin) {
     return (
       <AppShell title="Manajemen Pengguna">
@@ -246,37 +340,55 @@ function AdminUsersPage() {
   }
 
   const allUsers = users ?? [];
-  const filteredUsers = allUsers.filter((u) => {
-    const q = search.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      u.name.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.schoolName ?? "").toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
-    );
-  });
-
+  const dummyUsersCount = allUsers.filter((u) => isDummyUser(u.email, u.name)).length;
   const superAdminCount = allUsers.filter((u) => u.role === "SUPER_ADMIN").length;
   const adminBiasaCount = allUsers.filter((u) => u.role === "ADMIN").length;
   const guruCount = allUsers.filter((u) => u.role === "GURU").length;
+
+  const filteredUsers = allUsers.filter((u) => {
+    const q = search.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.schoolName ?? "").toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q) ||
+      (q === "dummy" && isDummyUser(u.email, u.name));
+
+    if (!matchesSearch) return false;
+
+    if (roleFilter === "ADMIN") return u.role === "ADMIN" || u.role === "SUPER_ADMIN";
+    if (roleFilter === "GURU") return u.role === "GURU";
+    if (roleFilter === "DUMMY") return isDummyUser(u.email, u.name);
+    return true;
+  });
 
   return (
     <AppShell
       title="Manajemen Hak Akses & Pengguna"
       actions={
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Tambah Pengguna Baru
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => openCreate("DUMMY_ADMIN")}
+            className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-2 text-xs font-bold shadow-2xs hover:bg-amber-500/20 transition-all"
+            title="Buat Akun Uji Coba / Dummy secara cepat"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Buat Akun Dummy
+          </button>
+          <button
+            type="button"
+            onClick={() => openCreate("NORMAL")}
+            className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold shadow-xs hover:opacity-95 transition-opacity"
+          >
+            <Plus className="h-4 w-4" /> Tambah Pengguna Baru
+          </button>
+        </div>
       }
     >
       <div className="space-y-4">
         {/* KPI Stats */}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <Card className="p-4 bg-card/60 backdrop-blur-xs border-border/80 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-muted-foreground">Total Pengguna</p>
@@ -315,18 +427,80 @@ function AdminUsersPage() {
               <GraduationCap className="h-5 w-5" />
             </div>
           </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-xs border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">Akun Dummy / Uji Coba</p>
+              <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                {dummyUsersCount}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Akun testing (auto-active)</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <FlaskConical className="h-5 w-5" />
+            </div>
+          </Card>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama, email, sekolah, atau peran..."
-            className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2 text-xs outline-none focus:border-ai transition-colors"
-          />
+        {/* Filter Pills & Search Bar */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama, email, sekolah, atau peran..."
+              className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2 text-xs outline-none focus:border-ai transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              type="button"
+              onClick={() => setRoleFilter("ALL")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                roleFilter === "ALL"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:bg-softgray"
+              }`}
+            >
+              Semua ({allUsers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("ADMIN")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                roleFilter === "ADMIN"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-card border border-border text-muted-foreground hover:bg-softgray"
+              }`}
+            >
+              Admin ({superAdminCount + adminBiasaCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("GURU")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                roleFilter === "GURU"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-card border border-border text-muted-foreground hover:bg-softgray"
+              }`}
+            >
+              Guru ({guruCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("DUMMY")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                roleFilter === "DUMMY"
+                  ? "bg-amber-600 text-white"
+                  : "bg-card border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+              }`}
+            >
+              🧪 Dummy ({dummyUsersCount})
+            </button>
+          </div>
         </div>
 
         {/* Content Table */}
@@ -356,13 +530,32 @@ function AdminUsersPage() {
                     {filteredUsers.map((u) => {
                       const isSelf = u.id === me?.id || u.email === me?.email;
                       const isUserSuperAdmin = u.role === "SUPER_ADMIN";
+                      const isDummy = isDummyUser(u.email, u.name);
+
                       return (
                         <tr key={u.id} className="hover:bg-softgray/30 transition-colors">
                           <td className="px-4 py-3.5">
-                            <span className="font-bold text-foreground block text-sm">
-                              {u.name}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">{u.email}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-foreground block text-sm">
+                                {u.name}
+                              </span>
+                              {isDummy ? (
+                                <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                  <FlaskConical className="h-2.5 w-2.5" /> Dummy
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+                              <span>{u.email}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyCredentials({ email: u.email })}
+                                className="hover:text-foreground text-muted-foreground transition-colors"
+                                title="Salin Email"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
                           </td>
                           <td className="px-4 py-3.5">
                             {isUserSuperAdmin ? (
@@ -448,18 +641,95 @@ function AdminUsersPage() {
           ) : (
             <EmptyState
               title="Tidak ada pengguna"
-              description="Belum ada pengguna yang sesuai dengan pencarian Anda."
+              description="Belum ada pengguna yang sesuai dengan pencarian atau filter Anda."
             />
           )
         ) : null}
       </div>
 
-      {/* Create User Modal */}
-      {createModalOpen ? (
+      {/* Success Account Created Notification Modal with Credentials */}
+      {createdAccountInfo ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="w-full max-w-md rounded-3xl border border-border bg-background shadow-2xl overflow-hidden p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-base font-bold text-foreground">Buat Akun Pengguna Baru</h2>
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600">
+                  <Check className="h-4 w-4" />
+                </div>
+                <h2 className="text-base font-bold text-foreground">Akun Berhasil Didaftarkan</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreatedAccountInfo(null)}
+                className="grid h-8 w-8 place-items-center rounded-lg hover:bg-softgray text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2.5">
+              <p className="text-xs text-foreground font-medium">
+                Akun pengguna baru telah dibuat dan langsung berstatus <strong>Aktif</strong> tanpa
+                perlu verifikasi email. Anda dapat langsung menggunakannya untuk login.
+              </p>
+
+              <div className="bg-background/80 rounded-xl p-3 border border-border space-y-2 text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground font-sans">Nama:</span>
+                  <span className="font-bold text-foreground font-sans">{createdAccountInfo.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground font-sans">Role:</span>
+                  <span className="font-bold text-primary font-sans">{createdAccountInfo.role}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground font-sans">Email:</span>
+                  <span className="font-bold text-foreground">{createdAccountInfo.email}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground font-sans">Password:</span>
+                  <span className="font-bold text-foreground">{createdAccountInfo.password}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => handleCopyCredentials(createdAccountInfo)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary text-secondary-foreground px-4 py-2 text-xs font-semibold hover:bg-softgray transition-colors"
+              >
+                {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedKey ? "Tersalin!" : "Salin Kredensial"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedAccountInfo(null)}
+                className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Create User Modal */}
+      {createModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-background shadow-2xl overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Buat Akun Pengguna Baru</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Daftarkan akun Admin, Guru, atau Akun Dummy Uji Coba
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
@@ -467,6 +737,55 @@ function AdminUsersPage() {
               >
                 <X className="h-4 w-4" />
               </button>
+            </div>
+
+            {/* Quick Dummy Generator Bar */}
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Isi Cepat Contoh Akun Dummy:
+                </span>
+                <span className="text-[10px] text-muted-foreground">1-Klik Isi Form</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyDummyPreset("ADMIN")}
+                  className="rounded-xl border border-amber-500/30 bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                    <Shield className="h-3 w-3" /> Admin Dummy
+                  </span>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-full">
+                    muzaki@example.com
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyDummyPreset("GURU")}
+                  className="rounded-xl border border-amber-500/30 bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <GraduationCap className="h-3 w-3" /> Guru Dummy
+                  </span>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-full">
+                    guru.dummy@example.com
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyDummyPreset("RANDOM")}
+                  className="rounded-xl border border-amber-500/30 bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-center flex flex-col items-center justify-center gap-0.5"
+                >
+                  <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3" /> Dummy Acak
+                  </span>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-full">
+                    dummy.xxx@example.com
+                  </span>
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleCreateSubmit} noValidate className="space-y-3.5">
@@ -477,19 +796,26 @@ function AdminUsersPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Contoh: Budi Santoso, M.Pd"
+                  placeholder="Contoh: muzaki / Budi Santoso, M.Pd"
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Email Akun *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground">Email Akun *</label>
+                  {isDummyUser(email) ? (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                      <FlaskConical className="h-2.5 w-2.5" /> Domain Dummy Terdeteksi (Auto-Active)
+                    </span>
+                  ) : null}
+                </div>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="contoh@sekolah.sch.id / admin@vokasiflow.ai"
+                  placeholder="muzaki@example.com / admin@vokasiflow.ai"
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                 />
               </div>
@@ -515,8 +841,8 @@ function AdminUsersPage() {
                   onChange={(e) => setRole(e.target.value as "ADMIN" | "GURU")}
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-ai transition-colors"
                 >
-                  <option value="GURU">Guru Sekolah</option>
                   <option value="ADMIN">Admin</option>
+                  <option value="GURU">Guru Sekolah</option>
                 </select>
               </div>
 
@@ -557,7 +883,7 @@ function AdminUsersPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {createMutation.isPending ? "Mendaftarkan..." : "Daftarkan Akun"}
                 </button>
