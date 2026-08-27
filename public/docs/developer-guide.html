@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VokasiFlow AI - Panduan Pengembang (Developer Guide)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-hover: rgba(31, 41, 55, 0.9);
+      --border-color: #1f2937;
+      --border-accent: #374151;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-heading: #ffffff;
+      --accent-primary: #3b82f6;
+      --accent-primary-hover: #2563eb;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --code-bg: #030712;
+      --sidebar-width: 280px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    /* Top Navbar */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      color: white;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .nav-btn {
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nav-btn-secondary {
+      background: #1f2937;
+      color: #e5e7eb;
+      border: 1px solid var(--border-accent);
+    }
+    .nav-btn-secondary:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .nav-btn-primary {
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: white;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    .nav-btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Layout Wrapper */
+    .layout-container {
+      display: flex;
+      max-width: 1600px;
+      margin: 0 auto;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: var(--sidebar-width);
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+      border-right: 1px solid var(--border-color);
+      padding: 1.5rem 1rem;
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+
+    .sidebar-section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #6b7280;
+      letter-spacing: 0.08em;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+      padding-left: 0.75rem;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      border-radius: 6px;
+      margin-bottom: 2px;
+      transition: all 0.15s ease;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: #ffffff;
+      background: rgba(59, 130, 246, 0.15);
+      border-left: 3px solid var(--accent-primary);
+      padding-left: calc(0.75rem - 3px);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 2.5rem 3.5rem;
+      max-width: 1100px;
+    }
+
+    /* Typography & Headers */
+    h1, h2, h3, h4 {
+      color: var(--text-heading);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.25;
+      background: linear-gradient(135deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-top: 3rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      color: #93c5fd;
+    }
+
+    p, ul, ol {
+      margin-bottom: 1.25rem;
+      color: #d1d5db;
+    }
+
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(8px);
+      transition: border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: var(--border-accent);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Badges & Callouts */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-purple { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .callout {
+      border-left: 4px solid var(--accent-primary);
+      background: rgba(30, 58, 138, 0.15);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+
+    .callout-warning {
+      border-left-color: var(--accent-amber);
+      background: rgba(120, 53, 15, 0.15);
+    }
+
+    .callout-success {
+      border-left-color: var(--accent-emerald);
+      background: rgba(6, 78, 59, 0.15);
+    }
+
+    /* Code Blocks */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      color: #e2e8f0;
+      margin: 1rem 0 1.5rem 0;
+      position: relative;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(31, 41, 55, 0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: #93c5fd;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111827;
+      padding: 0.5rem 1rem;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .code-header + pre {
+      margin-top: 0;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    .copy-btn {
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #cbd5e1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      transition: all 0.2s ease;
+    }
+    .copy-btn:hover {
+      background: #374151;
+      color: white;
+    }
+
+    /* Mermaid container */
+    .mermaid-box {
+      background: #0d1322;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      text-align: center;
+      overflow-x: auto;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.875rem;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background: rgba(31, 41, 55, 0.5);
+      color: #f9fafb;
+      font-weight: 600;
+    }
+
+    tr:hover td {
+      background: rgba(31, 41, 55, 0.2);
+    }
+
+    /* Video Player Mock & Recorder Box */
+    .video-card {
+      background: linear-gradient(145deg, #111827, #1e1b4b);
+      border: 1px solid #4338ca;
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    .video-canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #312e81;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .video-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    /* Search Box */
+    .search-container {
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #111827;
+      border: 1px solid var(--border-accent);
+      color: #fff;
+      padding: 0.65rem 1rem 0.65rem 2.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6b7280;
+    }
+
+    @media (max-width: 1024px) {
+      .layout-container { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border-color); }
+      .main-content { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-nav">
+    <a href="#" class="brand-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #3b82f6;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>VokasiFlow AI</span>
+      <span class="brand-badge">Developer Docs</span>
+    </a>
+    <div class="nav-links">
+      <a href="user-manual.html" class="nav-btn nav-btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Buka User Manual
+      </a>
+      <a href="#video-demo" class="nav-btn nav-btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Video Walkthrough (1 Menit)
+      </a>
+    </div>
+  </header>
+
+  <div class="layout-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="search-container">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="docSearch" class="search-input" placeholder="Cari topik teknis..." onkeyup="filterDocs()">
+      </div>
+
+      <nav id="sidebarNav">
+        <div class="sidebar-section-title">Arsitektur & Ringkasan</div>
+        <a href="#overview" class="sidebar-link active">1. System Overview</a>
+        <a href="#tech-stack" class="sidebar-link">2. Tech Stack & Library</a>
+        <a href="#directory-structure" class="sidebar-link">3. Struktur Folder & Kode</a>
+
+        <div class="sidebar-section-title">Basis Data & Keamanan</div>
+        <a href="#database-schema" class="sidebar-link">4. Skema Database & RLS</a>
+        <a href="#rpc-functions" class="sidebar-link">5. Stored Procedures (RPC)</a>
+        <a href="#auth-flow" class="sidebar-link">6. Autentikasi & Multi-Role</a>
+
+        <div class="sidebar-section-title">Keputusan Teknis (ADR)</div>
+        <a href="#adr-001" class="sidebar-link">ADR-001: TanStack Router</a>
+        <a href="#adr-002" class="sidebar-link">ADR-002: Supabase & RLS</a>
+        <a href="#adr-003" class="sidebar-link">ADR-003: Google Maps Spasial</a>
+        <a href="#adr-004" class="sidebar-link">ADR-004: SheetJS Client-side</a>
+
+        <div class="sidebar-section-title">Setup & Deployment</div>
+        <a href="#getting-started" class="sidebar-link">7. Instalasi & Local Dev</a>
+        <a href="#env-vars" class="sidebar-link">8. Environment Variables</a>
+        <a href="#deployment" class="sidebar-link">9. Build & Deployment</a>
+        <a href="#video-demo" class="sidebar-link">10. Video Walkthrough 1 Menit</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
+      <!-- Header Section -->
+      <section id="overview">
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <span class="badge badge-blue">Arsitektur Sistem</span>
+          <span class="badge badge-purple">TypeScript 5+</span>
+          <span class="badge badge-green">PostgreSQL 15</span>
+        </div>
+        <h1>Dokumentasi Teknis & Arsitektur VokasiFlow AI</h1>
+        <p style="font-size: 1.1rem; color: #9ca3af;">
+          Panduan teknis mendalam bagi software engineer, frontend/backend developer, dan DevOps untuk memahami arsitektur, basis data, pipeline ingest data, routing, dan keputusan desain sistem.
+        </p>
+
+        <div class="card" style="border-left: 4px solid var(--accent-primary);">
+          <h3 style="margin-top:0; color:#fff;">🎯 Nilai Utama & Cakupan Sistem</h3>
+          <p>
+            VokasiFlow AI bukan Learning Management System (LMS) atau sistem ujian daring, melainkan <strong>Enterprise SaaS B2B</strong> untuk otomasi administrasi magang, pemetaan spasial institusi-industri, analisis kecerdasan buatan (*AI recommendation* & *forecasting*), serta evaluasi kompetensi vokasi berbasis data.
+          </p>
+        </div>
+
+        <div class="mermaid-box">
+          <pre class="mermaid">
+graph LR
+    subgraph Frontend ["Frontend Layer (Vite + React 18 + TS)"]
+        UI[TanStack Router & Shell Layout]
+        AdminView[Modul Admin Vokasi]
+        GuruView[Modul Guru Pembimbing]
+        MapsComp[Google Maps Interactive Engine]
+        ExcelParser[SheetJS Client-side Parser]
+    end
+
+    subgraph Backend ["Backend & Data Layer (Supabase PaaS)"]
+        Auth[GoTrue Authentication]
+        RLS[Row Level Security Filter]
+        DB[(PostgreSQL Database)]
+        RPC[Stored Procedures / Security Definer]
+    end
+
+    subgraph Cloud ["External Cloud Services"]
+        GMapsAPI[Google Maps JavaScript & Places API]
+    end
+
+    UI --> Auth
+    AdminView --> RLS
+    GuruView --> RLS
+    RLS --> DB
+    MapsComp --> GMapsAPI
+    AdminView --> RPC
+    RPC --> DB
+          </pre>
+        </div>
+      </section>
+
+      <!-- Tech Stack -->
+      <section id="tech-stack">
+        <h2>2. Tech Stack & Dependensi Utama</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h4 style="color:#60a5fa; margin-bottom:0.5rem;">Frontend Core</h4>
+            <ul>
+              <li><strong>React 18.3</strong> + TypeScript</li>
+              <li><strong>Vite 5.x</strong> (High-speed build tool)</li>
+              <li><strong>TanStack Router</strong> (File-based)</li>
+              <li><strong>TanStack Query</strong> (Server State)</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4 style="color:#34d399; margin-bottom:0.5rem;">Styling & UI</h4>
+            <ul>
+              <li><strong>Tailwind CSS</strong> (Design tokens)</li>
+              <li><strong>Radix UI</strong> (Accessible primitives)</li>
+              <li><strong>Lucide React</strong> (Iconography)</li>
+              <li><strong>Framer Motion</strong> (Micro-animations)</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4 style="color:#a78bfa; margin-bottom:0.5rem;">Backend & Cloud</h4>
+            <ul>
+              <li><strong>Supabase</strong> (PostgreSQL 15)</li>
+              <li><strong>Supabase GoTrue</strong> (Auth)</li>
+              <li><strong>Google Maps Platform</strong> (Maps JS API)</li>
+              <li><strong>SheetJS (xlsx)</strong> (Batch Excel Ingest)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Directory Structure -->
+      <section id="directory-structure">
+        <h2>3. Struktur Direktori & Pola Kode</h2>
+        <p>Proyek diorganisasi secara modular dengan pola file-based routing dari TanStack Router:</p>
+
+        <div class="code-header">
+          <span>Struktur Direktori /vokasiflow-ai</span>
+          <button class="copy-btn" onclick="copyCode('tree-code')">Copy</button>
+        </div>
+        <pre><code id="tree-code">vokasiflow-ai/
+├── docs/                       # Dokumentasi resmi (HTML & Markdown)
+├── src/
+│   ├── components/
+│   │   ├── app/                # Komponen domain spesifik (Google Maps, Excel Modals, Shell)
+│   │   └── ui/                 # Komponen antarmuka atomik (Button, Dialog, Badge, Input, Table)
+│   ├── hooks/                  # Custom Hooks (useAuth, useMobile, useToast)
+│   ├── integrations/
+│   │   └── supabase/           # Supabase Client & Generated Database Types
+│   ├── lib/                    # Helpers, Validasi, Formatters, SheetJS Parser
+│   ├── routes/
+│   │   ├── _authenticated/     # Rute Terproteksi dengan Role Guard
+│   │   │   ├── app.admin.*.tsx # Dashboard, Sekolah, Industri, Siswa, Magang, Forecasting
+│   │   │   ├── app.guru.*.tsx  # Dashboard, Siswa Binaan, Monitoring, Evaluasi
+│   │   │   └── route.tsx       # Layout wrapper & session validation
+│   │   ├── auth.tsx            # Form Login, Register, Switcher Role Demo
+│   │   └── index.tsx           # Public Landing Page
+│   └── styles.css              # Global styles & Tailwind utilities
+└── supabase/
+    └── migrations/             # Migrasi SQL, skema tabel, RLS, dan RPC</code></pre>
+      </section>
+
+      <!-- Database Schema & Security -->
+      <section id="database-schema">
+        <h2>4. Skema Basis Data & Row Level Security (RLS)</h2>
+        <p>PostgreSQL skema dirancang dengan prinsip relasional ketat dan isolasi multitenant:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nama Tabel</th>
+              <th>Kolom Kunci</th>
+              <th>Deskripsi & Relasi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>profiles</code></td>
+              <td><code>id (FK auth.users), role, school_id, full_name</code></td>
+              <td>Menyimpan metadata profil pengguna dan perannya (<code>admin</code>, <code>guru</code>, <code>siswa</code>, <code>industri</code>).</td>
+            </tr>
+            <tr>
+              <td><code>schools</code></td>
+              <td><code>id, npsn, name, latitude, longitude, accreditation</code></td>
+              <td>Master data SMK / Politeknik dan koordinat GPS untuk pemetaan rute.</td>
+            </tr>
+            <tr>
+              <td><code>companies</code> & <code>branches</code></td>
+              <td><code>id, company_name, sector, address, quota</code></td>
+              <td>Data institusi mitra industri (DUDI) dan titik cabang lokasi PKL.</td>
+            </tr>
+            <tr>
+              <td><code>students</code></td>
+              <td><code>id, nisn, full_name, school_id, major, gpa, skills</code></td>
+              <td>Data siswa, kompetensi teknis, dan keterhubungannya dengan sekolah asal.</td>
+            </tr>
+            <tr>
+              <td><code>internship_placements</code></td>
+              <td><code>id, student_id, company_id, teacher_id, status</code></td>
+              <td>Pencatatan penempatan magang, guru pembimbing, dan status (<code>pending</code>, <code>approved</code>, <code>ongoing</code>, <code>completed</code>).</td>
+            </tr>
+            <tr>
+              <td><code>internship_activities</code></td>
+              <td><code>id, placement_id, date, activity_description, attendance</code></td>
+              <td>Log harian jurnal PKL dan absensi siswa yang diverifikasi guru.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Stored Procedures (RPC) -->
+      <section id="rpc-functions">
+        <h2>5. Stored Procedures & Security Definer RPC</h2>
+        <p>
+          Untuk memfasilitasi pembuatan akun oleh Admin tanpa merusak sesi autentikasi yang sedang berjalan di browser, sistem memanfaatkan RPC function khusus:
+        </p>
+
+        <div class="code-header">
+          <span>SQL RPC: admin_create_user_with_metadata</span>
+          <button class="copy-btn" onclick="copyCode('rpc-sql')">Copy</button>
+        </div>
+        <pre><code id="rpc-sql">CREATE OR REPLACE FUNCTION public.admin_create_user_with_metadata(
+  new_email TEXT,
+  new_password TEXT,
+  new_role TEXT,
+  new_full_name TEXT,
+  new_school_id UUID DEFAULT NULL,
+  new_nip TEXT DEFAULT NULL,
+  new_phone TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  new_user_id UUID;
+BEGIN
+  -- 1. Cek hak akses pemanggil (harus admin)
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Akses ditolak: Hanya Admin yang dapat membuat akun';
+  END IF;
+
+  -- 2. Insert ke auth.users
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data)
+  VALUES (
+    gen_random_uuid(),
+    new_email,
+    crypt(new_password, gen_salt('bf')),
+    now(),
+    jsonb_build_object('role', new_role, 'full_name', new_full_name)
+  )
+  RETURNING id INTO new_user_id;
+
+  -- 3. Upsert ke public.profiles
+  INSERT INTO public.profiles (id, email, role, full_name, school_id, nip, phone)
+  VALUES (new_user_id, new_email, new_role, new_full_name, new_school_id, new_nip, new_phone);
+
+  RETURN jsonb_build_object('success', true, 'user_id', new_user_id);
+END;
+$$;</code></pre>
+      </section>
+
+      <!-- Architecture Decision Records (ADRs) -->
+      <section id="adr-001">
+        <h2>Keputusan Arsitektur (Architecture Decision Records)</h2>
+        
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0; color:#fff;">ADR-001: Adopsi TanStack Router Berbasis File</h3>
+            <span class="badge badge-green">Diterima / Accepted</span>
+          </div>
+          <p><strong>Konteks:</strong> Aplikasi membutuhkan sistem routing type-safe untuk memisahkan guard akses peran Admin dan Guru secara terisolasi.</p>
+          <p><strong>Keputusan:</strong> Menggunakan TanStack Router dengan konvensi penamaan <code>src/routes/_authenticated/app.admin.*.tsx</code> dan <code>app.guru.*.tsx</code>.</p>
+          <p><strong>Dampak:</strong> Menghilangkan bug broken-link saat refactoring nama rute dan mempercepat navigasi SPA.</p>
+        </div>
+
+        <div class="card" id="adr-002">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0; color:#fff;">ADR-002: Row Level Security (RLS) pada PostgreSQL Supabase</h3>
+            <span class="badge badge-green">Diterima / Accepted</span>
+          </div>
+          <p><strong>Konteks:</strong> Mengamankan data multitenant siswa SMK agar guru dari Sekolah A tidak dapat membaca atau mengubah data Sekolah B.</p>
+          <p><strong>Keputusan:</strong> Setiap tabel sensitif dilindungi dengan policy RLS berbasis <code>auth.uid()</code> dan perbandingan <code>profiles.school_id</code>.</p>
+        </div>
+
+        <div class="card" id="adr-003">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0; color:#fff;">ADR-003: Visualisasi Geospasial Google Maps Platform</h3>
+            <span class="badge badge-green">Diterima / Accepted</span>
+          </div>
+          <p><strong>Konteks:</strong> Rekomendasi penempatan magang harus mempertimbangkan jarak riil perjalanan siswa ke lokasi cabang mitra industri.</p>
+          <p><strong>Keputusan:</strong> Integrasi langsung Google Maps JavaScript API dengan marker clustering, penghitungan Haversine/Distance Matrix, dan visualisasi rute.</p>
+        </div>
+
+        <div class="card" id="adr-004">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0; color:#fff;">ADR-004: Ingesti Excel Massal di Sisi Klien (SheetJS)</h3>
+            <span class="badge badge-green">Diterima / Accepted</span>
+          </div>
+          <p><strong>Konteks:</strong> Pengguna sering mengunggah ribuan baris data siswa dengan format bervariasi.</p>
+          <p><strong>Keputusan:</strong> Parsing dan validasi error dilakukan instan di browser client sebelum dikirim ke database dalam bentuk batch insert teroptimasi.</p>
+        </div>
+      </section>
+
+      <!-- Local Setup -->
+      <section id="getting-started">
+        <h2>7. Panduan Instalasi & Local Development</h2>
+        
+        <div class="code-header">
+          <span>Terminal Command</span>
+          <button class="copy-btn" onclick="copyCode('install-cmd')">Copy</button>
+        </div>
+        <pre><code id="install-cmd"># 1. Clone repositori
+git clone https://github.com/vokasiflow/vokasiflow-ai.git
+cd vokasiflow-ai
+
+# 2. Instal dependensi
+npm install
+
+# 3. Jalankan server lokal
+npm run dev</code></pre>
+      </section>
+
+      <!-- Environment Variables -->
+      <section id="env-vars">
+        <h2>8. Konfigurasi Environment (.env)</h2>
+        <div class="code-header">
+          <span>.env</span>
+          <button class="copy-btn" onclick="copyCode('env-vars-code')">Copy</button>
+        </div>
+        <pre><code id="env-vars-code">VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_GOOGLE_MAPS_API_KEY=AIzaSyA...</code></pre>
+      </section>
+
+      <!-- Video Demo Section -->
+      <section id="video-demo">
+        <h2>10. Video Walkthrough 1 Menit (Interactive Demo & Downloader)</h2>
+        <p>Tonton atau unduh video demonstrasi teknis berdurasi 60 detik yang merangkum arsitektur, UI, dan alur sistem VokasiFlow AI:</p>
+
+        <div class="video-card">
+          <div class="video-canvas-container">
+            <canvas id="demoCanvas" width="960" height="540"></canvas>
+          </div>
+
+          <div class="video-controls">
+            <div style="display:flex; align-items:center; gap: 0.75rem;">
+              <button id="btnPlayPause" class="nav-btn nav-btn-primary" onclick="togglePlay()">
+                <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span id="playText">Putar Demo</span>
+              </button>
+              <span id="timeDisplay" style="font-family:'JetBrains Mono'; font-size:0.875rem; color:#9ca3af;">00:00 / 01:00</span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap: 0.75rem;">
+              <button id="btnRecordDownload" class="nav-btn nav-btn-secondary" onclick="startExportVideo()" style="background:#059669; border-color:#10b981; color:white;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span id="downloadText">Unduh Video (1 Menit .WebM)</span>
+              </button>
+            </div>
+          </div>
+          <p id="exportStatus" style="font-size:0.8rem; color:#6ee7b7; margin-top:0.75rem; display:none;"></p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+
+    function copyCode(id) {
+      const code = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(code);
+      alert('Kode berhasil disalin ke clipboard!');
+    }
+
+    function filterDocs() {
+      const query = document.getElementById('docSearch').value.toLowerCase();
+      const links = document.querySelectorAll('#sidebarNav a');
+      links.forEach(link => {
+        const text = link.innerText.toLowerCase();
+        link.style.display = text.includes(query) ? 'block' : 'none';
+      });
+    }
+
+    // Interactive 60-second Canvas Video Player & Downloader
+    const canvas = document.getElementById('demoCanvas');
+    const ctx = canvas.getContext('2d');
+    let isPlaying = false;
+    let currentTime = 0;
+    const duration = 60; // 60 seconds
+    let animFrame = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    const scenes = [
+      { start: 0, end: 12, title: "1. VokasiFlow AI Architecture", subtitle: "React 18 + TanStack Router + Supabase PostgreSQL", tag: "Tech Stack", color: "#3b82f6" },
+      { start: 12, end: 24, title: "2. Google Maps Interactive Spatial", subtitle: "Pemetaan Jarak Sekolah SMK & Mitra Industri PKL", tag: "Geocoding & Maps", color: "#10b981" },
+      { start: 24, end: 36, title: "3. Bulk Excel Data Ingestion", subtitle: "Fast Client-Side Parsing via SheetJS (xlsx)", tag: "Batch Processing", color: "#8b5cf6" },
+      { start: 36, end: 48, title: "4. AI Recommendation & Placement", subtitle: "Pencocokan Kompetensi Siswa & Kuota DUDI", tag: "AI Matching", color: "#f59e0b" },
+      { start: 48, end: 60, title: "5. Real-time Monitoring & Evaluation", subtitle: "Jurnal Harian, Absensi, & Penilaian Terpadu", tag: "Live Monitoring", color: "#06b6d4" }
+    ];
+
+    function drawScene(t) {
+      ctx.fillStyle = "#090d16";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Background grid effect
+      ctx.strokeStyle = "#161f38";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // Determine current scene
+      const scene = scenes.find(s => t >= s.start && t < s.end) || scenes[scenes.length - 1];
+
+      // Outer Header badge
+      ctx.fillStyle = scene.color;
+      ctx.beginPath();
+      ctx.roundRect(50, 40, 160, 32, 6);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 14px Inter, sans-serif";
+      ctx.fillText(scene.tag, 65, 61);
+
+      // System Header
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "600 16px Inter, sans-serif";
+      ctx.fillText("VOKASIFLOW AI - SYSTEM DEMO", 230, 61);
+
+      // Scene Title
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 32px Inter, sans-serif";
+      ctx.fillText(scene.title, 50, 120);
+
+      // Subtitle
+      ctx.fillStyle = "#93c5fd";
+      ctx.font = "500 20px Inter, sans-serif";
+      ctx.fillText(scene.subtitle, 50, 155);
+
+      // Central Diagram / Visual Box
+      ctx.fillStyle = "rgba(17, 24, 39, 0.9)";
+      ctx.strokeStyle = scene.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(50, 185, canvas.width - 100, 270, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      // Animated wave / pulse element
+      const pulse = Math.sin(t * 4) * 10;
+      ctx.fillStyle = scene.color + "33";
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, 320, 60 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dynamic scene content
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 22px Inter, sans-serif";
+      ctx.textAlign = "center";
+      if (t < 12) {
+        ctx.fillText("⚡ High-Speed Vite SPA + PostgreSQL RLS Multi-Tenant", canvas.width / 2, 310);
+        ctx.font = "16px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#9ca3af";
+        ctx.fillText("Status: Connected to Supabase DB (200 OK)", canvas.width / 2, 345);
+      } else if (t < 24) {
+        ctx.fillText("🗺️ Live Geocoding: 15 Sekolah SMK & 42 Titik Mitra PKL", canvas.width / 2, 310);
+        ctx.font = "16px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#34d399";
+        ctx.fillText("Google Maps JS API Clustering: ACTIVE", canvas.width / 2, 345);
+      } else if (t < 36) {
+        ctx.fillText("📊 Batch Ingesting 250 Data Siswa via Excel...", canvas.width / 2, 310);
+        ctx.font = "16px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#a78bfa";
+        ctx.fillText("Validation: 100% Passed (0 Syntax Errors)", canvas.width / 2, 345);
+      } else if (t < 48) {
+        ctx.fillText("🤖 AI Matching Score: 94.8% Kesesuaian Kompetensi", canvas.width / 2, 310);
+        ctx.font = "16px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillText("Placement Optimization: COMPLETED", canvas.width / 2, 345);
+      } else {
+        ctx.fillText("📈 Real-time Activity Logs & Multi-Role Dashboard", canvas.width / 2, 310);
+        ctx.font = "16px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillText("Presensi: 98.2% | Evaluasi: 120/120 Siswa Terverifikasi", canvas.width / 2, 345);
+      }
+      ctx.textAlign = "left";
+
+      // Progress bar at bottom
+      const progressWidth = ((t % duration) / duration) * (canvas.width - 100);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(50, 480, canvas.width - 100, 8);
+      ctx.fillStyle = scene.color;
+      ctx.fillRect(50, 480, progressWidth, 8);
+
+      // Timestamp text
+      const mins = String(Math.floor(t / 60)).padStart(2, '0');
+      const secs = String(Math.floor(t % 60)).padStart(2, '0');
+      document.getElementById('timeDisplay').innerText = `${mins}:${secs} / 01:00`;
+    }
+
+    function loop() {
+      if (!isPlaying) return;
+      currentTime += 0.05;
+      if (currentTime >= duration) {
+        currentTime = 0;
+      }
+      drawScene(currentTime);
+      animFrame = requestAnimationFrame(loop);
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      document.getElementById('playText').innerText = isPlaying ? 'Jeda' : 'Putar Demo';
+      if (isPlaying) loop();
+      else cancelAnimationFrame(animFrame);
+    }
+
+    function startExportVideo() {
+      const btn = document.getElementById('btnRecordDownload');
+      const status = document.getElementById('exportStatus');
+      status.style.display = 'block';
+      status.innerText = "⏳ Sedang merekam 60 detik video demo beresolusi tinggi...";
+      btn.disabled = true;
+
+      const stream = canvas.captureStream(30);
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+
+      mediaRecorder.ondataavailable = function(e) {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = function() {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'vokasiflow-ai-developer-walkthrough-1min.webm';
+        a.click();
+        status.innerText = "✅ Video 1 Menit berhasil diunduh!";
+        btn.disabled = false;
+      };
+
+      currentTime = 0;
+      isPlaying = true;
+      mediaRecorder.start();
+      loop();
+
+      setTimeout(() => {
+        mediaRecorder.stop();
+        isPlaying = false;
+      }, 60000);
+    }
+
+    // Initial render
+    drawScene(0);
+  </script>
+</body>
+</html>

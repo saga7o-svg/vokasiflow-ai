@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VokasiFlow AI - Buku Panduan Pengguna (User Manual)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #10b981;
+      --text-dark: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --border-focus: #93c5fd;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-body);
+      line-height: 1.7;
+    }
+
+    /* Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-dark);
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: white;
+      color: var(--text-body);
+      border: 1px solid var(--border-color);
+    }
+    .btn-outline:hover {
+      background: #f1f5f9;
+      color: var(--text-dark);
+    }
+
+    /* Hero Banner */
+    .hero {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+      padding: 4rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      max-width: 750px;
+      margin: 0 auto 1.75rem auto;
+      color: #dbeafe;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+    }
+
+    /* Role Filter Switcher */
+    .role-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .tab-btn {
+      padding: 0.6rem 1.5rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: 1px solid var(--border-color);
+      background: white;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    /* Feature Grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.75rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Step-by-Step Guide Section */
+    .step-section {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 2.5rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .step-content {
+      padding-left: 3.5rem;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+    }
+
+    .badge-admin { background: #fee2e2; color: #b91c1c; }
+    .badge-guru { background: #dcfce7; color: #15803d; }
+    .badge-all { background: #e0e7ff; color: #4338ca; }
+
+    /* Video Demo Box */
+    .video-showcase {
+      background: #0f172a;
+      color: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      margin: 3.5rem 0;
+      box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.4);
+    }
+
+    .video-player-frame {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 1.5rem 0;
+      border: 1px solid #334155;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Accordion FAQ */
+    .faq-item {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .faq-question {
+      padding: 1.25rem 1.5rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .faq-question:hover {
+      background: #f8fafc;
+    }
+
+    .faq-answer {
+      padding: 0 1.5rem 1.25rem 1.5rem;
+      color: var(--text-body);
+      display: none;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 1rem;
+    }
+
+    .faq-item.open .faq-answer {
+      display: block;
+    }
+
+    .faq-item.open .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      background: white;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2rem; }
+      .step-content { padding-left: 0; margin-top: 1rem; }
+      .navbar { padding: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="#" class="brand">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #2563eb;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>VokasiFlow AI</span>
+    </a>
+    <div class="nav-actions">
+      <a href="developer-guide.html" class="btn btn-outline">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Panduan Programmer
+      </a>
+      <a href="#video-section" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Tonton Video 1 Menit
+      </a>
+    </div>
+  </nav>
+
+  <!-- Hero Header -->
+  <header class="hero">
+    <h1>Buku Panduan Pengguna VokasiFlow AI</h1>
+    <p>
+      Panduan operasional lengkap bagi Pengelola Program Vokasi (Admin) dan Guru Pembimbing SMK untuk mengelola penempatan magang, peta industri, monitoring, dan analisis berbasis kecerdasan buatan.
+    </p>
+    <div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
+      <a href="#tutorial-import" class="btn" style="background:white; color:#1e40af; font-weight:700;">Panduan Import Siswa Excel</a>
+      <a href="#tutorial-maps" class="btn" style="background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3);">Peta & Rekomendasi AI</a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Role Switcher Filter -->
+    <div class="role-tabs">
+      <button class="tab-btn active" onclick="filterRole('all', this)">Semua Panduan</button>
+      <button class="tab-btn" onclick="filterRole('admin', this)">👤 Khusus Admin Program Vokasi</button>
+      <button class="tab-btn" onclick="filterRole('guru', this)">👨‍🏫 Khusus Guru Pembimbing</button>
+    </div>
+
+    <!-- Feature Highlights -->
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 12H3M12 3v18"/></svg>
+        </div>
+        <h3>Import Excel Sekali Klik</h3>
+        <p>Unggah ratusan data siswa, sekolah, dan industri secara massal dengan validasi instan otomatis anti-salah format.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+        </div>
+        <h3>Peta Interaktif Spasial</h3>
+        <p>Visualisasikan lokasi SMK, perusahaan mitra DUDI, dan hitung rute perjalanan tercepat untuk efisiensi siswa.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.5 7.5"/></svg>
+        </div>
+        <h3>AI Recommendation & Trends</h3>
+        <p>Sistem merekomendasikan siswa terbaik untuk tiap industri serta memprediksi kebutuhan kompetensi masa depan.</p>
+      </div>
+    </div>
+
+    <!-- Step 1: Login & Access -->
+    <div class="step-section" data-role="all">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div>
+          <span class="step-title">Cara Masuk & Memilih Akun (Login / Akses Demo)</span>
+          <span class="badge-pill badge-all">Semua Pengguna</span>
+        </div>
+      </div>
+      <div class="step-content">
+        <p>1. Buka tautan web <strong>VokasiFlow AI</strong> di peramban Chrome, Edge, atau Firefox Anda.</p>
+        <p>2. Pada halaman login, masukkan <strong>Email</strong> dan <strong>Kata Sandi</strong> Anda.</p>
+        <p>3. <em>Ingin mencoba langsung?</em> Anda dapat mengklik tombol <strong>"Demo Admin"</strong> untuk simulasi sebagai pengelola vokasi, atau tombol <strong>"Demo Guru"</strong> untuk simulasi sebagai guru pembimbing sekolah.</p>
+      </div>
+    </div>
+
+    <!-- Step 2: Excel Import -->
+    <div class="step-section" id="tutorial-import" data-role="guru">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div>
+          <span class="step-title">Cara Mengimpor Data Siswa via Berkas Excel</span>
+          <span class="badge-pill badge-guru">Guru & Admin</span>
+        </div>
+      </div>
+      <div class="step-content">
+        <ol style="padding-left:1.25rem;">
+          <li>Buka menu <strong>"Siswa"</strong> pada navigasi di sebelah kiri.</li>
+          <li>Klik tombol hijau <strong>"Import Data Excel"</strong> di pojok kanan atas tabel.</li>
+          <li>Klik tautan <strong>"Unduh Format Template Excel"</strong> agar format kolom data siswa Anda terisi dengan tepat (NISN, Nama, Jurusan, Kelas, Nilai Rata-rata, Keterampilan).</li>
+          <li>Seret berkas Excel Anda ke kotak unggah.</li>
+          <li>Periksa pratinjau data: baris hijau menandakan data siap disimpan, sedangkan baris merah menandakan ada kolom yang perlu diperbaiki.</li>
+          <li>Klik tombol <strong>"Simpan Semua Siswa"</strong>. Data akan langsung terintegrasi secara instan ke sistem.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Step 3: Interactive Maps & AI Recommendation -->
+    <div class="step-section" id="tutorial-maps" data-role="admin">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div>
+          <span class="step-title">Peta Spasial Google Maps & Rekomendasi Penempatan AI</span>
+          <span class="badge-pill badge-admin">Khusus Admin</span>
+        </div>
+      </div>
+      <div class="step-content">
+        <p>1. Buka menu <strong>"Perusahaan Mitra"</strong> atau <strong>"Peta & Rekomendasi"</strong>.</p>
+        <p>2. Amati peta interaktif:</p>
+        <ul style="padding-left:1.5rem; margin-bottom:1rem;">
+          <li>🔵 <strong>Pin Biru:</strong> Menunjukkan lokasi Sekolah SMK.</li>
+          <li>🟠 <strong>Pin Oranye / Hijau:</strong> Menunjukkan lokasi Mitra Industri & Cabang Magang.</li>
+        </ul>
+        <p>3. Klik salah satu pin mitra untuk melihat kuota penempatan yang tersisa dan jarak tempuh dari sekolah.</p>
+        <p>4. Buka tab <strong>"Rekomendasi Penempatan AI"</strong>: Algoritma AI akan menampilkan nama siswa dengan persentase kesesuaian keterampilan tertinggi untuk ditempatkan di industri tersebut.</p>
+      </div>
+    </div>
+
+    <!-- Step 4: Daily Monitoring & Grading -->
+    <div class="step-section" data-role="guru">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div>
+          <span class="step-title">Monitoring Aktivitas Harian & Penilaian Kelulusan Magang</span>
+          <span class="badge-pill badge-guru">Khusus Guru</span>
+        </div>
+      </div>
+      <div class="step-content">
+        <p>1. Masuk ke menu <strong>"Monitoring Aktivitas"</strong> di sidebar.</p>
+        <p>2. Pilih siswa bimbingan Anda untuk memeriksa jurnal kegiatan mingguan dan catatan presensi.</p>
+        <p>3. Berikan status <strong>"Terverifikasi"</strong> atau tambahkan catatan evaluasi pembimbing.</p>
+        <p>4. Saat periode magang selesai, buka menu <strong>"Evaluasi & Nilai"</strong> untuk menginput nilai teknis (*hard skills*) dan nilai sikap (*soft skills*).</p>
+      </div>
+    </div>
+
+    <!-- Step 5: AI Forecasting -->
+    <div class="step-section" data-role="admin">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div>
+          <span class="step-title">Analisis Tren Kebutuhan Industri & Forecasting</span>
+          <span class="badge-pill badge-admin">Khusus Admin</span>
+        </div>
+      </div>
+      <div class="step-content">
+        <p>1. Masuk ke menu <strong>"Forecasting & Analytics"</strong>.</p>
+        <p>2. Pilih sektor industri (misal: Rekayasa Perangkat Lunak, Otomotif, Perhotelan, Logistik).</p>
+        <p>3. Sistem akan menghasilkan grafik proyeksi kebutuhan industri untuk 6 sampai 12 bulan mendatang, memungkinkan SMK menyelaraskan kurikulum dengan tren pasar kerja.</p>
+      </div>
+    </div>
+
+    <!-- 1-Minute Video Demo & Downloader -->
+    <section id="video-section" class="video-showcase">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <span style="background:#3b82f6; padding:4px 12px; border-radius:9999px; font-size:0.75rem; font-weight:700; text-transform:uppercase;">Video Walkthrough</span>
+          <h2 style="font-size:1.85rem; font-weight:800; margin-top:0.5rem; color:white;">Demonstrasi Penggunaan VokasiFlow AI (1 Menit)</h2>
+          <p style="color:#94a3b8; font-size:0.95rem;">Tonton animasi simulasi alur fitur lengkap atau unduh langsung video dalam format .WebM ke komputer Anda.</p>
+        </div>
+        <button id="btnDownloadUserVideo" class="btn btn-primary" onclick="exportUserVideo()" style="background:#10b981; font-weight:700;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Unduh Video 1 Menit (.WebM)
+        </button>
+      </div>
+
+      <div class="video-player-frame">
+        <canvas id="userCanvas" width="960" height="540"></canvas>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <button id="btnUserPlay" class="btn" style="background:#3b82f6; color:white;" onclick="toggleUserPlay()">
+          <svg id="uPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span id="uPlayText">Putar Video Panduan</span>
+        </button>
+        <span id="uTimeDisplay" style="font-family:'JetBrains Mono'; font-size:0.9rem; color:#94a3b8;">00:00 / 01:00</span>
+      </div>
+      <p id="uExportStatus" style="color:#34d399; font-size:0.85rem; margin-top:0.75rem; display:none;"></p>
+    </section>
+
+    <!-- FAQ Section -->
+    <h2 style="font-size:1.75rem; font-weight:800; color:var(--text-dark); margin-bottom:1.5rem;">Pertanyaan yang Sering Diajukan (FAQ)</h2>
+    
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span>Bagaimana cara mengedit profil sekolah dan alamat di peta?</span>
+        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="faq-answer">
+        Masuk sebagai Admin, pilih menu <strong>"Sekolah"</strong>, klik tombol <strong>"Edit"</strong> di samping nama sekolah Anda, lalu masukkan alamat atau koordinat latitude/longitude yang baru.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span>Apakah data siswa yang diimpor dari Excel aman dan tidak bocor ke sekolah lain?</span>
+        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="faq-answer">
+        Sangat aman. Sistem VokasiFlow AI dilindungi dengan teknologi <em>Row Level Security</em> di level basis data, sehingga guru atau admin sekolah hanya dapat melihat data dari institusi mereka sendiri.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span>Bagaimana jika proses upload Excel mengalami kegagalan baris?</span>
+        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="faq-answer">
+        Sistem menampilkan tabel pratinjau berwarna merah dengan pesan kesalahan spesifik (misalnya NISN duplikat atau kolom wajib yang belum diisi). Anda dapat memperbaiki sel tersebut langsung sebelum menekan tombol simpan.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 VokasiFlow AI. Hak Cipta Dilindungi Undang-Undang. Didesain untuk kemajuan pendidikan vokasi Indonesia.</p>
+  </footer>
+
+  <script>
+    function toggleFaq(elem) {
+      elem.parentElement.classList.toggle('open');
+    }
+
+    function filterRole(role, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const sections = document.querySelectorAll('.step-section');
+      sections.forEach(sec => {
+        const secRole = sec.getAttribute('data-role');
+        if (role === 'all' || secRole === 'all' || secRole === role) {
+          sec.style.display = 'block';
+        } else {
+          sec.style.display = 'none';
+        }
+      });
+    }
+
+    // 60-Second Interactive User Video Generator
+    const uCanvas = document.getElementById('userCanvas');
+    const uCtx = uCanvas.getContext('2d');
+    let uIsPlaying = false;
+    let uCurrentTime = 0;
+    const uDuration = 60;
+    let uAnimFrame = null;
+    let uRecorder = null;
+    let uChunks = [];
+
+    const userScenes = [
+      { start: 0, end: 12, title: "Langkah 1: Masuk ke Portal VokasiFlow AI", desc: "Akses cepat dengan Role Admin Vokasi atau Guru Pembimbing SMK", step: "1 / 5", color: "#2563eb" },
+      { start: 12, end: 24, title: "Langkah 2: Import Data Siswa via Excel", desc: "Validasi otomatis NISN, jurusan, dan kompetensi tanpa entri manual satu-satu", step: "2 / 5", color: "#10b981" },
+      { start: 24, end: 36, title: "Langkah 3: Peta Spasial Google Maps", desc: "Pemetaan rute, jarak perjalanan, dan kuota mitra industri DUDI", step: "3 / 5", color: "#f59e0b" },
+      { start: 36, end: 48, title: "Langkah 4: Rekomendasi Penempatan AI", desc: "Pencocokan presisi antara keterampilan siswa dan kebutuhan industri", step: "4 / 5", color: "#8b5cf6" },
+      { start: 48, end: 60, title: "Langkah 5: Monitoring & Evaluasi Nilai PKL", desc: "Verifikasi jurnal kegiatan harian, presensi, dan nilai akhir kelulusan", step: "5 / 5", color: "#06b6d4" }
+    ];
+
+    function drawUserScene(t) {
+      uCtx.fillStyle = "#0b1329";
+      uCtx.fillRect(0, 0, uCanvas.width, uCanvas.height);
+
+      const scene = userScenes.find(s => t >= s.start && t < s.end) || userScenes[userScenes.length - 1];
+
+      // Step Tag Badge
+      uCtx.fillStyle = scene.color;
+      uCtx.beginPath();
+      uCtx.roundRect(50, 40, 140, 32, 8);
+      uCtx.fill();
+      uCtx.fillStyle = "#ffffff";
+      uCtx.font = "bold 14px 'Plus Jakarta Sans', sans-serif";
+      uCtx.fillText("MODUL " + scene.step, 65, 62);
+
+      // Title & Description
+      uCtx.fillStyle = "#ffffff";
+      uCtx.font = "bold 28px 'Plus Jakarta Sans', sans-serif";
+      uCtx.fillText(scene.title, 50, 120);
+
+      uCtx.fillStyle = "#cbd5e1";
+      uCtx.font = "500 18px 'Plus Jakarta Sans', sans-serif";
+      uCtx.fillText(scene.desc, 50, 155);
+
+      // Main Visual Card
+      uCtx.fillStyle = "#1e293b";
+      uCtx.strokeStyle = scene.color;
+      uCtx.lineWidth = 3;
+      uCtx.beginPath();
+      uCtx.roundRect(50, 185, uCanvas.width - 100, 270, 14);
+      uCtx.fill();
+      uCtx.stroke();
+
+      // Inside Graphic Card Demo
+      uCtx.fillStyle = "#ffffff";
+      uCtx.font = "bold 22px 'Plus Jakarta Sans', sans-serif";
+      uCtx.textAlign = "center";
+
+      if (t < 12) {
+        uCtx.fillText("🔐 Single Sign-On & Akses Role Terintegrasi", uCanvas.width / 2, 305);
+        uCtx.fillStyle = "#94a3b8";
+        uCtx.font = "16px 'Plus Jakarta Sans', sans-serif";
+        uCtx.fillText("Admin Vokasi • Guru Pembimbing • Mitra Industri", uCanvas.width / 2, 345);
+      } else if (t < 24) {
+        uCtx.fillText("📄 File Excel Terverifikasi (250 Siswa)", uCanvas.width / 2, 305);
+        uCtx.fillStyle = "#34d399";
+        uCtx.font = "16px 'Plus Jakarta Sans', sans-serif";
+        uCtx.fillText("Status: Data Siap Diproses & Tersimpan di Database", uCanvas.width / 2, 345);
+      } else if (t < 36) {
+        uCtx.fillText("🗺️ Google Maps Navigation: Rute SMK ke Industri PKL", uCanvas.width / 2, 305);
+        uCtx.fillStyle = "#fbbf24";
+        uCtx.font = "16px 'Plus Jakarta Sans', sans-serif";
+        uCtx.fillText("Jarak Rata-rata: 4.8 km | Waktu Tempuh: 15 Menit", uCanvas.width / 2, 345);
+      } else if (t < 48) {
+        uCtx.fillText("✨ AI Matching Score: 98% Cocok dengan PT Telkom", uCanvas.width / 2, 305);
+        uCtx.fillStyle = "#c084fc";
+        uCtx.font = "16px 'Plus Jakarta Sans', sans-serif";
+        uCtx.fillText("Skill Match: React, Node.js, Database Management", uCanvas.width / 2, 345);
+      } else {
+        uCtx.fillText("📊 Jurnal & Presensi PKL: 100% Terverifikasi Guru", uCanvas.width / 2, 305);
+        uCtx.fillStyle = "#38bdf8";
+        uCtx.font = "16px 'Plus Jakarta Sans', sans-serif";
+        uCtx.fillText("Nilai Akhir: A (Sangat Memuaskan)", uCanvas.width / 2, 345);
+      }
+      uCtx.textAlign = "left";
+
+      // Progress Bar
+      const pWidth = ((t % uDuration) / uDuration) * (uCanvas.width - 100);
+      uCtx.fillStyle = "#334155";
+      uCtx.fillRect(50, 480, uCanvas.width - 100, 8);
+      uCtx.fillStyle = scene.color;
+      uCtx.fillRect(50, 480, pWidth, 8);
+
+      // Time
+      const m = String(Math.floor(t / 60)).padStart(2, '0');
+      const s = String(Math.floor(t % 60)).padStart(2, '0');
+      document.getElementById('uTimeDisplay').innerText = `${m}:${s} / 01:00`;
+    }
+
+    function uLoop() {
+      if (!uIsPlaying) return;
+      uCurrentTime += 0.05;
+      if (uCurrentTime >= uDuration) {
+        uCurrentTime = 0;
+      }
+      drawUserScene(uCurrentTime);
+      uAnimFrame = requestAnimationFrame(uLoop);
+    }
+
+    function toggleUserPlay() {
+      uIsPlaying = !uIsPlaying;
+      document.getElementById('uPlayText').innerText = uIsPlaying ? 'Jeda Video' : 'Putar Video Panduan';
+      if (uIsPlaying) uLoop();
+      else cancelAnimationFrame(uAnimFrame);
+    }
+
+    function exportUserVideo() {
+      const btn = document.getElementById('btnDownloadUserVideo');
+      const status = document.getElementById('uExportStatus');
+      status.style.display = 'block';
+      status.innerText = "⏳ Sedang merender dan merekam video 1 menit resolusi tinggi...";
+      btn.disabled = true;
+
+      const stream = uCanvas.captureStream(30);
+      uChunks = [];
+      uRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+
+      uRecorder.ondataavailable = function(e) {
+        if (e.data.size > 0) uChunks.push(e.data);
+      };
+
+      uRecorder.onstop = function() {
+        const blob = new Blob(uChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'vokasiflow-ai-panduan-pengguna-1menit.webm';
+        a.click();
+        status.innerText = "✅ Video 1 Menit berhasil diunduh ke komputer Anda!";
+        btn.disabled = false;
+      };
+
+      uCurrentTime = 0;
+      uIsPlaying = true;
+      uRecorder.start();
+      uLoop();
+
+      setTimeout(() => {
+        uRecorder.stop();
+        uIsPlaying = false;
+      }, 60000);
+    }
+
+    // Initial render
+    drawUserScene(0);
+  </script>
+</body>
+</html>
