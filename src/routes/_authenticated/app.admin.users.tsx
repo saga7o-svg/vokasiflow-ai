@@ -28,6 +28,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/admin/users")({
   head: () => ({
@@ -120,47 +121,6 @@ function AdminUsersPage() {
       role: "ADMIN" | "GURU";
     }) => {
       const cleanEmail = payload.email.trim().toLowerCase();
-      let authUserId: string | null = null;
-
-      // 1. Attempt client-side signup with a detached client (does not affect current Super Admin session)
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabaseUrl =
-          (import.meta as any).env?.VITE_SUPABASE_URL || "https://mukaxrilfbcrwkrefqsi.supabase.co";
-        const supabaseKey =
-          (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
-          "sb_publishable_1rJmfbiE0-AtpbgP0ZlKQQ__v1jgyFs";
-
-        const tempAuthClient = createClient(supabaseUrl, supabaseKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-          },
-        });
-
-        const { data: signUpData, error: signUpErr } = await tempAuthClient.auth.signUp({
-          email: cleanEmail,
-          password: payload.password,
-          options: {
-            data: {
-              name: payload.name.trim(),
-              role: payload.role,
-              school_id: payload.school_id,
-            },
-          },
-        });
-
-        if (signUpData?.user?.id) {
-          authUserId = signUpData.user.id;
-        } else if (signUpErr) {
-          console.warn("Client tempAuthClient notice:", signUpErr.message);
-        }
-      } catch (e) {
-        console.warn("Client signUp exception:", e);
-      }
-
-      // 2. Call server function to finalize profile, auto-confirm email, and set user_roles
       return createGuruFn({
         data: {
           name: payload.name.trim(),
@@ -168,7 +128,6 @@ function AdminUsersPage() {
           password: payload.password,
           school_id: payload.school_id,
           role: payload.role,
-          user_id: authUserId,
         },
       });
     },
