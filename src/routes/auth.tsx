@@ -17,7 +17,11 @@ import {
   LogIn,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { listPublicSchools, registerTeacherAccount } from "@/lib/api.functions";
+import {
+  listPublicSchools,
+  registerTeacherAccount,
+  confirmUserEmailFn,
+} from "@/lib/api.functions";
 import { DUMMY_SCHOOLS } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -51,6 +55,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const fetchPublicSchools = useServerFn(listPublicSchools);
   const registerTeacherFn = useServerFn(registerTeacherAccount);
+  const confirmEmailServerFn = useServerFn(confirmUserEmailFn);
 
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams["mode"] === "register" ? "register" : "login",
@@ -106,7 +111,28 @@ function AuthPage() {
         password: passVal,
       });
 
-      // 2. Fallback auto-signup if user doesn't exist in Supabase Auth yet (e.g. initial super admin / demo account)
+      // 2. If email is not confirmed yet (e.g. accounts created by Super Admin), auto confirm and retry immediately!
+      if (
+        signInError &&
+        (signInError.message?.toLowerCase().includes("email not confirmed") ||
+          signInError.message?.toLowerCase().includes("not confirmed"))
+      ) {
+        try {
+          await supabase.rpc("confirm_user_email" as never, { target_email: emailVal } as never);
+          await confirmEmailServerFn({ data: { email: emailVal } });
+          const retryConfirm = await supabase.auth.signInWithPassword({
+            email: emailVal,
+            password: passVal,
+          });
+          if (!retryConfirm.error) {
+            signInError = null;
+          }
+        } catch (e) {
+          console.warn("Auto confirm error:", e);
+        }
+      }
+
+      // 3. Fallback auto-signup if user doesn't exist in Supabase Auth yet (e.g. initial super admin / demo account)
       if (
         signInError &&
         (signInError.message?.toLowerCase().includes("invalid login credentials") ||
@@ -128,6 +154,12 @@ function AuthPage() {
             },
           });
 
+          // Confirm immediately
+          try {
+            await supabase.rpc("confirm_user_email" as never, { target_email: emailVal } as never);
+            await confirmEmailServerFn({ data: { email: emailVal } });
+          } catch {}
+
           const retry = await supabase.auth.signInWithPassword({
             email: emailVal,
             password: passVal,
@@ -145,7 +177,7 @@ function AuthPage() {
         return;
       }
 
-      // 3. Setup admin / demo role in database (non-blocking)
+      // 4. Setup admin / demo role in database (non-blocking)
       try {
         if (emailVal === "saga7o@example.com") {
           await supabase.rpc("setup_saga7o_admin" as never);

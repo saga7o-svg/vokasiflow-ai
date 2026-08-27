@@ -3556,6 +3556,23 @@ export const listUsers = createServerFn({ method: "GET" })
     });
   });
 
+export const confirmUserEmailFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z.object({ email: z.string().trim().email() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.rpc("confirm_user_email" as never, {
+        target_email: data.email.toLowerCase().trim(),
+      } as never);
+      return { success: true };
+    } catch (e) {
+      console.warn("confirmUserEmailFn error:", e);
+      return { success: false };
+    }
+  });
+
 export const createGuruUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
@@ -3632,7 +3649,14 @@ export const createGuruUser = createServerFn({ method: "POST" })
       } catch {}
     }
 
-    // 3. If targetUserId is still not found, check existing profiles or generate a new UUID
+    // 3. Immediately auto-confirm the user in database
+    try {
+      await context.supabase.rpc("confirm_user_email" as never, {
+        target_email: cleanEmail,
+      } as never);
+    } catch {}
+
+    // 4. If targetUserId is still not found, check existing profiles or generate a new UUID
     if (!targetUserId) {
       const { data: existingProf } = await context.supabase
         .from("profiles")
@@ -3649,7 +3673,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
     const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
 
-    // 4. Save profile in profiles table
+    // 5. Save profile in profiles table
     const { error: profErr } = await context.supabase.from("profiles").upsert({
       id: targetUserId,
       name: data.name,
@@ -3663,7 +3687,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
     }
 
-    // 5. Update user_roles table
+    // 6. Update user_roles table
     await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
     const { error: roleErr } = await context.supabase
       .from("user_roles")
