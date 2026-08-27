@@ -36,4 +36,5 @@ dist-ssr
 .plan
 .lovable
 .agents
-
+AGENTS.md
+skills-lock.json

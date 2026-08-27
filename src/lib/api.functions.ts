@@ -228,6 +228,39 @@ export const getDashboard = createServerFn({ method: "GET" })
     };
   });
 
+export const listPublicSchools = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("schools")
+      .select("id, name, school_code, city, province, status")
+      .eq("status", "ACTIVE")
+      .order("name");
+
+    if (error || !data || data.length === 0) {
+      return DUMMY_SCHOOLS.map((s) => ({
+        id: s.id,
+        name: s.name,
+        school_code: s.school_code,
+        city: s.city,
+        province: s.province,
+        status: s.status,
+      }));
+    }
+    return data;
+  } catch (err) {
+    console.warn("listPublicSchools error, returning DUMMY_SCHOOLS fallback:", err);
+    return DUMMY_SCHOOLS.map((s) => ({
+      id: s.id,
+      name: s.name,
+      school_code: s.school_code,
+      city: s.city,
+      province: s.province,
+      status: s.status,
+    }));
+  }
+});
+
 export const listSchools = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -235,7 +268,14 @@ export const listSchools = createServerFn({ method: "GET" })
       return DUMMY_SCHOOLS;
     }
     const { data, error } = await context.supabase.from("schools").select("*").order("name");
-    if (error) throw new Error("Gagal memuat data sekolah.");
+    if (error) {
+      console.warn("listSchools query error, falling back to DUMMY_SCHOOLS:", error);
+      return DUMMY_SCHOOLS;
+    }
+
+    if (!data || data.length === 0) {
+      return DUMMY_SCHOOLS;
+    }
 
     // Enrich rows if mentor/partnership_type are stored in embedded metadata
     const enriched = (data || []).map((s: Record<string, unknown>) => {

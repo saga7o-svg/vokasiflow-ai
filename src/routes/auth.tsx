@@ -17,7 +17,8 @@ import {
   LogIn,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { listSchools } from "@/lib/api.functions";
+import { listPublicSchools } from "@/lib/api.functions";
+import { DUMMY_SCHOOLS } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -48,7 +49,7 @@ const ENABLE_GOOGLE_AUTH = false;
 function AuthPage() {
   const searchParams = Route.useSearch();
   const navigate = useNavigate();
-  const fetchSchools = useServerFn(listSchools);
+  const fetchPublicSchools = useServerFn(listPublicSchools);
 
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams["mode"] === "register" ? "register" : "login",
@@ -69,9 +70,18 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { data: schools } = useQuery({
-    queryKey: ["schools-list"],
-    queryFn: () => fetchSchools(),
+  const { data: schools, isLoading: isSchoolsLoading } = useQuery({
+    queryKey: ["public-schools-list"],
+    queryFn: async () => {
+      try {
+        const res = await fetchPublicSchools();
+        if (res && res.length > 0) return res;
+      } catch (err) {
+        console.warn("fetchPublicSchools serverFn error:", err);
+      }
+      return DUMMY_SCHOOLS;
+    },
+    staleTime: 1000 * 60 * 5,
   });
 
   async function handleLogin(targetEmail?: string, targetPassword?: string) {
@@ -161,7 +171,8 @@ function AuthPage() {
     setError(null);
 
     const cleanEmail = regEmail.trim().toLowerCase();
-    const selectedSchool = regSchoolId || (schools?.[0]?.id ?? "");
+    const availableSchools = schools && schools.length > 0 ? schools : DUMMY_SCHOOLS;
+    const selectedSchool = regSchoolId || (availableSchools[0]?.id ?? "");
 
     if (!regName.trim() || !cleanEmail || !regPassword || !selectedSchool) {
       setError("Semua bidang bertanda wajib diisi.");
@@ -244,7 +255,8 @@ function AuthPage() {
     setError(null);
 
     const cleanEmail = regEmail.trim().toLowerCase();
-    const selectedSchool = regSchoolId || (schools?.[0]?.id ?? "");
+    const availableSchools = schools && schools.length > 0 ? schools : DUMMY_SCHOOLS;
+    const selectedSchool = regSchoolId || (availableSchools[0]?.id ?? "");
 
     if (!regName.trim()) {
       setError("Silakan isi Nama Lengkap & Gelar Anda terlebih dahulu.");
@@ -559,7 +571,7 @@ function AuthPage() {
 
               {/* Asal Sekolah */}
               <label className="grid gap-1.5 text-xs font-medium">
-                Asal Sekolah <span className="text-destructive">*</span>
+                Asal Sekolah Mitra <span className="text-destructive">*</span>
                 <div className="relative">
                   <select
                     required
@@ -568,12 +580,17 @@ function AuthPage() {
                     aria-describedby={error ? "auth-register-error" : undefined}
                     value={regSchoolId}
                     onChange={(e) => setRegSchoolId(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai font-medium"
+                    disabled={isSchoolsLoading}
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pl-9 pr-8 text-xs outline-none transition-colors focus:border-ai focus:ring-2 focus:ring-ai/20 focus-visible:ring-2 focus-visible:ring-ai font-medium disabled:opacity-60"
                   >
-                    <option value="">-- Pilih Sekolah Mitra --</option>
-                    {(schools ?? []).map((s) => (
+                    <option value="">
+                      {isSchoolsLoading
+                        ? "-- Memuat Data Sekolah Mitra... --"
+                        : "-- Pilih Sekolah Mitra --"}
+                    </option>
+                    {(schools && schools.length > 0 ? schools : DUMMY_SCHOOLS).map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} ({s.city})
+                        {s.name} {s.city ? `(${s.city})` : s.school_code ? `(${s.school_code})` : ""}
                       </option>
                     ))}
                   </select>
