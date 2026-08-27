@@ -3596,7 +3596,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
     let targetUserId: string | null = null;
     const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
 
-    // 1. Create or update user via Supabase Auth Admin API (auto-confirmed, instant login ready, works with dummy/example domains)
+    // 1. Create or update user via Supabase Auth Admin API (auto-confirmed, instant login ready)
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -3607,12 +3607,6 @@ export const createGuruUser = createServerFn({ method: "POST" })
           name: data.name,
           role: data.role,
           school_id: assignedSchoolId,
-          is_dummy:
-            cleanEmail.endsWith("@example.com") ||
-            cleanEmail.endsWith(".test") ||
-            cleanEmail.includes("dummy")
-              ? true
-              : undefined,
         },
       });
 
