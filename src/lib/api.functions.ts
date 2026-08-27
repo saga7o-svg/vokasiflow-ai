@@ -3595,68 +3595,41 @@ export const createGuruUser = createServerFn({ method: "POST" })
     const cleanEmail = data.email.toLowerCase().trim();
     let targetUserId: string | null = null;
 
-    // 1. Try to create using auth.admin.createUser if service role key is available
+    // 1. Create account using supabase client with proper headers and timeout
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      const { supabase: authClient } = await import("@/integrations/supabase/client");
+      const signUpPromise = authClient.auth.signUp({
         email: cleanEmail,
         password: data.password,
-        email_confirm: true,
-        user_metadata: {
-          name: data.name,
-          role: data.role,
-          school_id: data.role === "ADMIN" ? null : data.school_id,
+        options: {
+          data: {
+            name: data.name,
+            role: data.role,
+            school_id: data.role === "ADMIN" ? null : data.school_id,
+          },
         },
       });
 
-      if (!error && created?.user?.id) {
-        targetUserId = created.user.id;
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 3500),
+      );
+
+      const signUpRes = await Promise.race([signUpPromise, timeoutPromise]);
+      if (signUpRes?.data?.user?.id) {
+        targetUserId = signUpRes.data.user.id;
       }
-    } catch {}
-
-    // 2. Fallback to auth.signUp
-    if (!targetUserId) {
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabaseUrl =
-          process.env["SUPABASE_URL"] ||
-          process.env["VITE_SUPABASE_URL"] ||
-          "https://mukaxrilfbcrwkrefqsi.supabase.co";
-        const supabaseKey =
-          process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-          process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-          "sb_publishable_1rJmfbiE0-AtpbgP0ZlKQQ__v1jgyFs";
-
-        const authClient = createClient(supabaseUrl, supabaseKey, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-
-        const { data: signUpData } = await authClient.auth.signUp({
-          email: cleanEmail,
-          password: data.password,
-          options: {
-            data: {
-              name: data.name,
-              role: data.role,
-              school_id: data.role === "ADMIN" ? null : data.school_id,
-            },
-          },
-        });
-
-        if (signUpData?.user?.id) {
-          targetUserId = signUpData.user.id;
-        }
-      } catch {}
+    } catch (err) {
+      console.warn("User signUp warning in createGuruUser:", err);
     }
 
-    // 3. Immediately auto-confirm the user in database
+    // 2. Immediately auto-confirm the user in database if RPC is available
     try {
       await context.supabase.rpc("confirm_user_email" as never, {
         target_email: cleanEmail,
       } as never);
     } catch {}
 
-    // 4. If targetUserId is still not found, check existing profiles or generate a new UUID
+    // 3. If targetUserId is still not found, check existing profiles or generate a new UUID
     if (!targetUserId) {
       const { data: existingProf } = await context.supabase
         .from("profiles")
@@ -3673,7 +3646,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
 
     const assignedSchoolId = data.role === "ADMIN" ? null : data.school_id || null;
 
-    // 5. Save profile in profiles table
+    // 4. Save profile in profiles table
     const { error: profErr } = await context.supabase.from("profiles").upsert({
       id: targetUserId,
       name: data.name,
@@ -3687,7 +3660,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       throw new Error(`Gagal menyimpan profil pengguna: ${profErr.message}`);
     }
 
-    // 6. Update user_roles table
+    // 5. Update user_roles table
     await context.supabase.from("user_roles").delete().eq("user_id", targetUserId);
     const { error: roleErr } = await context.supabase
       .from("user_roles")
@@ -3707,7 +3680,7 @@ export const createGuruUser = createServerFn({ method: "POST" })
       });
     } catch {}
 
-    return { ok: true };
+    return { ok: true, userId: targetUserId };
   });
 
 export const updateUser = createServerFn({ method: "POST" })

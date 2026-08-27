@@ -173,7 +173,24 @@ function AuthPage() {
       }
 
       if (signInError) {
-        setError(signInError.message || "Email atau password salah.");
+        if (
+          signInError.message?.toLowerCase().includes("email not confirmed") ||
+          signInError.message?.toLowerCase().includes("not confirmed")
+        ) {
+          try {
+            await supabase.auth.resend({
+              type: "signup",
+              email: emailVal,
+            });
+            toast.info(`Tautan verifikasi telah dikirim ke ${emailVal}.`);
+          } catch {}
+
+          setError(
+            `Email akun (${emailVal}) belum diverifikasi. Tautan konfirmasi telah dikirim ke email Anda (cek kotak Masuk atau Spam). Silakan klik tautan verifikasi tersebut untuk mengaktifkan akun.`,
+          );
+        } else {
+          setError(signInError.message || "Email atau password salah.");
+        }
         return;
       }
 
@@ -568,9 +585,37 @@ function AuthPage() {
                   id="auth-login-error"
                   role="alert"
                   aria-live="assertive"
-                  className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium"
+                  className="rounded-xl bg-destructive/10 p-3.5 text-xs text-destructive font-medium space-y-2"
                 >
-                  {error}
+                  <p className="leading-relaxed">{error}</p>
+                  {(error.toLowerCase().includes("konfirmasi") ||
+                    error.toLowerCase().includes("confirmed") ||
+                    error.toLowerCase().includes("verifikasi")) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const targetEmail = (email || "").trim().toLowerCase();
+                        if (!targetEmail) {
+                          toast.error("Silakan masukkan email terlebih dahulu.");
+                          return;
+                        }
+                        try {
+                          await supabase.auth.resend({
+                            type: "signup",
+                            email: targetEmail,
+                          });
+                          toast.success(
+                            `Tautan aktivasi email berhasil dikirim ulang ke ${targetEmail}.`,
+                          );
+                        } catch (e: any) {
+                          toast.error(e?.message || "Gagal mengirim ulang email.");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary underline hover:opacity-80 transition-opacity"
+                    >
+                      <Mail className="h-3.5 w-3.5" /> Kirim Ulang Tautan Konfirmasi Email
+                    </button>
+                  )}
                 </div>
               ) : null}
 
