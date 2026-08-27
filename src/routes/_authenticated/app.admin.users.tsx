@@ -9,6 +9,7 @@ import {
   createGuruUser,
   updateUser,
   deleteUser,
+  isSuperAdminEmail,
 } from "@/lib/api.functions";
 import {
   Search,
@@ -53,7 +54,11 @@ interface UserItem {
 function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
-  const isSuperAdmin = me?.role === "SUPER_ADMIN" || Boolean(me?.isSuperAdmin);
+  const isSuperAdmin =
+    me?.role === "SUPER_ADMIN" ||
+    me?.role === "ADMIN" ||
+    Boolean(me?.isSuperAdmin) ||
+    isSuperAdminEmail(me?.email);
 
   const fetchUsers = useServerFn(listUsers);
   const fetchSchools = useServerFn(listSchools);
