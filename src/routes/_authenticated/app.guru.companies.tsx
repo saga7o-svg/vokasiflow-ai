@@ -323,7 +323,7 @@ function GuruCompaniesPage() {
                                   const isMaps =
                                     b.address.includes("http") || b.address.includes("maps");
                                   const mapsUrl = isMaps
-                                    ? b.address.match(/(https?:\/\/[^\s\)]+)/)?.[0]
+                                    ? b.address.match(/(https?:\/\/[^\s)]+)/)?.[0]
                                     : null;
                                   const cleanText = mapsUrl
                                     ? b.address.replace(mapsUrl, "").trim()
